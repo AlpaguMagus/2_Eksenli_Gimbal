@@ -1,0 +1,1 @@
+Buddy ile tüm etkileşimler Türkçe olsun.
