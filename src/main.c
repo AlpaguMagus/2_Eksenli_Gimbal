@@ -54,19 +54,43 @@ int main(void)
     MPU6050_Init();
 
     int16_t ax, ay, az, gx, gy, gz;
-    char    buf[64];
+    char    buf[96];
+
+    /* Complementary filter durumu */
+    float fused_pitch = 0.0f;
+    float fused_roll  = 0.0f;
+    const float alpha = 0.98f;
+    uint32_t last_tick = HAL_GetTick();
 
     while (1)
     {
         MPU6050_Read(&ax, &ay, &az, &gx, &gy, &gz);
 
+        /* dt hesabı */
+        uint32_t now = HAL_GetTick();
+        float dt = (now - last_tick) / 1000.0f;
+        if (dt <= 0.0f || dt > 0.5f) dt = 0.05f;  /* ilk döngü / overflow koruması */
+        last_tick = now;
+
         float fax = (float)ax, fay = (float)ay, faz = (float)az;
 
-        /* Pitch: X ekseni etrafında, Roll: Y ekseni etrafında */
+        /* İvmeölçer açısı */
         float pitch = atan2f(fax, sqrtf(fay*fay + faz*faz)) * RAD2DEG;
         float roll  = atan2f(fay, sqrtf(fax*fax + faz*faz)) * RAD2DEG;
 
-        int len = snprintf(buf, sizeof(buf), "P:%.1f,R:%.1f\r\n", pitch, roll);
+        /* Gyro hızı — varsayılan ±250°/s → 131 LSB/(°/s) */
+        float gx_dps = (float)gx / 131.0f;
+        float gy_dps = (float)gy / 131.0f;
+
+        /* Complementary filter:
+           pitch → Y ekseni dönüşü → gy_dps    
+           roll  → X ekseni dönüşü → gx_dps   */   
+        fused_pitch = alpha * (fused_pitch - gy_dps * dt) + (1.0f - alpha) * pitch;
+        fused_roll  = alpha * (fused_roll  + gx_dps * dt) + (1.0f - alpha) * roll;
+
+        int len = snprintf(buf, sizeof(buf),
+            "P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f\r\n",
+            pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll);
         CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
 
         HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
