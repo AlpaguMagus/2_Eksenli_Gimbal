@@ -56,7 +56,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 ### Adımlar (her biri kendi commit'i, build edilebilir)
 
 - [x] **2A.1** — Encoder TIM2 implementasyonu (`Encoder_Init`, `Encoder_GetCount`, `Encoder_Reset`, `Encoder_GetSpeed`). PA15+PB3 GPIO_PULLUP, AF1, encoder mode TI12, both edges. Build kontrol. ✅ commit `5c9dc88`
-- [ ] **2A.2** — USB CDC formatına `EC:%ld` (encoder count) eklenmesi. `plot_angles.py` 5. paneli (encoder count) eklenecek şekilde güncelle.
+- [x] **2A.2** — USB CDC formatına `EC:%ld` (encoder count) eklenmesi. `plot_angles.py` 5. paneli (encoder count) eklenecek şekilde güncelle. ✅ commit `b75cee8`
 - [ ] **2A.3** — TB6612 PWM implementasyonu (`Motor_Init` TIM3 + GPIO, `Motor_Enable`, `Motor_Disable`). PB0 AF2, PB12-14 GPIO out (başlangıç LOW). 20 kHz PWM doğrulanır.
 - [ ] **2A.4** — TB6612 temel sürücü (`Motor_SetDir`, `Motor_SetDuty`). `MOTOR_MAX_DUTY = 0.50f` hard cap içeride. Naive AIN1/AIN2 set (donanım dead-time yeterli).
 - [ ] **2A.5** — Soft-start (`Motor_SoftStart` 200 ms / 40 step, `Motor_SetDuty` içinde |Δduty| > 0.10 ise otomatik 10 ms / 0.01 step rampa).
@@ -90,6 +90,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 ### Tamamlanma Kanıtı
 
 - **2A.1** Encoder TIM2 implementasyonu: `5c9dc88`
+- **2A.2** USB CDC EC alanı + plot 5. panel: `b75cee8`
 - _(devam edecek)_
 
 - Encoder mekanik test screenshot: _(plot_angles.py 5. panel — 2A.T1 sonrası)_
