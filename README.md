@@ -632,8 +632,9 @@ htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
 
 - **12V kaynak:** **Mervesan 12V/3A 36W duvar adaptörü.** Donanım sigortası planlı (henüz temin edilmedi).
   > **TODO:** VM hattına 1.5 A polyfuse veya 2 A cam sigorta eklenecek (kullanıcı temin edecek). Sigorta entegre edildiğinde ROADMAP.md'den "VM hattı sigorta entegrasyonu" maddesi aşamaya alınacak.
+- **Manuel kill switch (önerilen, Aşama 2A test öncesi):** STBY hattı (PB14 → TB6612 STBY pini) üzerine seri normalde-açık basmalı buton. Buton basıldığında STBY GND'ye düşer, motor sürücü anında devre dışı kalır. Yazılım stall detection yedeği olarak fiziksel emniyet — özellikle ROADMAP § Test 2A.T5 (stall detection testi) öncesi hazırlanması önerilir.
 - **Yazılım koruma katmanları (sigorta gelinceye kadar zorunlu):**
-  1. **Stall detection** — Motor_StallCheck() ana döngüden 50 Hz çağrılır. |hız| < 5 rad/s + |duty| > 0.20 + 200 ms boyunca → emergency stop (STBY=L) + 5 sn lock-out.
+  1. **Stall detection** — Motor_StallCheck() ana döngüden 50 Hz çağrılır. |hız| < 2 rad/s + |duty| > 0.20 + 200 ms boyunca → emergency stop (STBY=L) + 5 sn lock-out. Soft-start sırasında bypass (yanlış pozitif önleme).
   2. **Duty cycle hard cap** — Aşama 2A boyunca `MOTOR_MAX_DUTY = 0.50f`. Stall'da pik akım ~0.8 A, TB6612 1.2 A continuous limitinin altında.
   3. **Soft-start zorunlu** — `Motor_SetDuty` doğrudan büyük adımlara izin vermez; |Δduty| > 0.10 ise içeride otomatik 10 ms / 0.01 step rampa.
   4. **Watchdog timeout** — Aşama 2B'den itibaren USB CDC'den 1 sn komut gelmezse PWM=0.

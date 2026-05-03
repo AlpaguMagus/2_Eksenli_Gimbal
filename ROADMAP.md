@@ -21,6 +21,7 @@
 | `ROADMAP.md` (bu dosya) | Yol haritası, aşamalar, adımlar, testler, tamamlanma kanıtı | Her adım/aşama bitiminde, plan değişikliğinde |
 | `PROJE_DURUMU.md` | "Şu an neredeyiz?" 5-10 satır özet + ROADMAP linki | Aşama geçişlerinde |
 | `README.md` | Kalıcı teknik bilgi (mimari, pin tablosu, tamamlanmış altyapı açıklaması) | Davranış değiştiren teknik karar geldiğinde |
+| `CLAUDE.md` | AI etkileşim kuralları, proje çalışma standartları | Yeni kural eklendiğinde |
 
 **README'ye yol haritası veya TODO girmez.** Sadece "şu sistem nasıl çalışıyor" tarzı kalıcı doküman.
 
@@ -60,7 +61,8 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 - [ ] **2A.4** — TB6612 temel sürücü (`Motor_SetDir`, `Motor_SetDuty`). `MOTOR_MAX_DUTY = 0.50f` hard cap içeride. Naive AIN1/AIN2 set (donanım dead-time yeterli).
 - [ ] **2A.5** — Soft-start (`Motor_SoftStart` 200 ms / 40 step, `Motor_SetDuty` içinde |Δduty| > 0.10 ise otomatik 10 ms / 0.01 step rampa).
 - [ ] **2A.6** — `Motor_Stop` (PWM=0, dir=STOP) ve `Motor_EmergencyStop` (STBY=L + duty=0 + AIN=0).
-- [ ] **2A.7** — `Motor_StallCheck()` 50 Hz ana döngüden çağrılır. Tetik koşulu: |encoder_speed| < 5 rad/s VE |duty| > 0.20 VE 200 ms süre. Tetiklenince: `Motor_EmergencyStop()` + USB CDC'ye `STALL_DETECTED` + LED 5 Hz.
+- [ ] **2A.7** — `Motor_StallCheck()` 50 Hz ana döngüden çağrılır. Tetik koşulu: **|encoder_speed| < 2 rad/s** VE |duty| > 0.20 VE 200 ms süre. **Soft-start grace period:** Fonksiyona girişte `if (motor.soft_start_active) return;` — soft-start biten iterasyonda check yeniden devreye girer. Tetiklenince: `Motor_EmergencyStop()` + USB CDC'ye `STALL_DETECTED` + LED 5 Hz.
+  > **Eşik gerekçesi:** Pololu 25D LP no-load çıkış hızı ~57 rad/s (560 RPM ÷ 9.55). 5 rad/s = ~%8 no-load — soft-start sırasında yanlış pozitif riski. 2 rad/s gerçek stall'a daha yakın (gerçek stall ≈ 0 rad/s, gürültü payı için 2 rad/s).
 - [ ] **2A.8** — 5 sn lock-out: stall sonrası `Motor_Enable`/`Motor_SetDuty` çağrıları reddedilir; süre dolunca otomatik açılır VEYA kullanıcı reset atana kadar kilitli kalır (karar: kullanıcı reset, `Motor_ResetLockout()` API'si).
 - [ ] **2A.9** — LED durum kodları: normal=500 ms toggle, soft-start aktif=250 ms toggle, stall=100 ms toggle (5 Hz).
 - [ ] **2A.10** — README §8.6 koruma katmanları bölümü → "implementasyon tamamlandı" notu.
@@ -73,7 +75,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 | 2A.T2 | **PWM duty linearitesi** — %20, %30, %40, %50 duty | Encoder hızı kabaca lineer artar (sanity check) | ☐ |
 | 2A.T3 | **Yön kontrolü** — `Motor_SetDir(CW)`, `(CCW)`, `(BRAKE)` | Encoder yönü ve durma davranışı beklendiği gibi | ☐ |
 | 2A.T4 | **Soft-start** — `Motor_SoftStart(0.40)` | Encoder hızı 0'dan ~200 ms içinde lineer artar | ☐ |
-| 2A.T5 | **Stall detection (KRİTİK)** — Şaftı elle sıkıca tut, `Motor_SoftStart(0.40)` | ~200 ms içinde stall tetiklenir, motor keser, `STALL_DETECTED` USB'den, LED 5 Hz, 5 sn lock-out. Multimetre ile akım <0.9 A doğrulansın | ☐ |
+| 2A.T5 | **Stall detection (KRİTİK)** — Şaftı elle sıkıca tut, `Motor_SoftStart(0.40)`. **Ön hazırlık:** Bu testten önce manuel kill switch hazırlanması önerilir (README §8.6) — yazılım stall detection tek koruma, fiziksel yedek bulunsun. | Soft-start (200 ms) tamamlandıktan **sonra** ~200 ms içinde stall tetiklenir, motor keser, `STALL_DETECTED` USB'den, LED 5 Hz, 5 sn lock-out. Multimetre ile akım <0.9 A doğrulansın. | ☐ |
 | 2A.T6 | **Watchdog hazırlığı** | API yazılı, 2A'da bypass — 2B'de aktive | ☐ |
 
 ### Riskler / Açık Sorular
@@ -108,9 +110,11 @@ Motor için lineer 1. dereceden model parametreleri (K, τ, dead-band) çıkarı
 - [ ] **2B.1** — USB CDC RX implementasyonu (firmware): `DUTY:0.30\n` benzeri komut alımı. Komut parser, dead-letter ignore.
 - [ ] **2B.2** — **Watchdog timeout aktive et:** son komut zamanı tutulur, 1 sn boyunca yeni komut yoksa `Motor_SetDuty(0.0f)`.
 - [ ] **2B.3** — Step response Python scripti (`scripts/step_response.py`): farklı duty seviyelerinde komut gönderir, encoder hızını 200 Hz örnekleme ile log dosyasına yazar.
-- [ ] **2B.4** — Veri toplama: 30%, 40%, 50% duty (50% MOTOR_MAX_DUTY üst sınırı, üzeri çıkma). Her duty için ~5 sn kayıt, 0'dan başlatılarak.
+- [ ] **2B.4** — Veri toplama: **%20, %35, %50** duty (50% MOTOR_MAX_DUTY üst sınırı, üzeri çıkma). Her duty için ~5 sn kayıt, 0'dan başlatılarak.
+  > **Aralık gerekçesi:** Ölü-bant muhtemelen %10-15 civarı; %30-50 dar bir aralık olur. %20-50 daha geniş ayrışma → lineer fit daha güvenilir.
 - [ ] **2B.5** — Python fitting (`scripts/fit_motor.py`): `ω(t) = K·V·(1 − e^(−t/τ))`, Vsat=0.5V düzeltmesi. Üç duty'den parametre konsistens kontrolü.
 - [ ] **2B.6** — Ölü-bant tespiti: %5'lik step'lerle minimum hareket eden duty.
+  > **Revizyon notu:** Ölçülen ölü-bant **%20'nin üstünde** çıkarsa adım 2B.4'teki düşük duty seviyesi (%20) ölü-bantta olabilir → step response seviyeleri revize edilir, taban %25 veya %30'a çekilir.
 - [ ] **2B.7** — Adaptör droop ölçümü (multimetre ile): yüksüz, 30%, 50% duty altında VM voltajı. README §8.5'e ölçüm sonuçları eklenir.
 
 ### Test ve Doğrulama
