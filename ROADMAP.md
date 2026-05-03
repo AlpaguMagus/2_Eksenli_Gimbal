@@ -2,7 +2,7 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında Claude Code güncelleyecek.
 >
-> - **Son güncelleme:** 2026-05-03
+> - **Son güncelleme:** 2026-05-04
 > - **Branch:** `feature/motor-encoder-tb6612`
 > - **Kapsam:** Aşama 2A → 2E (Kalman dahil). Sonrası "Kapsam Dışı" bölümünde.
 
@@ -77,6 +77,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 | 2A.T4 | **Soft-start** — `Motor_SoftStart(0.40)` | Encoder hızı 0'dan ~200 ms içinde lineer artar | ☐ |
 | 2A.T5 | **Stall detection (KRİTİK)** — Şaftı elle sıkıca tut, `Motor_SoftStart(0.40)`. **Ön hazırlık:** Bu testten önce manuel kill switch hazırlanması önerilir (README §8.6) — yazılım stall detection tek koruma, fiziksel yedek bulunsun. | Soft-start (200 ms) tamamlandıktan **sonra** ~200 ms içinde stall tetiklenir, motor keser, `STALL_DETECTED` USB'den, LED 5 Hz, 5 sn lock-out. Multimetre ile akım <0.9 A doğrulansın. | ☐ |
 | 2A.T6 | **Watchdog hazırlığı** | API yazılı, 2A'da bypass — 2B'de aktive | ☐ |
+| 2A.T7 | **Entegrasyon (KRİTİK)** — IMU pipeline, encoder okuma, motor sürme aynı anda 60 sn boyunca | USB CDC çıktısında EC, P, R, FP, FR alanları sürekli akıyor + bir önceki testlerde gözlenen davranışlar tekrar üretilebilir (motor +%30 duty 5 sn → encoder hızı doğru, IMU açıları bozulmadı). Hiçbir USB drop, watchdog reset, kasılma yok. | ☐ |
 
 ### Riskler / Açık Sorular
 
