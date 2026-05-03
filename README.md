@@ -16,27 +16,40 @@
 5. [Complementary Filter — Sensör Füzyonu](#5-complementary-filter--sensör-füzyonu)
 6. [±90° Singülarite Problemi](#6-90-singülarite-problemi)
 7. [Veri İletimi ve Görselleştirme](#7-veri-iletimi-ve-görselleştirme)
-8. [Derleme ve Flash İşlemleri](#8-derleme-ve-flash-işlemleri)
+8. [Motor Sürücü ve Encoder Entegrasyonu](#8-motor-sürücü-ve-encoder-entegrasyonu)
+9. [Derleme ve Flash İşlemleri](#9-derleme-ve-flash-işlemleri)
 
 ---
 
 ## 1. Sistem Mimarisi
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     STM32F411CEU6                           │
-│                                                             │
-│  ┌──────────┐    I2C1     ┌───────────┐                     │
-│  │          │◄───────────►│  MPU6050  │                     │
-│  │   ARM    │  PB6=SCL    │  6-DOF    │                     │
-│  │ Cortex-M4│  PB7=SDA    │   IMU     │                     │
-│  │  96 MHz  │             └───────────┘                     │
-│  │          │                                               │
-│  │          │──── USB CDC (Type-C) ────► PC (/dev/ttyACM0)  │
-│  │          │                                               │
-│  │          │──── PC13 ────► LED (durum göstergesi)          │
-│  └──────────┘                                               │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        STM32F411CEU6                                 │
+│                                                                      │
+│  ┌──────────┐  I2C1   ┌───────────┐                                  │
+│  │          │◄───────►│  MPU6050  │  açı/açısal hız sensörü          │
+│  │          │ PB6/PB7 │  6-DOF    │                                  │
+│  │   ARM    │         └───────────┘                                  │
+│  │ Cortex-M4│                                                        │
+│  │  96 MHz  │  TIM2    ┌──────────────────────┐                      │
+│  │          │◄═════════│ Pololu 25D Encoder   │ 48 CPR kuadratür     │
+│  │          │ PA15/PB3 │ (5V besleme)         │                      │
+│  │          │          └──────────────────────┘                      │
+│  │          │                                                        │
+│  │          │  TIM3    ┌────────────┐  PWM   ┌──────────────┐        │
+│  │          │═════════►│            │═══════►│              │        │
+│  │          │ PB0      │  TB6612FNG │ AO1/2  │  Pololu 25D  │        │
+│  │          │  GPIO    │   motor    │═══════►│  12V motor   │        │
+│  │          │═════════►│  driver    │        └──────────────┘        │
+│  │          │ PB12-14  │            │           ▲                    │
+│  │          │ AIN1/2   │            │  VM 12V ──┤ (Mervesan 12V/3A)     │
+│  │          │ STBY     └────────────┘                                │
+│  │          │                                                        │
+│  │          │ ──── USB CDC (Type-C) ────► PC (/dev/ttyACM0)          │
+│  │          │ ──── PC13 ────► LED (durum)                            │
+│  └──────────┘                                                        │
+└──────────────────────────────────────────────────────────────────────┘
                                 │
                     ┌───────────▼───────────┐
                     │   PC (Linux/Python)   │
@@ -486,14 +499,172 @@ Her 30 saniyede bir `screenshots/` klasörüne PNG kaydedilir (maksimum 50 dosya
 
 ---
 
-## 8. Derleme ve Flash İşlemleri
+## 8. Motor Sürücü ve Encoder Entegrasyonu
 
-### 8.1. Gereksinimler
+> **Aşama:** Plan onaylı, donanım entegrasyonu `feature/motor-encoder-tb6612` branch'inde.  
+> **Hedef:** Tek motor + encoder + IMU stabilizasyon demosu.
+
+### 8.1. Pin Atama Tablosu (donanım entegrasyonu)
+
+Tüm pin seçimleri STM32F411 datasheet alternate function tablosuyla doğrulanmıştır. WeAct BlackPill V2.0 schematic'i incelenerek SPI flash footprint çakışmaları (PA4-PA7) elimine edilmiştir.
+
+| İşlev | Pin | Çevre birimi | Dayanak |
+|---|---|---|---|
+| I2C1 SCL (MPU6050) | PB6 | I2C1 | mevcut |
+| I2C1 SDA (MPU6050) | PB7 | I2C1 | mevcut |
+| USB DM | PA11 | OTG_FS | mevcut |
+| USB DP | PA12 | OTG_FS | mevcut |
+| LED | PC13 | GPIO | mevcut |
+| SWD IO / CLK | PA13 / PA14 | SWJ-DP | mevcut |
+| **Encoder A** | **PA15** | TIM2_CH1 | RM0383 §23.3: SW-DP modunda JTDI serbest |
+| **Encoder B** | **PB3** | TIM2_CH2 | RM0383 §23.3: SW-DP modunda JTDO serbest |
+| **Motor PWM** | **PB0** | TIM3_CH3 | SPI flash footprint dışı (PA6/PA7'den kaçınıldı) |
+| **AIN1 (yön)** | **PB12** | GPIO | TIM1_BKIN alternatifi kullanılmıyor |
+| **AIN2 (yön)** | **PB13** | GPIO | TIM1_CH1N alternatifi kullanılmıyor |
+| **STBY (enable)** | **PB14** | GPIO | TIM1_CH2N alternatifi kullanılmıyor |
+
+**Kullanılmayan pinler (gerekçe):**
+- **PA0** — KEY butonuna bağlı (BlackPill schematic).
+- **PA4, PA5, PA6, PA7** — SPI flash footprint pinleri. Eğer flash chip lehimliyse çakışma riski var; bu pinlerden kaçınıldı.
+
+### 8.2. Encoder — Pololu 25D 48 CPR
+
+Datasheet (Pololu): kırmızı/siyah motor güç, **mavi = encoder Vcc 3.5V – 20V**, yeşil = encoder GND, sarı = A çıkışı, beyaz = B çıkışı.
+
+| Parametre | Değer |
+|---|---|
+| Çözünürlük | 48 CPR (kuadratür, 4× decoding ile 192 olay/devir) |
+| Dişli oranı | 9.7:1 |
+| **Encoder Vcc** | **3.5 V minimum → BlackPill 5V pininden beslenir** |
+| Encoder çıkış seviyesi | 5 V (Vcc'ye eşit, push-pull veya open-collector) |
+| STM32 GPIO 5V toleransı | PA15 ve PB3 **FT (5V tolerant)** ✓ — direkt bağlanabilir |
+
+**TIM2 32-bit counter:** STM32F411 datasheet sf 28: TIM2 ve TIM5 32-bit auto-reload sayaçlardır. 48 CPR × 4× decoding = 192 olay/motor devri; 9.7:1 redüktör = 1862 olay/çıkış mili devri. 32-bit ile ~2.3 milyon tam çıkış devri taşma sınırı — pratikte sınırsız.
+
+**Pull-up:** Pololu enkoder çıkış tipi (push-pull / open-collector) datasheet'te net değil. Emniyet için **STM32 internal pull-up** (`GPIO_PULLUP`) aktif edilecek. Push-pull bile olsa pull-up zarar vermez (sadece akım kayıbı ihmal edilebilir düzeyde).
+
+### 8.3. Motor Sürücü — TB6612FNG
+
+TB6612FNG datasheet (sayfa 3, 5, 7) inceleme sonuçları:
+
+| Parametre | Spec | Bizim ayar | Notlar |
+|---|---|---|---|
+| Vcc (lojik) | 2.7 V – 5.5 V | 3.3 V (BlackPill 3V3) | sf 3 |
+| VM (motor) | 4.5 V – 13.5 V | 12 V (lab PSU) | sf 3 |
+| VIH (control) | min Vcc×0.7 = 2.31 V @ 3.3V | STM32 GPIO 3.3V | uyumlu, sf 5 |
+| Iout (sürekli) | 1.2 A | Stall 1.6 A (kısa süreli) | margin yeterli, lab PSU 1.5 A limit |
+| Iout (peak) | 3.2 A | — | 10 ms tek darbe limit |
+| **fPWM max** | **100 kHz** | **20 kHz** | sf 3 |
+| Vsat | 0.5 V @ 1 A | — | sistem tanımlamada hesaba katılır |
+| **Dead-time (donanım)** | 50 ns (H→L), 230 ns (L→H) | — | sf 4-5: yön değişiminde yazılım dead-band GEREK YOK |
+
+**H-SW kontrol mantığı (datasheet sf 4):**
+
+| AIN1 | AIN2 | PWM | STBY | Çıkış | Mod |
+|---|---|---|---|---|---|
+| H | L | duty | H | AO1=H, AO2=L | CW (ileri) |
+| L | H | duty | H | AO1=L, AO2=H | CCW (geri) |
+| H | H | x | H | AO1=L, AO2=L | Short brake |
+| L | L | H | H | AO1/AO2 = Hi-Z | Stop (free) |
+| x | x | x | **L** | AO1/AO2 = Hi-Z | **Standby** |
+
+**Decoupling (datasheet sf 7 typical application):** VM hattına **10 µF + 0.1 µF**. Robotistan/Direnç modülünde bu kapasitörler **yerleşik** — ek kapasitör eklemeye gerek yok, ancak motor uçlarında snubber arzu edilirse opsiyonel.
+
+### 8.4. PWM Konfigürasyonu (TIM3_CH3 @ PB0)
+
+Saat ağacı:
+- SYSCLK = 96 MHz
+- APB1 prescaler = 2 → PCLK1 = 48 MHz
+- APB1 timer ×2 multiplier → **TIM3 input clock = 96 MHz**
+
+```
+fPWM = 96 MHz / ((PSC + 1) × (ARR + 1))
+20 kHz = 96e6 / (1 × 4800)
+```
+
+**Seçim:** PSC = 0, ARR = 4799 → **20.000 kHz, 4800 step (≈12.23-bit) çözünürlük**.
+
+```c
+htim3.Init.Prescaler = 0;
+htim3.Init.Period    = 4799;
+htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+// Channel 3 → CCR3 ∈ [0, 4799], duty = CCR3 / 4800
+```
+
+20 kHz seçim gerekçeleri:
+- Audible threshold üstünde (motor sirenlemesi duyulmaz)
+- TB6612 100 kHz limitinin %20'si — geniş margin
+- Motor inductance ile akım dalgalanması düşük
+
+### 8.5. Akım ve Güç Bütçesi
+
+**3V3 hattı (BlackPill AP7343, 300 mA limit):**
+
+| Tüketici | Akım (typ) |
+|---|---|
+| BlackPill (STM32 + USB CDC + LED) | 50–80 mA |
+| MPU6050 | 3.9 mA |
+| TB6612FNG lojik (Vcc=3V3, max) | 2.2 mA |
+| **Toplam** | **~85 mA** |
+| **Margin** | **~215 mA** |
+
+**5V hattı (USB direkt, 500 mA limit):**
+
+| Tüketici | Akım |
+|---|---|
+| BlackPill 5V→3V3 regülatör girişi | ~100 mA |
+| Pololu encoder (LED + IC) | ~25 mA |
+| **Toplam** | **~125 mA** |
+
+**12V hattı (Mervesan 12V/3A 36W duvar adaptörü):**
+
+| Tüketici | Akım |
+|---|---|
+| TB6612FNG VM (lojik akım) | ~0.5 mA |
+| Pololu motor — yüksüz | 75 mA |
+| Pololu motor — stall (12V, açık döngü) | 1.6 A |
+| Pololu motor — stall **duty cap %50** ile | **~0.8 A** |
+| **Adaptör nominal kapasite** | **3.0 A** |
+
+> **Donanım sigortası henüz yok.** Stall durumunda motor akımı yazılım katmanlarıyla sınırlanır (duty hard cap %50, stall detection 200 ms içinde STBY=L). Detaylı emniyet planı → `ROADMAP.md`.
+
+### 8.6. Donanım Kurulum Notları
+
+- **12V kaynak:** **Mervesan 12V/3A 36W duvar adaptörü.** Donanım sigortası planlı (henüz temin edilmedi).
+  > **TODO:** VM hattına 1.5 A polyfuse veya 2 A cam sigorta eklenecek (kullanıcı temin edecek). Sigorta entegre edildiğinde ROADMAP.md'den "VM hattı sigorta entegrasyonu" maddesi aşamaya alınacak.
+- **Yazılım koruma katmanları (sigorta gelinceye kadar zorunlu):**
+  1. **Stall detection** — Motor_StallCheck() ana döngüden 50 Hz çağrılır. |hız| < 5 rad/s + |duty| > 0.20 + 200 ms boyunca → emergency stop (STBY=L) + 5 sn lock-out.
+  2. **Duty cycle hard cap** — Aşama 2A boyunca `MOTOR_MAX_DUTY = 0.50f`. Stall'da pik akım ~0.8 A, TB6612 1.2 A continuous limitinin altında.
+  3. **Soft-start zorunlu** — `Motor_SetDuty` doğrudan büyük adımlara izin vermez; |Δduty| > 0.10 ise içeride otomatik 10 ms / 0.01 step rampa.
+  4. **Watchdog timeout** — Aşama 2B'den itibaren USB CDC'den 1 sn komut gelmezse PWM=0.
+  5. **TB6612 dahili termal shutdown** — 175 °C tetikler, 20 °C histerezis (datasheet sf 5). Demo sırasında her birkaç dakikada motora dokunup **manuel termal kontrol** yapılır.
+- **Ortak GND:** BlackPill GND ↔ TB6612 GND ↔ 12V kaynak GND tek noktada birleşmeli (yıldız topology). Motor akımının dönüş yolu ve TB6612 lojik referansı bu hatta tutulmalı.
+- **VM decoupling:** Modül üzerinde 10 µF + 0.1 µF kapasitörler yerleşik geliyor (Robotistan/Direnç). Harici eklemeye gerek yok.
+- **Encoder beslemesi:** BlackPill 5V pininden (USB direkt). Datasheet'te 3.5 V minimum belirtildiği için 3V3 kullanılmaz.
+- **Encoder pull-up:** STM32 internal `GPIO_PULLUP`. Harici direnç gerekmez.
+- **STBY init sırası:** Tüm peripheral init'ler tamamlandıktan sonra (en son) STBY=HIGH yapılır. TB6612 input pinlerinde dahili 200 kΩ pull-down var (datasheet sf 2) — STM32 GPIO Hi-Z iken bile sürücü güvenli olarak kapalı kalır.
+
+### 8.7. Motor Karakterizasyon — Vsat Düzeltmesi
+
+PID kazanç ayarı için motor parametrelerinin (Kt, Ke, J, b) sistem tanımlamayla çıkarılması gerekir. TB6612'nin output saturating voltage'ı (Vsat ≈ 0.5 V @ 1 A) bu hesapta dikkate alınmalıdır:
+
+```
+V_motor_etkin = (duty × V_VM) − V_sat
+              ≈ duty × 12 − 0.5     (12V besleme, 1A altı yük)
+```
+
+Bu formül Aşama 2'de kullanılacak Python sistem tanımlama scriptinde başlangıç eşiği (motor kalkış duty cycle'ı) hesabında kullanılacak.
+
+---
+
+## 9. Derleme ve Flash İşlemleri
+
+### 9.1. Gereksinimler
 
 - **PlatformIO Core CLI** (pipx ile kurulum önerilir)
 - **ST-Link V2** programlayıcı (SWD bağlantısı)
 
-### 8.2. Derleme
+### 9.2. Derleme
 
 ```bash
 cd ~/workspace/2_Eksenli_Gimbal
@@ -507,7 +678,7 @@ PlatformIO otomatik olarak indirir:
 
 `add_usb_middleware.py` scripti, build sırasında USB CDC Middleware kütüphanesini (STM32_USB_Device_Library) otomatik olarak derlemeye dahil eder.
 
-### 8.3. Flash (ST-Link ile)
+### 9.3. Flash (ST-Link ile)
 
 ```bash
 pio run -t upload
@@ -519,7 +690,7 @@ Bu komut:
 3. OpenOCD üzerinden ST-Link ile SWD protokolü kullanarak flash'lar
 4. MCU'yu resetler ve firmware çalışmaya başlar
 
-### 8.4. Seri Veri İzleme
+### 9.4. Seri Veri İzleme
 
 ```bash
 # Yöntem 1: Ham veri (terminal)
@@ -529,7 +700,7 @@ pio device monitor
 python3 plot_angles.py /dev/ttyACM0
 ```
 
-### 8.5. Bellek Kullanımı
+### 9.5. Bellek Kullanımı
 
 ```
 RAM:    4,364 / 131,072 bytes  (  3.3%)

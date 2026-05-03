@@ -3,6 +3,8 @@
 #include "usbd_desc.h"
 #include "usbd_cdc.h"
 #include "usbd_cdc_if.h"
+#include "encoder.h"
+#include "motor.h"
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
@@ -30,6 +32,14 @@ void MPU6050_Read(int16_t *ax, int16_t *ay, int16_t *az,
    ================================================================ */
 int main(void)
 {
+    /* ─── Init sırası ─────────────────────────────────────────────────
+     * 1) HAL + clock
+     * 2) Periferik init'ler (I2C, MPU6050, Encoder, Motor)
+     *      — Motor_Init STBY=LOW bırakır → motor güvenli kapalı
+     * 3) USB CDC (host enumeration için 2 sn bekle)
+     * 4) Motor_Enable() EN SONDA — STBY=HIGH ile sürücü aktif
+     * ──────────────────────────────────────────────────────────────── */
+
     HAL_Init();
     SystemClock_Config();
     I2C1_Init();
@@ -43,15 +53,19 @@ int main(void)
     led.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOC, &led);
 
+    MPU6050_Init();
+    Encoder_Init();           /* TIM2, PA15+PB3 */
+    Motor_Init();              /* TIM3, PB0 PWM, PB12-14 GPIO, STBY=LOW */
+
     /* USB CDC başlat */
     USBD_Init(&hUsbDeviceFS, &CDC_Desc, DEVICE_FS);
     USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC);
     USBD_CDC_RegisterInterface(&hUsbDeviceFS, &USBD_Interface_fops_FS);
     USBD_Start(&hUsbDeviceFS);
 
-    HAL_Delay(2000);  /* Host'un /dev/ttyACM0'ı tanıması için bekle */
+    HAL_Delay(2000);           /* Host'un /dev/ttyACM0'ı tanıması için bekle */
 
-    MPU6050_Init();
+    Motor_Enable();            /* STBY=HIGH — sürücü artık aktif */
 
     int16_t ax, ay, az, gx, gy, gz;
     char    buf[96];
@@ -71,6 +85,12 @@ int main(void)
         float dt = (now - last_tick) / 1000.0f;
         if (dt <= 0.0f || dt > 0.5f) dt = 0.05f;  /* ilk döngü / overflow koruması */
         last_tick = now;
+
+        /* Encoder okuma — şu an iskelet, 0 döner.
+         * İmplementasyon sonrası USB CDC formatına EC:%ld eklenecek
+         * ve plot_angles.py 5. panelde gösterecek. */
+        int32_t enc_count = Encoder_GetCount();
+        (void)enc_count;
 
         float fax = (float)ax, fay = (float)ay, faz = (float)az;
 
