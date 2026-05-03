@@ -76,6 +76,10 @@ int main(void)
     const float alpha = 0.98f;
     uint32_t last_tick = HAL_GetTick();
 
+    /* 2A.4 GEÇİCİ TEST SEQUENCE — 2A.5 (soft-start) commit'inde KALDIRILACAK.
+     * Test 2A.T2 (PWM duty linearitesi) + Test 2A.T3 (yön kontrolü) için. */
+    uint32_t test_start = HAL_GetTick();
+
     while (1)
     {
         MPU6050_Read(&ax, &ay, &az, &gx, &gy, &gz);
@@ -87,6 +91,29 @@ int main(void)
         last_tick = now;
 
         int32_t enc_count = Encoder_GetCount();
+
+        /* ──── 2A.4 GEÇİCİ TEST SEQUENCE — 18 sn döngülü ─────────────────
+         * 2A.5 commit'inde KALDIRILACAK. Sequence:
+         *   0-2 sn   : STOP (encoder/IMU baseline)
+         *   2-5 sn   : CW  %30 — yön + orta duty
+         *   5-6 sn   : STOP
+         *   6-9 sn   : CCW %30 — ters yön
+         *   9-10 sn  : BRAKE — kısa devre fren (encoder hızı hızla 0'a düşer)
+         *   10-13 sn : CW  %20 — düşük duty (lineerlik testi)
+         *   13-14 sn : STOP
+         *   14-17 sn : CW  %50 — max duty (cap)
+         *   17-18 sn : STOP, döngü tekrar */
+        uint32_t t = (HAL_GetTick() - test_start) % 18000U;
+        if      (t <  2000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
+        else if (t <  5000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.30f); }
+        else if (t <  6000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
+        else if (t <  9000) { Motor_SetDir(MOTOR_CCW);   Motor_SetDuty(0.30f); }
+        else if (t < 10000) { Motor_SetDir(MOTOR_BRAKE);                       }
+        else if (t < 13000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.20f); }
+        else if (t < 14000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
+        else if (t < 17000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.50f); }
+        else                { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
+        /* ──── 2A.4 TEST SEQUENCE BİTİŞ ─────────────────────────────────── */
 
         float fax = (float)ax, fay = (float)ay, faz = (float)az;
 

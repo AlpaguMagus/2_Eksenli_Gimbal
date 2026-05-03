@@ -7,6 +7,7 @@
  * ============================================================================ */
 
 #define MOTOR_PWM_PERIOD     4799U  /* ARR for 20 kHz @ 96 MHz / (1 × 4800) */
+#define MOTOR_MAX_DUTY       0.50f  /* Aşama 2A hard cap. Stall'da ~0.8 A */
 #define MOTOR_SOFT_START_MS  200U   /* 0 → target rampa süresi */
 #define MOTOR_SOFT_STEP_MS   5U     /* her stepte bekleme (40 step) */
 
@@ -73,33 +74,34 @@ void Motor_Disable(void)
 
 void Motor_SetDir(MotorDir_t dir)
 {
-    /* TODO:
-     *   GPIO_PinState a1, a2;
-     *   switch (dir) {
-     *     case MOTOR_CW:    a1 = SET;   a2 = RESET; break;
-     *     case MOTOR_CCW:   a1 = RESET; a2 = SET;   break;
-     *     case MOTOR_BRAKE: a1 = SET;   a2 = SET;   break;
-     *     case MOTOR_STOP:  a1 = RESET; a2 = RESET; break;
-     *   }
-     *   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, a1);  // AIN1
-     *   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, a2);  // AIN2
-     *
-     * NOT: TB6612 dahili dead-time (50 ns / 230 ns) yön geçişlerini
-     *      güvenli kılar. AIN1/AIN2 doğrudan set edilir, yazılım gecikmesi
-     *      gerekmez.
-     */
-    (void)dir;
+    /* TB6612 H-SW kontrol mantığı (datasheet sf 4):
+     *   CW    → AIN1=H, AIN2=L
+     *   CCW   → AIN1=L, AIN2=H
+     *   BRAKE → AIN1=H, AIN2=H (motor kısa devre fren)
+     *   STOP  → AIN1=L, AIN2=L (Hi-Z, free-wheel)
+     * Dahili dead-time (50 ns / 230 ns, datasheet sf 5) yön geçişlerini
+     * güvenli kılar; yazılım dead-band gerekmez. */
+    GPIO_PinState a1, a2;
+    switch (dir) {
+        case MOTOR_CW:    a1 = GPIO_PIN_SET;   a2 = GPIO_PIN_RESET; break;
+        case MOTOR_CCW:   a1 = GPIO_PIN_RESET; a2 = GPIO_PIN_SET;   break;
+        case MOTOR_BRAKE: a1 = GPIO_PIN_SET;   a2 = GPIO_PIN_SET;   break;
+        case MOTOR_STOP:
+        default:          a1 = GPIO_PIN_RESET; a2 = GPIO_PIN_RESET; break;
+    }
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, a1);   /* AIN1 */
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, a2);   /* AIN2 */
 }
 
 void Motor_SetDuty(float duty01)
 {
-    /* TODO:
-     *   if (duty01 < 0.0f) duty01 = 0.0f;
-     *   if (duty01 > 1.0f) duty01 = 1.0f;
-     *   uint32_t ccr = (uint32_t)(duty01 * (float)(MOTOR_PWM_PERIOD + 1U));
-     *   __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, ccr);
-     */
-    (void)duty01;
+    /* Hard cap MOTOR_MAX_DUTY (0.50f) Aşama 2A boyunca.
+     * Stall'da pik akım ~0.8 A — TB6612 1.2 A continuous limitinin altında. */
+    if (duty01 < 0.0f)            duty01 = 0.0f;
+    if (duty01 > MOTOR_MAX_DUTY)  duty01 = MOTOR_MAX_DUTY;
+
+    uint32_t ccr = (uint32_t)(duty01 * (float)(MOTOR_PWM_PERIOD + 1U));
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, ccr);
 }
 
 void Motor_SoftStart(float target_duty01)
