@@ -14,42 +14,61 @@ static TIM_HandleTypeDef htim3;
 
 void Motor_Init(void)
 {
-    /* TODO:
-     *   1. __HAL_RCC_GPIOB_CLK_ENABLE();
-     *   2. __HAL_RCC_TIM3_CLK_ENABLE();
-     *   3. PB12, PB13, PB14 GPIO output push-pull, başlangıç LOW:
-     *        AIN1=L, AIN2=L → motor Hi-Z (free)
-     *        STBY=L         → sürücü standby (güvenli)
-     *      NOT: TB6612 input pinlerinde dahili 200 kΩ pull-down var
-     *           (datasheet sf 2). STM32 GPIO Hi-Z iken bile sürücü
-     *           STBY=L görür → motor seğirmez.
-     *   4. PB0 AF config:
-     *        Mode = GPIO_MODE_AF_PP
-     *        Alternate = GPIO_AF2_TIM3
-     *        Speed = GPIO_SPEED_FREQ_HIGH
-     *   5. TIM3 PWM init:
-     *        htim3.Instance         = TIM3;
-     *        htim3.Init.Prescaler   = 0;
-     *        htim3.Init.Period      = MOTOR_PWM_PERIOD;
-     *        htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-     *        HAL_TIM_PWM_Init(&htim3);
-     *   6. Channel 3 PWM config:
-     *        sConfigOC.OCMode     = TIM_OCMODE_PWM1;
-     *        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-     *        sConfigOC.Pulse      = 0;  // duty = 0
-     *        HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3);
-     *   7. HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
-     */
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_TIM3_CLK_ENABLE();
+
+    /* ── PB12 (AIN1), PB13 (AIN2), PB14 (STBY) — GPIO output, başlangıç LOW
+     * Motor Hi-Z + sürücü standby → güvenli kapalı.
+     * NOT: TB6612 input pinlerinde dahili 200 kΩ pull-down var (datasheet sf 2);
+     *      STM32 GPIO Hi-Z iken bile STBY=L görür, motor seğirmez. */
+    GPIO_InitTypeDef gpio_out = {0};
+    gpio_out.Pin   = GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14;
+    gpio_out.Mode  = GPIO_MODE_OUTPUT_PP;
+    gpio_out.Pull  = GPIO_NOPULL;
+    gpio_out.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &gpio_out);
+
+    HAL_GPIO_WritePin(GPIOB,
+        GPIO_PIN_12 | GPIO_PIN_13 | GPIO_PIN_14,
+        GPIO_PIN_RESET);
+
+    /* ── PB0 — TIM3_CH3 PWM çıkışı (AF2_TIM3) */
+    GPIO_InitTypeDef gpio_pwm = {0};
+    gpio_pwm.Pin       = GPIO_PIN_0;
+    gpio_pwm.Mode      = GPIO_MODE_AF_PP;
+    gpio_pwm.Pull      = GPIO_NOPULL;
+    gpio_pwm.Speed     = GPIO_SPEED_FREQ_HIGH;
+    gpio_pwm.Alternate = GPIO_AF2_TIM3;
+    HAL_GPIO_Init(GPIOB, &gpio_pwm);
+
+    /* ── TIM3 base — 20 kHz @ 96 MHz / (1 × 4800) */
+    htim3.Instance               = TIM3;
+    htim3.Init.Prescaler         = 0;
+    htim3.Init.Period            = MOTOR_PWM_PERIOD;
+    htim3.Init.CounterMode       = TIM_COUNTERMODE_UP;
+    htim3.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+    htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    HAL_TIM_PWM_Init(&htim3);
+
+    /* ── Channel 3 PWM mode 1, polarity HIGH, başlangıç pulse = 0 (duty %0) */
+    TIM_OC_InitTypeDef sConfigOC = {0};
+    sConfigOC.OCMode     = TIM_OCMODE_PWM1;
+    sConfigOC.Pulse      = 0;
+    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+    HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3);
+
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
 }
 
 void Motor_Enable(void)
 {
-    /* TODO: HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);  // STBY=HIGH */
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);    /* STBY = HIGH */
 }
 
 void Motor_Disable(void)
 {
-    /* TODO: HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET); */
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);  /* STBY = LOW  */
 }
 
 void Motor_SetDir(MotorDir_t dir)
