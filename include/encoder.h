@@ -22,8 +22,8 @@
  * ============================================================================ */
 
 void    Encoder_Init(void);
-int32_t Encoder_GetCount(void);          /* signed delta sayım */
+int32_t Encoder_GetCount(void);          /* TIM2->CNT, signed 32-bit */
 void    Encoder_Reset(void);             /* sayacı sıfırla */
-float   Encoder_GetSpeed(float dt_sec);  /* olay/saniye → devir/saniye dönüşümü */
+float   Encoder_GetSpeed(float dt_sec);  /* MOTOR ŞAFTI rad/s. Çıkış mili için 9.7'ye böl. */
 
 #endif /* ENCODER_H */
