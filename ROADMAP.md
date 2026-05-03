@@ -57,7 +57,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 
 - [x] **2A.1** — Encoder TIM2 implementasyonu (`Encoder_Init`, `Encoder_GetCount`, `Encoder_Reset`, `Encoder_GetSpeed`). PA15+PB3 GPIO_PULLUP, AF1, encoder mode TI12, both edges. Build kontrol. ✅ commit `5c9dc88`
 - [x] **2A.2** — USB CDC formatına `EC:%ld` (encoder count) eklenmesi. `plot_angles.py` 5. paneli (encoder count) eklenecek şekilde güncelle. ✅ commit `b75cee8`
-- [ ] **2A.3** — TB6612 PWM implementasyonu (`Motor_Init` TIM3 + GPIO, `Motor_Enable`, `Motor_Disable`). PB0 AF2, PB12-14 GPIO out (başlangıç LOW). 20 kHz PWM doğrulanır.
+- [x] **2A.3** — TB6612 PWM implementasyonu (`Motor_Init` TIM3 + GPIO, `Motor_Enable`, `Motor_Disable`). PB0 AF2, PB12-14 GPIO out (başlangıç LOW). 20 kHz PWM doğrulanır. ✅ commit `60df499` (frekans doğrulaması 2A.4 + Test 2A.T2'ye ertelendi — duty=0 iken PWM görünmez)
 - [ ] **2A.4** — TB6612 temel sürücü (`Motor_SetDir`, `Motor_SetDuty`). `MOTOR_MAX_DUTY = 0.50f` hard cap içeride. Naive AIN1/AIN2 set (donanım dead-time yeterli).
 - [ ] **2A.5** — Soft-start (`Motor_SoftStart` 200 ms / 40 step, `Motor_SetDuty` içinde |Δduty| > 0.10 ise otomatik 10 ms / 0.01 step rampa).
 - [ ] **2A.6** — `Motor_Stop` (PWM=0, dir=STOP) ve `Motor_EmergencyStop` (STBY=L + duty=0 + AIN=0).
@@ -91,6 +91,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 
 - **2A.1** Encoder TIM2 implementasyonu: `5c9dc88`
 - **2A.2** USB CDC EC alanı + plot 5. panel: `b75cee8`
+- **2A.3** TB6612 TIM3 PWM init + STBY enable/disable: `60df499`
 - _(devam edecek)_
 
 - **Test 2A.T1 PASS** — Çıkış milini 1 tam tur çevirme:
