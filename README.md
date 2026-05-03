@@ -557,6 +557,39 @@ Hem RAM hem de Flash kullanımı son derece düşüktür. PID kontrolcü, Madgwi
 ├── add_usb_middleware.py     ← PlatformIO pre-build: USB middleware dahil etme
 ├── plot_angles.py            ← PC tarafı: gerçek zamanlı matplotlib grafik
 ├── screenshots/              ← Otomatik kaydedilen IMU grafik PNG'leri
+├── datasheets/               ← Donanım PDF/şematik belgeleri
+│   ├── WeAct Black Pill V2.0 STM32F411CEU6/
+│   ├── MPU6050/
+│   ├── TB6612FNG/
+│   └── Pololu 9.7:1 .../
 ├── PROJE_DURUMU.md           ← Proje durum takibi (handoff belgesi)
 └── README.md                 ← Bu teknik rapor
 ```
+
+---
+
+## Referanslar
+
+### Donanım Belgeleri
+
+- **WeAct BlackPill — GitHub repo (şematik, pinout, örnek kodlar):**  
+  <https://github.com/WeActStudio/WeActStudio.MiniSTM32F4x1>
+- **WeAct BlackPill — STM32-Base sayfası (Power LED, BOOT0/RESET düğmeleri, USB pinout):**  
+  <https://stm32-base.org/boards/STM32F411CEU6-WeAct-Black-Pill-V2.0.html#Power-LED>
+
+### Datasheet'ler (yerel)
+
+`datasheets/` klasöründe şu PDF/şema dosyaları bulunur:
+
+| Bileşen | Dosyalar |
+|---|---|
+| STM32F411CEU6 | `STM32F411_datasheet.pdf`, `STM32F411CEU6_manual.pdf`, `STM32F411CEU6_schematics.pdf`, `STM32F411CEU6_pcb.pdf`, `STM32F411_functions_map.csv` |
+| MPU6050 | `ps-mpu-6000a-00-...-datasheet.pdf`, `rm-mpu-6000a-00-...-register-map.pdf` |
+| TB6612FNG | `TB6612FNG.pdf` |
+| Pololu Motor | `25d-metal-gearmotor-dimension-diagram.pdf` |
+
+### Donanım Çalışmaları İçin Kural
+
+Donanımla ilgili herhangi bir değişiklik (pin atama, peripheral konfig, motor sürücü kurulumu, sensör register'ı) yapılırken **önce** ilgili datasheet/şematik **görsel olarak** incelenmelidir.  
+
+PDF'ler text extraction ile değil, sayfa-PNG olarak okunmalı — pinout tabloları, register haritaları, timing diyagramları ve şematikler text dökümünde bozulur. Bu iş için `/datasheet-reader` skill'i kullanılır (PDF → PyMuPDF ile PNG → görsel okuma).
