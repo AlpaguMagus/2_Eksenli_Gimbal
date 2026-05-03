@@ -86,11 +86,7 @@ int main(void)
         if (dt <= 0.0f || dt > 0.5f) dt = 0.05f;  /* ilk döngü / overflow koruması */
         last_tick = now;
 
-        /* Encoder okuma — şu an iskelet, 0 döner.
-         * İmplementasyon sonrası USB CDC formatına EC:%ld eklenecek
-         * ve plot_angles.py 5. panelde gösterecek. */
         int32_t enc_count = Encoder_GetCount();
-        (void)enc_count;
 
         float fax = (float)ax, fay = (float)ay, faz = (float)az;
 
@@ -109,8 +105,9 @@ int main(void)
         fused_roll  = alpha * (fused_roll  + gx_dps * dt) + (1.0f - alpha) * roll;
 
         int len = snprintf(buf, sizeof(buf),
-            "P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f\r\n",
-            pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll);
+            "P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld\r\n",
+            pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll,
+            (long)enc_count);
         CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
 
         HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);

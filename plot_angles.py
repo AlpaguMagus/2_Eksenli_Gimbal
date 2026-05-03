@@ -1,7 +1,8 @@
 """
-Gerçek zamanlı IMU grafiği — 4 panel
-  Pitch: ham ivme + füzyon   |   Roll: ham ivme + füzyon
-  Gyro-X (°/s)               |   Gyro-Y (°/s)
+Gerçek zamanlı IMU + Encoder grafiği — 5 panel
+  Üst grid (2x2):  Pitch (ham+füzyon) | Roll (ham+füzyon)
+                    Gyro-X (°/s)       | Gyro-Y (°/s)
+  Alt:             Encoder count (motor şaftı, 32-bit signed)
 
 Her 30 sn'de screenshots/ klasörüne PNG kaydeder (maks 50 dosya).
 Kullanım: python3 plot_angles.py [port]
@@ -16,12 +17,14 @@ from collections import deque
 
 import serial
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import matplotlib.animation as animation
 
 # ── Ayarlar ─────────────────────────────────────────────────
 PORT               = sys.argv[1] if len(sys.argv) > 1 else "/dev/ttyACM0"
 BAUD               = 115200
 N                  = 600        # 30 sn @ 20 Hz
+EC_YLIM            = 10000      # encoder ±limit (1 tur ≈ 1862 count)
 SCREENSHOT_DIR     = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   "screenshots")
 SCREENSHOT_INTERVAL = 30        # saniye
@@ -30,7 +33,7 @@ MAX_SCREENSHOTS    = 50
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
 # ── Veri tamponları ──────────────────────────────────────────
-keys = ("pitch", "roll", "gx", "gy", "fp", "fr")
+keys = ("pitch", "roll", "gx", "gy", "fp", "fr", "ec")
 bufs = {k: deque([0.0] * N, maxlen=N) for k in keys}
 x_ax = list(range(N))
 
@@ -40,10 +43,18 @@ try:
 except serial.SerialException as e:
     sys.exit(f"Port açılamadı: {e}")
 
-# ── Şekil ───────────────────────────────────────────────────
+# ── Şekil — 3 satır × 2 sütun, encoder altta full width ─────
 plt.style.use("dark_background")
-fig, axes = plt.subplots(2, 2, figsize=(14, 7))
-fig.suptitle("IMU  |  ham ivme açısı  +  complementary filter  +  gyro hızı",
+fig = plt.figure(figsize=(14, 9))
+gs  = gridspec.GridSpec(3, 2, figure=fig, height_ratios=[1, 1, 1], hspace=0.45)
+
+ax_p  = fig.add_subplot(gs[0, 0])
+ax_r  = fig.add_subplot(gs[0, 1])
+ax_gx = fig.add_subplot(gs[1, 0])
+ax_gy = fig.add_subplot(gs[1, 1])
+ax_ec = fig.add_subplot(gs[2, :])  # tam genişlik
+
+fig.suptitle("IMU  |  ham ivme açısı + complementary filter + gyro hızı + encoder",
              fontsize=12, color="white")
 
 def _make_ax(ax, title, ylim):
@@ -54,39 +65,44 @@ def _make_ax(ax, title, ylim):
     ax.grid(True, alpha=0.12)
     ax.tick_params(labelsize=8)
 
-_make_ax(axes[0][0], "Pitch (°)",    (-90,  90))
-_make_ax(axes[0][1], "Roll (°)",     (-90,  90))
-_make_ax(axes[1][0], "Gyro-X (°/s)", (-300, 300))
-_make_ax(axes[1][1], "Gyro-Y (°/s)", (-300, 300))
+_make_ax(ax_p,  "Pitch (°)",         (-90,  90))
+_make_ax(ax_r,  "Roll (°)",          (-90,  90))
+_make_ax(ax_gx, "Gyro-X (°/s)",      (-300, 300))
+_make_ax(ax_gy, "Gyro-Y (°/s)",      (-300, 300))
+_make_ax(ax_ec, "Encoder Count (motor şaftı, 32-bit signed)",
+                                     (-EC_YLIM, EC_YLIM))
 
 # Pitch paneli: ham (soluk) + füzyon (parlak)
-ln_p_raw,  = axes[0][0].plot(x_ax, [0.0]*N, color="#1e6fa0", linewidth=1.0,
-                              alpha=0.55, label="Ham")
-ln_p_fuse, = axes[0][0].plot(x_ax, [0.0]*N, color="#4fc3f7", linewidth=1.8,
-                              label="Füzyon")
-axes[0][0].legend(loc="upper right", fontsize=8, framealpha=0.3)
-txt_p = axes[0][0].text(0.02, 0.88, "", transform=axes[0][0].transAxes,
-                        fontsize=10, color="#4fc3f7", fontweight="bold")
+ln_p_raw,  = ax_p.plot(x_ax, [0.0]*N, color="#1e6fa0", linewidth=1.0,
+                        alpha=0.55, label="Ham")
+ln_p_fuse, = ax_p.plot(x_ax, [0.0]*N, color="#4fc3f7", linewidth=1.8,
+                        label="Füzyon")
+ax_p.legend(loc="upper right", fontsize=8, framealpha=0.3)
+txt_p = ax_p.text(0.02, 0.88, "", transform=ax_p.transAxes,
+                  fontsize=10, color="#4fc3f7", fontweight="bold")
 
 # Roll paneli: ham + füzyon
-ln_r_raw,  = axes[0][1].plot(x_ax, [0.0]*N, color="#1e7a72", linewidth=1.0,
-                              alpha=0.55, label="Ham")
-ln_r_fuse, = axes[0][1].plot(x_ax, [0.0]*N, color="#80cbc4", linewidth=1.8,
-                              label="Füzyon")
-axes[0][1].legend(loc="upper right", fontsize=8, framealpha=0.3)
-txt_r = axes[0][1].text(0.02, 0.88, "", transform=axes[0][1].transAxes,
-                        fontsize=10, color="#80cbc4", fontweight="bold")
+ln_r_raw,  = ax_r.plot(x_ax, [0.0]*N, color="#1e7a72", linewidth=1.0,
+                        alpha=0.55, label="Ham")
+ln_r_fuse, = ax_r.plot(x_ax, [0.0]*N, color="#80cbc4", linewidth=1.8,
+                        label="Füzyon")
+ax_r.legend(loc="upper right", fontsize=8, framealpha=0.3)
+txt_r = ax_r.text(0.02, 0.88, "", transform=ax_r.transAxes,
+                  fontsize=10, color="#80cbc4", fontweight="bold")
 
 # Gyro panelleri
-ln_gx, = axes[1][0].plot(x_ax, [0.0]*N, color="#ffb74d", linewidth=1.3)
-txt_gx = axes[1][0].text(0.02, 0.88, "", transform=axes[1][0].transAxes,
-                          fontsize=10, color="#ffb74d", fontweight="bold")
+ln_gx, = ax_gx.plot(x_ax, [0.0]*N, color="#ffb74d", linewidth=1.3)
+txt_gx = ax_gx.text(0.02, 0.88, "", transform=ax_gx.transAxes,
+                    fontsize=10, color="#ffb74d", fontweight="bold")
 
-ln_gy, = axes[1][1].plot(x_ax, [0.0]*N, color="#ef9a9a", linewidth=1.3)
-txt_gy = axes[1][1].text(0.02, 0.88, "", transform=axes[1][1].transAxes,
-                          fontsize=10, color="#ef9a9a", fontweight="bold")
+ln_gy, = ax_gy.plot(x_ax, [0.0]*N, color="#ef9a9a", linewidth=1.3)
+txt_gy = ax_gy.text(0.02, 0.88, "", transform=ax_gy.transAxes,
+                    fontsize=10, color="#ef9a9a", fontweight="bold")
 
-plt.tight_layout()
+# Encoder paneli
+ln_ec, = ax_ec.plot(x_ax, [0.0]*N, color="#ce93d8", linewidth=1.5)
+txt_ec = ax_ec.text(0.01, 0.88, "", transform=ax_ec.transAxes,
+                    fontsize=11, color="#ce93d8", fontweight="bold")
 
 # ── Screenshot ──────────────────────────────────────────────
 last_shot_time = time.time()
@@ -97,7 +113,6 @@ def _save_screenshot():
     path = os.path.join(SCREENSHOT_DIR, f"imu_{ts}.png")
     fig.savefig(path, dpi=100, bbox_inches="tight", facecolor="black")
 
-    # Eski dosyaları temizle
     files = sorted(glob.glob(os.path.join(SCREENSHOT_DIR, "imu_*.png")))
     while len(files) > MAX_SCREENSHOTS:
         os.remove(files.pop(0))
@@ -106,6 +121,7 @@ def _save_screenshot():
 PATTERN = re.compile(
     r"P:([-\d.]+),R:([-\d.]+),GX:([-\d.]+),GY:([-\d.]+)"
     r",FP:([-\d.]+),FR:([-\d.]+)"
+    r",EC:(-?\d+)"
 )
 
 def _read():
@@ -115,10 +131,15 @@ def _read():
             raw = ser.readline().decode("utf-8", errors="ignore").strip()
             m = PATTERN.search(raw)
             if m:
-                vals = tuple(float(m.group(i)) for i in range(1, 7))
+                vals = (
+                    float(m.group(1)), float(m.group(2)),
+                    float(m.group(3)), float(m.group(4)),
+                    float(m.group(5)), float(m.group(6)),
+                    int(m.group(7)),
+                )
     except Exception:
         pass
-    return vals  # (pitch, roll, gx, gy, fp, fr)
+    return vals  # (pitch, roll, gx, gy, fp, fr, ec)
 
 # ── Animasyon ────────────────────────────────────────────────
 def update(_frame):
@@ -132,6 +153,7 @@ def update(_frame):
         bufs["gy"].append(v[3])
         bufs["fp"].append(v[4])
         bufs["fr"].append(v[5])
+        bufs["ec"].append(float(v[6]))
 
     pd  = list(bufs["pitch"])
     rd  = list(bufs["roll"])
@@ -139,25 +161,28 @@ def update(_frame):
     frd = list(bufs["fr"])
     gxd = list(bufs["gx"])
     gyd = list(bufs["gy"])
+    ecd = list(bufs["ec"])
 
     ln_p_raw.set_ydata(pd);   ln_p_fuse.set_ydata(fpd)
     ln_r_raw.set_ydata(rd);   ln_r_fuse.set_ydata(frd)
     ln_gx.set_ydata(gxd)
     ln_gy.set_ydata(gyd)
+    ln_ec.set_ydata(ecd)
 
     txt_p.set_text(f"Ham {pd[-1]:+.1f}°  Füz {fpd[-1]:+.1f}°")
     txt_r.set_text(f"Ham {rd[-1]:+.1f}°  Füz {frd[-1]:+.1f}°")
     txt_gx.set_text(f"GX = {gxd[-1]:+.1f} °/s")
     txt_gy.set_text(f"GY = {gyd[-1]:+.1f} °/s")
+    txt_ec.set_text(f"EC = {int(ecd[-1]):+d} count")
 
-    # 30 sn'de bir screenshot
     now = time.time()
     if now - last_shot_time >= SCREENSHOT_INTERVAL:
         _save_screenshot()
         last_shot_time = now
 
     return (ln_p_raw, ln_p_fuse, ln_r_raw, ln_r_fuse,
-            ln_gx, ln_gy, txt_p, txt_r, txt_gx, txt_gy)
+            ln_gx, ln_gy, ln_ec,
+            txt_p, txt_r, txt_gx, txt_gy, txt_ec)
 
 ani = animation.FuncAnimation(
     fig, update,
