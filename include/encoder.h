@@ -13,9 +13,14 @@
  *
  * Sayım:
  *   TIM2 = 32-bit auto-reload counter (STM32F411 datasheet sf 28).
- *   Quadrature 4× decoding → 48 CPR × 4 = 192 olay / motor devri.
- *   9.7:1 redüktör → 1862 olay / çıkış mili devri.
- *   Taşma sınırı: ~2.3M çıkış devri (pratikte sınırsız).
+ *   Pololu konvansiyonu: "48 CPR" zaten quadrature-decoded sayım (her iki
+ *     kanalın her iki kenarı). Kaynak: robotsepeti.com 25D LP sayfası,
+ *     "Kuadratür enkoder her iki kanalda kenarlar için sayım yapması
+ *     durumunda 48 CPR'lık bir çözünürlük sağlar."
+ *   → 1 motor şaftı devri = 48 olay (TIM_ENCODERMODE_TI12 ile)
+ *   → 1 çıkış mili devri  = 48 × 9.7 ≈ 466 olay
+ *   → çıkış mili çözünürlüğü = 360° / 466 ≈ 0.77° / count
+ *   Taşma sınırı: ~9.2M çıkış devri (32-bit, pratikte sınırsız).
  *
  * Encoder beslemesi: BlackPill 5V (datasheet min 3.5V).
  *   Sinyaller 5V seviyede gelir, PA15/PB3 FT (5V tolerant) — direkt bağlanır.

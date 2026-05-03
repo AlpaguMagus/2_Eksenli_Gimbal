@@ -6,11 +6,14 @@
  * Detaylar için → include/encoder.h
  *
  * Mod: TIM_ENCODERMODE_TI12 (TI1 ve TI2 her iki kenar → 4× decoding)
- * 1 motor devri = 48 CPR × 4 = 192 olay
+ * Pololu "48 CPR" zaten quadrature-decoded sayım — 4'le çarpılmaz.
+ *   Kaynak: robotsepeti.com 25D LP sayfası ve Test 2A.T1 gözlemi
+ *   (470 ≈ 48 × 9.7 → çıkış mili 1 dev).
+ * 1 motor şaftı devri = 48 olay (TI12 mode, kuadratür-decoded)
  * Filter (ICxF=4): 6 ardışık örnek aynı seviye olmalı — Pololu için makul
  * ============================================================================ */
 
-#define EVENTS_PER_REV  192      /* 48 CPR × 4× decoding (motor şaftı) */
+#define EVENTS_PER_REV  48       /* Pololu CPR zaten 4× decoded (motor şaftı) */
 #define TWO_PI          6.28318530717958647692f
 
 static TIM_HandleTypeDef htim2;

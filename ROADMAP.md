@@ -2,7 +2,7 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında Claude Code güncelleyecek.
 >
-> - **Son güncelleme:** 2026-05-04
+> - **Son güncelleme:** 2026-05-04 (Test 2A.T1 PASS, EVENTS_PER_REV düzeltildi)
 > - **Branch:** `feature/motor-encoder-tb6612`
 > - **Kapsam:** Aşama 2A → 2E (Kalman dahil). Sonrası "Kapsam Dışı" bölümünde.
 
@@ -71,7 +71,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 
 | # | Test | Beklenen | Tamamlandı |
 |---|---|---|---|
-| 2A.T1 | **Encoder mekanik** — Motor şaftını elle 1 tam tur çevir | ~1862 count (192 × 9.7), CW/CCW yön tutarlı | ☐ |
+| 2A.T1 | **Encoder mekanik** — Çıkış milini elle 1 tam tur çevir | ~466 count (48 × 9.7), CW/CCW yön tutarlı (Pololu CPR zaten quadrature-decoded) | ✅ PASS |
 | 2A.T2 | **PWM duty linearitesi** — %20, %30, %40, %50 duty | Encoder hızı kabaca lineer artar (sanity check) | ☐ |
 | 2A.T3 | **Yön kontrolü** — `Motor_SetDir(CW)`, `(CCW)`, `(BRAKE)` | Encoder yönü ve durma davranışı beklendiği gibi | ☐ |
 | 2A.T4 | **Soft-start** — `Motor_SoftStart(0.40)` | Encoder hızı 0'dan ~200 ms içinde lineer artar | ☐ |
@@ -93,7 +93,14 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 - **2A.2** USB CDC EC alanı + plot 5. panel: `b75cee8`
 - _(devam edecek)_
 
-- Encoder mekanik test screenshot: _(plot_angles.py 5. panel — 2A.T1 sonrası)_
+- **Test 2A.T1 PASS** — Çıkış milini 1 tam tur çevirme:
+  - **Gözlem:** ~470 count, CW/CCW yön tutarlı, sıçrama yok, 0'a geri dönüş
+  - **Beklenti:** ~466 count = 48 × 9.7 (motor şaftı 48 olay × redüktör 9.7:1)
+  - **Hata:** %0.85 — mekanik tolerans + manuel tur tamlığı içinde
+  - **Teknik dayanak:** Pololu "48 CPR" konvansiyonu zaten quadrature-decoded sayım. Kaynak: robotsepeti.com 25D LP sayfası — *"Kuadratür enkoder her iki kanalda kenarlar için sayım yapması durumunda 48 CPR'lık bir çözünürlük sağlar."*
+  - **Çözünürlük:** Çıkış milinde **0.77° / count** (360°/466). Motor şaftında 7.5° / count.
+  - **Düzeltme:** İlk hesabımda 192 olay/motor devri (48 × 4) yanlıştı; gerçekte 48 olay/motor devri. `EVENTS_PER_REV` 192 → 48 düzeltildi.
+- Stall detection test logu/video: _(USB CDC çıktısı + LED gözlemi — 2A.T5 sonrası)_
 - Stall detection test logu/video: _(USB CDC çıktısı + LED gözlemi — 2A.T5 sonrası)_
 - README §8.6 sigortasız çalışma testi geçti notu: _(2A tamamlanınca)_
 
