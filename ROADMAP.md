@@ -2,7 +2,7 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında Claude Code güncelleyecek.
 >
-> - **Son güncelleme:** 2026-05-04 (Test 2A.T1 PASS, EVENTS_PER_REV düzeltildi)
+> - **Son güncelleme:** 2026-05-05 (Senaryo B / mirror — Aşama 2D yeniden tanımı; Test 2A.T2/T3 PASS)
 > - **Branch:** `feature/motor-encoder-tb6612`
 > - **Kapsam:** Aşama 2A → 2E (Kalman dahil). Sonrası "Kapsam Dışı" bölümünde.
 
@@ -188,28 +188,34 @@ Encoder hızını referans değere oturan PI kontrolcü çalışır durumda; set
 
 ---
 
-## Aşama 2D — Pozisyon Kontrolü + IMU Stabilizasyon
+## Aşama 2D — Pozisyon Kontrolü + IMU Mirror
+
+### Senaryo Notu (Mimari Karar)
+
+**Senaryo B — Mirror/Takip:** IMU breadboard'da sabit kalır (motor şaftına mekanik bağ yok). Breadboard kullanıcı tarafından eğildiğinde motor şaftı IMU pitch açısını **TAKLİT EDER** — aynı yöne, aynı miktarda. *"Bak, ben breadboard'u eğdim, motor da eğiliyor."*
+
+Klasik gimbal senaryosu (Senaryo A — IMU motor şaftında, ters çevirme ile stabilizasyon) bu projede **kapsam dışı** — mekanik mount kompleksitesi olmadan akademik karmaşıklık (sistem ID, hız PI, pozisyon kontrolü, IMU entegrasyonu) korunur.
 
 ### Hedef
-Dış döngü pozisyon kontrolcüsü ile motor ekseninde "kamera kolu" sabit duracak; tabanı eğmek motoru ters yönde ezzaman süreceği için kol açısı bozulmayacak.
+Motor şaftı, IMU pitch açısını gecikme/takip hatası içinde **taklit etsin**. Breadboard yavaşça ±30° eğildiğinde motor şaftı ±30° dönsün; takip hatası RMS < 5°.
 
 ### Önkoşul
 - ✅ Aşama 2C hız döngüsü stabil
 
 ### Adımlar
 
-- [ ] **2D.1** — Dış döngü P kontrolcü; setpoint başlangıçta sabit 0°. Ölçü: encoder pozisyon (count → derece, 1862 count/devir × 9.7 redüktör).
+- [ ] **2D.1** — Dış döngü P kontrolcü; setpoint başlangıçta sabit 0°. Ölçü: encoder pozisyon (count → derece, 466 count/çıkış mili devri = 0.77° / count).
 - [ ] **2D.2** — Cascade: dış döngü P çıkışı → iç döngü hız setpoint'i.
-- [ ] **2D.3** — IMU bağlantısı: setpoint = `−fused_pitch`. Tabanı eğdiğimde motor tersine süreceği için kol yatay kalacak.
+- [ ] **2D.3** — **IMU mirror bağlantısı:** setpoint = **`+fused_pitch`** (taklit, **ters değil**). Breadboard +30° eğilince motor şaftı +30° döner. Tersleme istense gimbal olurdu, mirror için pozitif eşleştirme.
 - [ ] **2D.4** — **Duty cap gevşetme kararı**: 2C testleri geçer ve sistem akım davranışı stabilse, MOTOR_MAX_DUTY %50 → %70'e çıkarılabilir. Karar bu aşamada test sonuçlarına göre verilir; ROADMAP güncellemesi gerektirir.
 
 ### Test ve Doğrulama
 
 | # | Test | Beklenen | Tamamlandı |
 |---|---|---|---|
-| 2D.T1 | Sabit setpoint disturbance | Şaftı elle bozmaya çalış, geri 0°'ye döner | ☐ |
-| 2D.T2 | IMU stabilizasyon (KRİTİK) | Tabanı ±30° eğ, kol açısı ±5° aralığında kalır | ☐ |
-| 2D.T3 | Disturbance rejection oranı | (kol açısı RMS) / (taban açısı RMS) < 0.2 | ☐ |
+| 2D.T1 | Sabit setpoint disturbance | Motor şaftı 0°'da iken elle bozulmaya karşı geri 0°'ye döner | ☐ |
+| 2D.T2 | **IMU mirror (KRİTİK)** | Breadboard'u yavaşça ±30° eğ → motor şaftı ±30° taklit eder. Takip hatası `\|motor_pos − fused_pitch\|` RMS **< 5°** | ☐ |
+| 2D.T3 | **Takip kalitesi** | Yavaş eğme (~10°/s) → motor sorunsuz takip; hızlı eğme (~60°/s+) → kontrolcü bant genişliği sınırı görünür (faz gecikmesi). Hız–hata eğrisi karakterize edilsin. | ☐ |
 
 ### Tamamlanma Kanıtı
 
