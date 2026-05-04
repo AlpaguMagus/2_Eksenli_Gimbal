@@ -1,3 +1,4 @@
 .pio
 screenshots/
 datasheets/**/*_pages/
+logs/

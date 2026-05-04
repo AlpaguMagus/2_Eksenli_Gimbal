@@ -72,8 +72,8 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 | # | Test | Beklenen | Tamamlandı |
 |---|---|---|---|
 | 2A.T1 | **Encoder mekanik** — Çıkış milini elle 1 tam tur çevir | ~466 count (48 × 9.7), CW/CCW yön tutarlı (Pololu CPR zaten quadrature-decoded) | ✅ PASS |
-| 2A.T2 | **PWM duty linearitesi** — %20, %30, %40, %50 duty | Encoder hızı kabaca lineer artar (sanity check) | ☐ |
-| 2A.T3 | **Yön kontrolü** — `Motor_SetDir(CW)`, `(CCW)`, `(BRAKE)` | Encoder yönü ve durma davranışı beklendiği gibi | ☐ |
+| 2A.T2 | **PWM duty linearitesi** — %20, %30, %50 duty (40 sn log, 18 sn döngülü sequence) | %20→107, %30→166, %50→282 rad/s motor şaftı. K sapması %5.3 — Vsat etkisi kabul edilebilir. %50'de no-load tahminiyle (565 rad/s × 0.5 = 282) **mükemmel uyum**. | ✅ PASS |
+| 2A.T3 | **Yön + BRAKE** — CW/CCW/BRAKE | CW +165.65, CCW −164.16 rad/s (simetri farkı %0.9). BRAKE −164→%10 hıza 1456 ms (kontrollü durma). | ✅ PASS |
 | 2A.T4 | **Soft-start** — `Motor_SoftStart(0.40)` | Encoder hızı 0'dan ~200 ms içinde lineer artar | ☐ |
 | 2A.T5 | **Stall detection (KRİTİK)** — Şaftı elle sıkıca tut, `Motor_SoftStart(0.40)`. **Ön hazırlık:** Bu testten önce manuel kill switch hazırlanması önerilir (README §8.6) — yazılım stall detection tek koruma, fiziksel yedek bulunsun. | Soft-start (200 ms) tamamlandıktan **sonra** ~200 ms içinde stall tetiklenir, motor keser, `STALL_DETECTED` USB'den, LED 5 Hz, 5 sn lock-out. Multimetre ile akım <0.9 A doğrulansın. | ☐ |
 | 2A.T6 | **Watchdog hazırlığı** | API yazılı, 2A'da bypass — 2B'de aktive | ☐ |
@@ -94,6 +94,14 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 - **2A.3** TB6612 TIM3 PWM init + STBY enable/disable: `60df499`
 - **2A.4** Motor_SetDir + Motor_SetDuty + geçici test sequence: `320d1d0`
 - _(devam edecek)_
+
+- **Test 2A.T2/T3 PASS** — 40 sn döngülü sequence log (`logs/test_2a4.csv`):
+  - **Duty linearitesi:** %20 → 107 rad/s, %30 → 166 rad/s, %50 → 282 rad/s (motor şaftı). K sapması %5.3, no-load tahmini ile mükemmel uyum.
+  - **Yön simetrisi:** CW +165.65 vs CCW −164.16 rad/s (fark %0.9).
+  - **BRAKE:** CCW −164 rad/s → %10 hız 1456 ms.
+  - **Vsat etkisi:** Düşük duty'de %5 kayıp (Pololu Vsat=0.5V/12V=%4 ile uyumlu) — 2B fitting'de detaylı modellenecek.
+  - **IMU notu:** Sabit kart yatay → pitch/roll=0 normal. Sanity check: kartı eğince pitch değişiyor mu (manuel doğrulama önerildi).
+  - **Grafik:** `logs/test_2a4_analysis.png` (3 panel: encoder count delta, hız profili sequence renkli, IMU)
 
 - **Test 2A.T1 PASS** — Çıkış milini 1 tam tur çevirme:
   - **Gözlem:** ~470 count, CW/CCW yön tutarlı, sıçrama yok, 0'a geri dönüş

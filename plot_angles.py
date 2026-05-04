@@ -5,7 +5,11 @@ Gerçek zamanlı IMU + Encoder grafiği — 5 panel
   Alt:             Encoder count (motor şaftı, 32-bit signed)
 
 Her 30 sn'de screenshots/ klasörüne PNG kaydeder (maks 50 dosya).
-Kullanım: python3 plot_angles.py [port]
+
+Kullanım:
+  python3 plot_angles.py [port] [csv_log_path]
+  python3 plot_angles.py /dev/ttyACM0
+  python3 plot_angles.py /dev/ttyACM0 logs/test_2a4.csv
 """
 
 import os
@@ -22,15 +26,27 @@ import matplotlib.animation as animation
 
 # ── Ayarlar ─────────────────────────────────────────────────
 PORT               = sys.argv[1] if len(sys.argv) > 1 else "/dev/ttyACM0"
+LOG_PATH           = sys.argv[2] if len(sys.argv) > 2 else None
 BAUD               = 115200
 N                  = 600        # 30 sn @ 20 Hz
-EC_YLIM            = 10000      # encoder ±limit (1 tur ≈ 1862 count)
+EC_YLIM            = 10000      # encoder ±limit (1 tur ≈ 466 count çıkış mili)
 SCREENSHOT_DIR     = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   "screenshots")
 SCREENSHOT_INTERVAL = 30        # saniye
 MAX_SCREENSHOTS    = 50
 
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
+
+# ── CSV log ─────────────────────────────────────────────────
+log_file = None
+log_t0   = None
+if LOG_PATH:
+    log_dir = os.path.dirname(os.path.abspath(LOG_PATH))
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = open(LOG_PATH, "w", buffering=1)  # line-buffered
+    log_file.write("t_ms,pitch,roll,gx_dps,gy_dps,fp,fr,ec\n")
+    log_t0 = time.time()
+    print(f"Log → {LOG_PATH}")
 
 # ── Veri tamponları ──────────────────────────────────────────
 keys = ("pitch", "roll", "gx", "gy", "fp", "fr", "ec")
@@ -155,6 +171,13 @@ def update(_frame):
         bufs["fr"].append(v[5])
         bufs["ec"].append(float(v[6]))
 
+        if log_file is not None:
+            t_ms = int((time.time() - log_t0) * 1000)
+            log_file.write(
+                f"{t_ms},{v[0]:.2f},{v[1]:.2f},{v[2]:.2f},{v[3]:.2f},"
+                f"{v[4]:.2f},{v[5]:.2f},{v[6]}\n"
+            )
+
     pd  = list(bufs["pitch"])
     rd  = list(bufs["roll"])
     fpd = list(bufs["fp"])
@@ -195,3 +218,5 @@ try:
     plt.show()
 finally:
     ser.close()
+    if log_file is not None:
+        log_file.close()
