@@ -43,8 +43,11 @@ void  Motor_Enable(void);                     /* STBY=HIGH */
 void  Motor_Disable(void);                    /* STBY=LOW */
 
 void  Motor_SetDir(MotorDir_t dir);
-void  Motor_SetDuty(float duty01);            /* clamp 0..1 */
+void  Motor_SetDuty(float duty01);            /* clamp [0, MOTOR_MAX_DUTY] */
+void  Motor_Tick(void);                       /* main loop'tan 200 Hz çağrılır */
 
-void  Motor_SoftStart(float target_duty01);   /* ~200 ms rampa */
+void  Motor_SoftStart(float target_duty01);   /* bloklayan ~200 ms rampa, init için */
+void  Motor_Stop(void);                       /* PWM=0, dir=STOP */
+void  Motor_EmergencyStop(void);              /* STBY=L + duty=0 + AIN=0 */
 
 #endif /* MOTOR_H */

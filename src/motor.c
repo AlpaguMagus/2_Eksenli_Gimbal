@@ -1,5 +1,6 @@
 #include "motor.h"
 #include "stm32f4xx_hal.h"
+#include <math.h>
 
 /* ============================================================================
  * TB6612FNG sürücü — iskelet
@@ -8,10 +9,28 @@
 
 #define MOTOR_PWM_PERIOD     4799U  /* ARR for 20 kHz @ 96 MHz / (1 × 4800) */
 #define MOTOR_MAX_DUTY       0.50f  /* Aşama 2A hard cap. Stall'da ~0.8 A */
-#define MOTOR_SOFT_START_MS  200U   /* 0 → target rampa süresi */
-#define MOTOR_SOFT_STEP_MS   5U     /* her stepte bekleme (40 step) */
+#define MOTOR_RAMP_STEP      0.01f  /* her tick'te duty değişimi */
+#define MOTOR_DEAD_THRESHOLD 0.10f  /* |Δ| > 0.10 ise rampa, ≤ 0.10 ise direkt */
+#define MOTOR_SOFT_STEP_MS   5U     /* SoftStart blok rampa step bekleme */
 
 static TIM_HandleTypeDef htim3;
+
+/* Non-blocking rampa state — Motor_Tick her main iterasyonunda günceller. */
+static float current_duty = 0.0f;
+static float target_duty  = 0.0f;
+
+static inline void _apply_pwm(float d)
+{
+    uint32_t ccr = (uint32_t)(d * (float)(MOTOR_PWM_PERIOD + 1U));
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, ccr);
+}
+
+static inline float _clamp_duty(float d)
+{
+    if (d < 0.0f)             return 0.0f;
+    if (d > MOTOR_MAX_DUTY)   return MOTOR_MAX_DUTY;
+    return d;
+}
 
 void Motor_Init(void)
 {
@@ -60,6 +79,9 @@ void Motor_Init(void)
     HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_3);
 
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_3);
+
+    current_duty = 0.0f;
+    target_duty  = 0.0f;
 }
 
 void Motor_Enable(void)
@@ -95,28 +117,77 @@ void Motor_SetDir(MotorDir_t dir)
 
 void Motor_SetDuty(float duty01)
 {
-    /* Hard cap MOTOR_MAX_DUTY (0.50f) Aşama 2A boyunca.
-     * Stall'da pik akım ~0.8 A — TB6612 1.2 A continuous limitinin altında. */
-    if (duty01 < 0.0f)            duty01 = 0.0f;
-    if (duty01 > MOTOR_MAX_DUTY)  duty01 = MOTOR_MAX_DUTY;
+    /* Hard cap MOTOR_MAX_DUTY (0.50f) — Stall'da pik akım ~0.8 A,
+     * TB6612 1.2 A continuous limitinin altında.
+     *
+     * |Δduty| > MOTOR_DEAD_THRESHOLD (0.10) ise sadece target güncellenir,
+     * Motor_Tick her iterasyonda 0.01 step ile yaklaştırır (non-blocking).
+     * Küçük adımlar (PI çıktısı tipik) anında uygulanır. */
+    float d = _clamp_duty(duty01);
+    target_duty = d;
 
-    uint32_t ccr = (uint32_t)(duty01 * (float)(MOTOR_PWM_PERIOD + 1U));
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_3, ccr);
+    if (fabsf(d - current_duty) <= MOTOR_DEAD_THRESHOLD) {
+        /* Küçük adım — direkt uygula, kontrol döngüsü için kritik */
+        current_duty = d;
+        _apply_pwm(d);
+    }
+    /* else: büyük sıçrama — Motor_Tick yumuşatır */
 }
 
-void Motor_SoftStart(float target_duty01)
+void Motor_Tick(void)
 {
-    /* TODO: 0'dan target_duty01'e ~200 ms içinde lineer rampa.
-     *
-     *   if (target_duty01 < 0.0f) target_duty01 = 0.0f;
-     *   if (target_duty01 > 1.0f) target_duty01 = 1.0f;
-     *
-     *   const uint32_t steps = MOTOR_SOFT_START_MS / MOTOR_SOFT_STEP_MS;  // 40
-     *   for (uint32_t i = 1; i <= steps; ++i) {
-     *       float d = target_duty01 * ((float)i / (float)steps);
-     *       Motor_SetDuty(d);
-     *       HAL_Delay(MOTOR_SOFT_STEP_MS);
-     *   }
-     */
-    (void)target_duty01;
+    /* Main loop'tan her iterasyonda (200 Hz @ 5 ms) çağrılır.
+     * current_duty → target_duty arasında 0.01 step ile yaklaşır.
+     * 30 step × 5 ms = 150 ms (büyük sıçrama için tipik rampa süresi). */
+    if (current_duty == target_duty) return;
+
+    if (current_duty < target_duty) {
+        current_duty += MOTOR_RAMP_STEP;
+        if (current_duty > target_duty) current_duty = target_duty;
+    } else {
+        current_duty -= MOTOR_RAMP_STEP;
+        if (current_duty < target_duty) current_duty = target_duty;
+    }
+    _apply_pwm(current_duty);
+}
+
+void Motor_SoftStart(float target01)
+{
+    /* Bloklayan rampa — init/start-up için. 0'dan target'a ~200 ms.
+     * Kontrol döngüsü öncesi tek seferlik kullanım; main loop bloklanır.
+     * Runtime için Motor_SetDuty + Motor_Tick kullan (non-blocking). */
+    float t = _clamp_duty(target01);
+    target_duty  = t;
+    current_duty = 0.0f;
+    _apply_pwm(0.0f);
+
+    while (current_duty < t - 0.005f) {
+        current_duty += MOTOR_RAMP_STEP;
+        if (current_duty > t) current_duty = t;
+        _apply_pwm(current_duty);
+        HAL_Delay(MOTOR_SOFT_STEP_MS);
+    }
+    current_duty = t;
+    _apply_pwm(t);
+}
+
+void Motor_Stop(void)
+{
+    /* Yumuşak durdurma — PWM target'ı 0, dir STOP. Mevcut hız varsa
+     * Motor_Tick rampa ile düşürür, motor sürtünme/atalete bırakılır. */
+    Motor_SetDir(MOTOR_STOP);
+    target_duty  = 0.0f;
+    current_duty = 0.0f;     /* anında — ramping istemiyoruz, motor zaten dur isteği */
+    _apply_pwm(0.0f);
+}
+
+void Motor_EmergencyStop(void)
+{
+    /* Kesici durdurma — STBY=L (en hızlı, donanım kesim) + duty=0 + AIN=0.
+     * Stall detection ve manuel kill için. */
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);  /* STBY=L önce */
+    target_duty  = 0.0f;
+    current_duty = 0.0f;
+    _apply_pwm(0.0f);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12 | GPIO_PIN_13, GPIO_PIN_RESET);  /* AIN=0 */
 }

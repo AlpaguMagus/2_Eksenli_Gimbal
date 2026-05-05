@@ -76,9 +76,10 @@ int main(void)
     const float alpha = 0.98f;
     uint32_t last_tick = HAL_GetTick();
 
-    /* 2A.4 GEÇİCİ TEST SEQUENCE — 2A.5 (soft-start) commit'inde KALDIRILACAK.
-     * Test 2A.T2 (PWM duty linearitesi) + Test 2A.T3 (yön kontrolü) için. */
+    /* GEÇİCİ TEST SEQUENCE — 2A koruma katmanları (2A.7+) sonrası kaldırılacak.
+     * Şu an Motor_SetDuty otomatik rampa (Motor_Tick non-blocking) ile yumuşak. */
     uint32_t test_start = HAL_GetTick();
+    uint32_t last_tx    = 0;
 
     while (1)
     {
@@ -87,7 +88,7 @@ int main(void)
         /* dt hesabı */
         uint32_t now = HAL_GetTick();
         float dt = (now - last_tick) / 1000.0f;
-        if (dt <= 0.0f || dt > 0.5f) dt = 0.05f;  /* ilk döngü / overflow koruması */
+        if (dt <= 0.0f || dt > 0.5f) dt = 0.005f;  /* ilk döngü / overflow koruması */
         last_tick = now;
 
         int32_t enc_count = Encoder_GetCount();
@@ -113,7 +114,10 @@ int main(void)
         else if (t < 14000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
         else if (t < 17000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.50f); }
         else                { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
-        /* ──── 2A.4 TEST SEQUENCE BİTİŞ ─────────────────────────────────── */
+        /* ──── TEST SEQUENCE BİTİŞ ──────────────────────────────────────── */
+
+        /* Motor rampa step'i (non-blocking, target_duty'ye yaklaşır) */
+        Motor_Tick();
 
         float fax = (float)ax, fay = (float)ay, faz = (float)az;
 
@@ -131,14 +135,19 @@ int main(void)
         fused_pitch = alpha * (fused_pitch - gy_dps * dt) + (1.0f - alpha) * pitch;
         fused_roll  = alpha * (fused_roll  + gx_dps * dt) + (1.0f - alpha) * roll;
 
-        int len = snprintf(buf, sizeof(buf),
-            "P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld\r\n",
-            pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll,
-            (long)enc_count);
-        CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
+        /* USB CDC transmit — 40 Hz throttle (her 25 ms'de bir).
+         * Loop 200 Hz Motor_Tick için, transmit plot/log için yeterli. */
+        if (now - last_tx >= 25U) {
+            int len = snprintf(buf, sizeof(buf),
+                "P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld\r\n",
+                pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll,
+                (long)enc_count);
+            CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
+            HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+            last_tx = now;
+        }
 
-        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-        HAL_Delay(50);
+        HAL_Delay(5);
     }
 }
 
