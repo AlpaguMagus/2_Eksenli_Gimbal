@@ -59,8 +59,8 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 - [x] **2A.2** — USB CDC formatına `EC:%ld` (encoder count) eklenmesi. `plot_angles.py` 5. paneli (encoder count) eklenecek şekilde güncelle. ✅ commit `b75cee8`
 - [x] **2A.3** — TB6612 PWM implementasyonu (`Motor_Init` TIM3 + GPIO, `Motor_Enable`, `Motor_Disable`). PB0 AF2, PB12-14 GPIO out (başlangıç LOW). 20 kHz PWM doğrulanır. ✅ commit `60df499` (frekans doğrulaması 2A.4 + Test 2A.T2'ye ertelendi — duty=0 iken PWM görünmez)
 - [x] **2A.4** — TB6612 temel sürücü (`Motor_SetDir`, `Motor_SetDuty`). `MOTOR_MAX_DUTY = 0.50f` hard cap içeride. Naive AIN1/AIN2 set (donanım dead-time yeterli). ✅ commit `320d1d0` (main.c'de 18 sn'lik geçici test sequence — 2A.5'te kaldırılacak)
-- [ ] **2A.5** — Soft-start (`Motor_SoftStart` 200 ms / 40 step, `Motor_SetDuty` içinde |Δduty| > 0.10 ise otomatik 10 ms / 0.01 step rampa).
-- [ ] **2A.6** — `Motor_Stop` (PWM=0, dir=STOP) ve `Motor_EmergencyStop` (STBY=L + duty=0 + AIN=0).
+- [x] **2A.5** — Soft-start + non-blocking rampa hibrit. ✅ commit `85e03a9` (Motor_Tick 200 Hz, Motor_SetDuty target+rampa, Motor_SoftStart bloklayan init için, main loop 50 ms → 5 ms + USB CDC 40 Hz throttle)
+- [x] **2A.6** — `Motor_Stop` ve `Motor_EmergencyStop`. ✅ commit `85e03a9` (aynı commit'te)
 - [ ] **2A.7** — `Motor_StallCheck()` 50 Hz ana döngüden çağrılır. Tetik koşulu: **|encoder_speed| < 2 rad/s** VE |duty| > 0.20 VE 200 ms süre. **Soft-start grace period:** Fonksiyona girişte `if (motor.soft_start_active) return;` — soft-start biten iterasyonda check yeniden devreye girer. Tetiklenince: `Motor_EmergencyStop()` + USB CDC'ye `STALL_DETECTED` + LED 5 Hz.
   > **Eşik gerekçesi:** Pololu 25D LP no-load çıkış hızı ~57 rad/s (560 RPM ÷ 9.55). 5 rad/s = ~%8 no-load — soft-start sırasında yanlış pozitif riski. 2 rad/s gerçek stall'a daha yakın (gerçek stall ≈ 0 rad/s, gürültü payı için 2 rad/s).
 - [ ] **2A.8** — 5 sn lock-out: stall sonrası `Motor_Enable`/`Motor_SetDuty` çağrıları reddedilir; süre dolunca otomatik açılır VEYA kullanıcı reset atana kadar kilitli kalır (karar: kullanıcı reset, `Motor_ResetLockout()` API'si).
@@ -93,6 +93,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 - **2A.2** USB CDC EC alanı + plot 5. panel: `b75cee8`
 - **2A.3** TB6612 TIM3 PWM init + STBY enable/disable: `60df499`
 - **2A.4** Motor_SetDir + Motor_SetDuty + geçici test sequence: `320d1d0`
+- **2A.5 + 2A.6** Motor_Tick non-blocking rampa, Motor_Stop, Motor_EmergencyStop, 200 Hz loop, 40 Hz USB throttle: `85e03a9`
 - _(devam edecek)_
 
 - **Test 2A.T2/T3 PASS** — 40 sn döngülü sequence log (`logs/test_2a4.csv`):
