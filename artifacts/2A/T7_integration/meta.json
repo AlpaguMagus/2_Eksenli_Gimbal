@@ -1,0 +1,28 @@
+{
+  "test_id": "2A.T7",
+  "title": "60+ sn entegrasyon testi (IMU + encoder + motor + stall_check)",
+  "timestamp": "2026-05-11",
+  "commit": "f8bf5c7",
+  "status": "PASS",
+  "key_metrics": {
+    "duration_s": 135.4,
+    "sample_count": 2527,
+    "sample_rate_hz": 18.7,
+    "sequence_cycles": 7.5,
+    "usb_drops_ge_100ms": 5,
+    "drop_source": "plot_screenshot_blocking",
+    "false_positive_stall": 0,
+    "longest_zero_speed_s": 4.8,
+    "imu_pitch_range_deg": [-9.4, 36.6],
+    "cw30_avg_rad_s": 167.98,
+    "ccw30_avg_rad_s": -166.48,
+    "cw50_avg_rad_s": 287.56,
+    "cw20_avg_rad_s": 0.0
+  },
+  "artifacts": [
+    "raw/test_2a7_integration.csv.gz"
+  ],
+  "open_issues": [
+    "R6: CW%20 ölü-bant — test_2a4'te +107, test_2a7'de +0. 2B.6'da nicelendirilecek."
+  ]
+}

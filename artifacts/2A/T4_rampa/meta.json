@@ -1,0 +1,21 @@
+{
+  "test_id": "2A.T4",
+  "title": "Non-blocking rampa doğrulama",
+  "timestamp": "2026-05-03",
+  "commit": "85e03a9",
+  "status": "PASS",
+  "key_metrics": {
+    "ramp_ccw30_ms": 138,
+    "ramp_cw50_ms": 260,
+    "ramp_cw20_ms": 157,
+    "ramp_spec_ms": 200,
+    "tipik_ortalama_ms": 199,
+    "steady_state_varyasyon_pct": 3.0,
+    "imu_pitch_range_deg": [-5.2, 88.0]
+  },
+  "artifacts": [
+    "raw/test_2a5.csv.gz",
+    "test_2a5_ramp_comparison.png"
+  ],
+  "notes": "CW%20 rampa spec'in üstünde (157 vs 94 ms) — Vsat etkisinden motor ivmelenmesinde gecikme. Spec ihlali değil."
+}

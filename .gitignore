@@ -2,3 +2,4 @@
 screenshots/
 datasheets/**/*_pages/
 logs/
+artifacts/**/raw/

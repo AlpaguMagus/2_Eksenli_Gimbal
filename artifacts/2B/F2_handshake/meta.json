@@ -1,0 +1,18 @@
+{
+  "test_id": "2B.F2_handshake",
+  "title": "USB CDC handshake + heartbeat sanity test",
+  "timestamp": "2026-05-11T01:38",
+  "commit": "4d6d047",
+  "status": "PASS",
+  "key_metrics": {
+    "ping_pong_rtt_ms": 0.0,
+    "cw20_steady_rad_s": 105.97,
+    "ccw20_steady_rad_s": -105.97,
+    "cw30_steady_rad_s": 166.22,
+    "yon_simetri_pct": 0.0,
+    "cooldown_omega_final": 0.0
+  },
+  "artifacts": [
+    "raw/handshake_test_output.log"
+  ]
+}

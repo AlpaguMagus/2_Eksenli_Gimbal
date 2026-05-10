@@ -1,0 +1,22 @@
+{
+  "test_id": "2A.T2_T3",
+  "title": "Duty linearitesi + yön + BRAKE",
+  "timestamp": "2026-04-06",
+  "commit": "320d1d0",
+  "status": "PASS",
+  "key_metrics": {
+    "k_cw30_rad_per_s_per_duty": 552.2,
+    "k_ccw30_rad_per_s_per_duty": 547.2,
+    "k_cw20_rad_per_s_per_duty": 534.9,
+    "k_cw50_rad_per_s_per_duty": 564.9,
+    "k_minmax_sapma_pct": 5.3,
+    "cw_ccw_simetri_pct": 0.9,
+    "brake_durma_ms": 1456,
+    "no_load_uyum_pct": 0.16
+  },
+  "artifacts": [
+    "raw/test_2a4.csv.gz",
+    "test_2a4_analysis.png"
+  ],
+  "notes": "Vsat (%4) ile uyumlu lineerlik sapması. CW%20 = +107 — ileride R6 olarak farklılaşacak."
+}
