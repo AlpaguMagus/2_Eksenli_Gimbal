@@ -2,7 +2,7 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında Claude Code güncelleyecek.
 >
-> - **Son güncelleme:** 2026-05-11 (Aşama 2A KAPALI — Test 2A.T7 PASS, 10 adım + 6 test geçildi; sadece 2A.T5-B bekliyor)
+> - **Son güncelleme:** 2026-05-11 (Aşama 2A KAPALI, 2B planı detaylandırıldı: Model B dead-band gömülü, 6 step %15-45, USB RX komut seti, V_supply=12.15V ölçüm)
 > - **Branch:** `feature/motor-encoder-tb6612`
 > - **Kapsam:** Aşama 2A → 2E (Kalman dahil). Sonrası "Kapsam Dışı" bölümünde.
 
@@ -84,7 +84,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 - **R6 (yeni, 2A.T7 sonrası):** **CW%20 ölü-bant değişkenliği.** Test_2a4'te +107 rad/s gözlendi, test_2a7'de +0.00 (motor başlamadı). Sıcaklık/PSU droop/kontak direnci olabilir. **2B.6 dead-band tespiti** bunu nicelendirecek; gerekirse step seviyeleri revize edilir (taban %25 veya %30).
 - **R1**: Pololu enkoder pull-up gerçekten gerekli mi? GPIO_PULLUP zarar vermez ama push-pull ise çıkış akımı artar (~50 µA, ihmal). 2A.T1 başarısızsa pull konfigürasyonu gözden geçirilecek.
 - **R2**: TB6612 modülünün üzerindeki gömülü kapasitörlerin değeri biliniyor mu? Datasheet 10 µF + 0.1 µF tipik diyor; modül üreticisi (Robotistan/Direnç) sayfasında belirtilmemiş. Stall sırasında VM voltajı düşerse harici kapasitör eklenebilir.
-- **R3**: Mervesan 36 W (3 A) adaptör motor stall altında 12 V tutabilir mi? Aşama 2B.T2'de ölçülecek; droop > %10 ise modele dahil edilecek.
+- ~~**R3**~~ ✅ **KAPALI 2026-05-11**: Mervesan adaptör droop ölçüldü — VM = 12.12–12.19 V (%0.6 droop). Sabit V_supply=12.15 V varsayımı modele dahil edildi. ADC online izleme kapsam dışı.
 - **R4**: Stall lock-out süresi 5 sn yeterli mi yoksa kullanıcı reset zorunlu olmalı mı? İki yaklaşım da implemente edilebilir; varsayılan: 5 sn otomatik açılma + `Motor_ResetLockout()` API'si erken açmak için.
 - **R5**: Aşama 2A boyunca komut girişi yok (sabit duty test). Watchdog 2B'de aktive olduğunda mevcut sabit-duty testleri etkilenmez (tek yönde duty komutu zaten 1 sn'den kısa).
 
@@ -131,39 +131,76 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 ## Aşama 2B — Motor Sistem Tanımlama (Modelleme)
 
 ### Hedef
-Motor için lineer 1. dereceden model parametreleri (K, τ, dead-band) çıkarılmış; PSU droop gerçek yük altında ölçülmüş; veri toplama altyapısı (USB CDC RX) ile Python step response scripti çalışır durumda.
+Motor için **dead-band gömülü 1. dereceden** model parametreleri (K, τ, V_dead) çıkarılmış; veri toplama altyapısı (USB CDC RX + Python script) ile fitting raporu hocaya sunulabilir formatta hazır.
+
+### Model Yapısı (Karar 1)
+
+**Model B — Dead-band gömülü:**
+
+```
+ω(t) = K · max(V_eff − V_dead, 0) · (1 − e^(−t/τ))
+
+V_eff = V_supply · duty − V_sat
+V_supply = 12.15 V   (Mervesan ölçüm ortalaması, droop %0.6)
+V_sat    = 0.5 V     (TB6612 datasheet @1A)
+```
+
+Parametreler: **K** (rad/s/V), **τ** (s), **V_dead** (V). R6 (CW%20 ölü-bant) modelle açıklanır.
 
 ### Önkoşul
 - ✅ Aşama 2A tamamlandı, koruma katmanları aktif
+- ✅ V_supply ölçüldü (12.15 V ortalama)
 
 ### Adımlar
 
-- [ ] **2B.1** — USB CDC RX implementasyonu (firmware): `DUTY:0.30\n` benzeri komut alımı. Komut parser, dead-letter ignore.
-- [ ] **2B.2** — **Watchdog timeout aktive et:** son komut zamanı tutulur, 1 sn boyunca yeni komut yoksa `Motor_SetDuty(0.0f)`.
-- [ ] **2B.3** — Step response Python scripti (`scripts/step_response.py`): farklı duty seviyelerinde komut gönderir, encoder hızını 200 Hz örnekleme ile log dosyasına yazar.
-- [ ] **2B.4** — Veri toplama: **%20, %35, %50** duty (50% MOTOR_MAX_DUTY üst sınırı, üzeri çıkma). Her duty için ~5 sn kayıt, 0'dan başlatılarak.
-  > **Aralık gerekçesi:** Ölü-bant muhtemelen %10-15 civarı; %30-50 dar bir aralık olur. %20-50 daha geniş ayrışma → lineer fit daha güvenilir.
-- [ ] **2B.5** — Python fitting (`scripts/fit_motor.py`): `ω(t) = K·V·(1 − e^(−t/τ))`, Vsat=0.5V düzeltmesi. Üç duty'den parametre konsistens kontrolü.
-- [ ] **2B.6** — Ölü-bant tespiti: %5'lik step'lerle minimum hareket eden duty.
-  > **Revizyon notu:** Ölçülen ölü-bant **%20'nin üstünde** çıkarsa adım 2B.4'teki düşük duty seviyesi (%20) ölü-bantta olabilir → step response seviyeleri revize edilir, taban %25 veya %30'a çekilir.
-- [ ] **2B.7** — Adaptör droop ölçümü (multimetre ile): yüksüz, 30%, 50% duty altında VM voltajı. README §8.5'e ölçüm sonuçları eklenir.
+- [ ] **2B.1** — Firmware USB CDC RX + komut parser. **Komut seti (minimum + PING):**
+  - `DUTY:<signed_float>\n` → işaret yön belirler (+CW, -CCW)
+  - `STOP\n` → Motor_Stop()
+  - `RESET\n` → Motor_ResetLockout()
+  - `PING\n` → `PONG\r\n` yanıt (handshake)
+
+  Aynı commit'te: main.c'deki **2A geçici test sequence kaldırılır**, USB CDC çıktısına **`OMEGA:<firmware_speed>`** alanı eklenir (firmware tarafında hesaplanan motor şaftı rad/s — Python'da hem ham EC hem işlenmiş OMEGA olur).
+
+- [ ] **2B.2** — **Watchdog timeout:** son komut zamanı (last_cmd_tick) tutulur. 1 sn boyunca yeni komut yoksa `Motor_Stop()`. PING komutu da watchdog'u resetler.
+
+- [ ] **2B.3** — `scripts/step_response.py` (Python):
+  - pyserial bağlantı + handshake (PING → PONG kontrol)
+  - Programatik step sekansı: 6 step × 5 sn + 2 sn coast
+  - 200 Hz örnekleme hedef, CSV log (timestamp, duty_cmd, omega_firmware, ec, pitch, ...)
+  - Hata durumunda STOP gönder, kullanıcıya rapor
+
+- [ ] **2B.4** — Veri toplama: **%15, %20, %25, %30, %40, %45 duty** (signed: hem CW hem CCW kayıt). MOTOR_MAX_DUTY=%50 cap'e güvenli mesafe. %50 yerine %45 — Vsat doyumu fit'i bozmasın.
+  > **Aralık gerekçesi:** %15 dead-band altı referans (muhtemelen hiç dönmez = bilgi). %45 üst sınır cap'e güvenli mesafede. 6 step ince tarama dead-band çevresinde yoğun fit verir.
+
+- [ ] **2B.5** — `scripts/fit_motor.py` (Python):
+  - Her step için 1. dereceden fit: `scipy.optimize.curve_fit`, model ω(t) = ω_ss · (1 - exp(-(t-t0)/τ))
+  - Tüm steplerden K, τ ortalama ± std
+  - **Dead-band çıkarımı:** ω_ss vs V_eff lineer regresyon → V_dead = x-intercept
+  - Çıktı: `fit_motor_<ts>.json` (parametreler), `fit_motor_<ts>.png` (görseller), `fit_report_<ts>.md` (Markdown şablon, hocaya sunum için placeholder'lar)
+
+- [ ] **2B.6** — Dead-band tespit doğrulaması: fit'ten çıkan V_dead, %5'lik ince tarama (V_dead ± 0.1) ile cross-check edilir. R6 nicelendirilmiş olur.
+
+- [x] **2B.7** — ~~Adaptör droop ölçümü~~ ✅ **MEASURED 2026-05-11**: VM = 12.12–12.19 V (motor sürüş altında, multimetre). Droop %0.6 — ihmal edilebilir, sabit V_supply=12.15V varsayımı modele dahil edildi. ADC online izleme **kapsam dışı** (gelecek çalışma).
 
 ### Test ve Doğrulama
 
 | # | Test | Beklenen | Tamamlandı |
 |---|---|---|---|
-| 2B.T1 | Üç duty'de K ve τ tutarlılığı | K aynı (±%5), τ aynı (±%10) — lineer model varsayımı | ☐ |
-| 2B.T2 | Adaptör droop | VM ≥ 11 V tutar; altına düşerse modele dahil | ☐ |
-| 2B.T3 | Watchdog tetik | USB CDC bağlantısı koparılırsa motor 1 sn içinde durur | ☐ |
+| 2B.T1 | Komut handshake | PING → PONG <100 ms gecikme, watchdog 1 sn'de tetik | ☐ |
+| 2B.T2 | Step response tutarlılığı | 6 step'te K aynı (±%10), τ aynı (±%15) — model varsayımı | ☐ |
+| 2B.T3 | Dead-band cross-check | fit V_dead, ince tarama V_dead'i ±0.2 V içinde | ☐ |
+| 2B.T4 | CW/CCW simetri | K_cw vs K_ccw farkı < %5 | ☐ |
 
 ### Tamamlanma Kanıtı
 
 > _Aşama tamamlandığında doldurulacak._
 
-- Motor parametreleri: K=___, τ=___ s, dead_band=___, V_supply_actual=___
-- Step response grafiği (PNG)
-- `fit_motor.py` çıktı dosyası
-- Commit hash
+- Motor parametreleri: K=___, τ=___ s, V_dead=___ V
+- V_supply: 12.15 V (MEASURED 2026-05-11)
+- Step response grafikleri (PNG)
+- `fit_motor_<ts>.json` (parametreler)
+- `fit_report_<ts>.md` (hocaya sunum için Markdown şablonu)
+- Commit hash'leri
 
 ---
 
