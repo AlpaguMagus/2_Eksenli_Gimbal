@@ -1,6 +1,7 @@
 #include "motor.h"
 #include "stm32f4xx_hal.h"
 #include <math.h>
+#include <stdbool.h>
 
 /* ============================================================================
  * TB6612FNG sürücü — iskelet
@@ -13,11 +14,25 @@
 #define MOTOR_DEAD_THRESHOLD 0.10f  /* |Δ| > 0.10 ise rampa, ≤ 0.10 ise direkt */
 #define MOTOR_SOFT_STEP_MS   5U     /* SoftStart blok rampa step bekleme */
 
+/* Stall detection */
+#define STALL_SPEED_TH       2.0f    /* rad/s motor şaftı eşiği */
+#define STALL_DUTY_TH        0.20f   /* duty eşiği */
+#define STALL_DURATION_MS    200U    /* tetik penceresi */
+#define LOCKOUT_DURATION_MS  5000U   /* lockout süresi */
+
 static TIM_HandleTypeDef htim3;
 
 /* Non-blocking rampa state — Motor_Tick her main iterasyonunda günceller. */
 static float current_duty = 0.0f;
 static float target_duty  = 0.0f;
+
+/* Stall / lockout state */
+static uint32_t stall_count_ms      = 0;
+static bool     stall_active        = false;
+static uint32_t lockout_until_ms    = 0;
+static bool     stall_event_pending = false;
+static bool     fake_stall_inject   = false;
+static uint32_t last_check_tick     = 0;
 
 static inline void _apply_pwm(float d)
 {
@@ -86,6 +101,7 @@ void Motor_Init(void)
 
 void Motor_Enable(void)
 {
+    if (stall_active) return;   /* Lockout aktif — STBY=L'de kalır */
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);    /* STBY = HIGH */
 }
 
@@ -117,6 +133,8 @@ void Motor_SetDir(MotorDir_t dir)
 
 void Motor_SetDuty(float duty01)
 {
+    if (stall_active) return;   /* Lockout — duty komutu reddedilir */
+
     /* Hard cap MOTOR_MAX_DUTY (0.50f) — Stall'da pik akım ~0.8 A,
      * TB6612 1.2 A continuous limitinin altında.
      *
@@ -190,4 +208,81 @@ void Motor_EmergencyStop(void)
     current_duty = 0.0f;
     _apply_pwm(0.0f);
     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12 | GPIO_PIN_13, GPIO_PIN_RESET);  /* AIN=0 */
+}
+
+/* ── Stall detection + lockout ─────────────────────────────────────────── */
+
+void Motor_StallCheck(float speed_radps)
+{
+    uint32_t now = HAL_GetTick();
+
+    /* Lockout otomatik açılma — 5 sn dolunca sürücüyü tekrar aktive et */
+    if (stall_active && now >= lockout_until_ms) {
+        stall_active     = false;
+        lockout_until_ms = 0;
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);  /* STBY=H */
+    }
+
+    if (stall_active) {
+        /* Lockout süresince kontrol yapma */
+        last_check_tick = now;
+        stall_count_ms  = 0;
+        return;
+    }
+
+    /* Rampa sırasında bypass (current ≠ target) — yanlış pozitif önleme */
+    if (fabsf(current_duty - target_duty) > 0.005f) {
+        stall_count_ms  = 0;
+        last_check_tick = now;
+        return;
+    }
+
+    /* Tick periyodu — main loop ~5-10 ms, ilk çağrı veya overflow için clamp */
+    uint32_t dt = (last_check_tick == 0U) ? 5U : (now - last_check_tick);
+    last_check_tick = now;
+    if (dt > 100U) dt = 5U;
+
+    /* Stall koşulu — fake_stall ile debug injection */
+    float v = fake_stall_inject ? 0.0f : speed_radps;
+    bool cond = (fabsf(v) < STALL_SPEED_TH) && (current_duty > STALL_DUTY_TH);
+
+    if (cond) {
+        stall_count_ms += dt;
+        if (stall_count_ms >= STALL_DURATION_MS) {
+            /* STALL TETİK — kesici durdurma + 5 sn lockout */
+            stall_event_pending = true;
+            stall_count_ms      = 0;
+            lockout_until_ms    = now + LOCKOUT_DURATION_MS;
+            Motor_EmergencyStop();
+            stall_active        = true;  /* EmergencyStop sonrası set — sıra önemli */
+        }
+    } else {
+        stall_count_ms = 0;
+    }
+}
+
+bool Motor_IsStalled(void)
+{
+    return stall_active;
+}
+
+bool Motor_PollStallEvent(void)
+{
+    bool e = stall_event_pending;
+    stall_event_pending = false;
+    return e;
+}
+
+void Motor_ResetLockout(void)
+{
+    /* Erken kapatma — USB komut için (2B'de). Şu an doğrudan da çağrılabilir. */
+    stall_active     = false;
+    lockout_until_ms = 0;
+    stall_count_ms   = 0;
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);  /* STBY=H */
+}
+
+void Motor_DebugInjectFakeStall(bool on)
+{
+    fake_stall_inject = on;
 }

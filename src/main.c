@@ -7,6 +7,7 @@
 #include "motor.h"
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <math.h>
 
 #define RAD2DEG  (180.0f / 3.14159265f)
@@ -53,6 +54,16 @@ int main(void)
     led.Speed = GPIO_SPEED_FREQ_LOW;
     HAL_GPIO_Init(GPIOC, &led);
 
+    /* PA0 — KEY butonu (debug fake stall tetikleyici). BlackPill schematic'inde
+     * KEY → PA0 → GND (active-low). GPIO input + pull-up. TIM2_CH1 AF aktif
+     * değil, encoder PA15+PB3'te → çakışma yok. */
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    GPIO_InitTypeDef key = {0};
+    key.Pin  = GPIO_PIN_0;
+    key.Mode = GPIO_MODE_INPUT;
+    key.Pull = GPIO_PULLUP;
+    HAL_GPIO_Init(GPIOA, &key);
+
     MPU6050_Init();
     Encoder_Init();           /* TIM2, PA15+PB3 */
     Motor_Init();              /* TIM3, PB0 PWM, PB12-14 GPIO, STBY=LOW */
@@ -76,10 +87,10 @@ int main(void)
     const float alpha = 0.98f;
     uint32_t last_tick = HAL_GetTick();
 
-    /* GEÇİCİ TEST SEQUENCE — 2A koruma katmanları (2A.7+) sonrası kaldırılacak.
-     * Şu an Motor_SetDuty otomatik rampa (Motor_Tick non-blocking) ile yumuşak. */
-    uint32_t test_start = HAL_GetTick();
-    uint32_t last_tx    = 0;
+    /* GEÇİCİ TEST SEQUENCE — 2B'de USB RX gelince kaldırılacak. */
+    uint32_t test_start  = HAL_GetTick();
+    uint32_t last_tx     = 0;
+    uint32_t last_led    = 0;
 
     while (1)
     {
@@ -92,6 +103,14 @@ int main(void)
         last_tick = now;
 
         int32_t enc_count = Encoder_GetCount();
+        float   enc_speed = Encoder_GetSpeed(dt);   /* motor şaftı rad/s */
+
+        /* PA0 KEY butonu (active-low) → fake stall injection */
+        bool key_pressed = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET);
+        Motor_DebugInjectFakeStall(key_pressed);
+
+        /* Stall detection — her iterasyonda (200 Hz) */
+        Motor_StallCheck(enc_speed);
 
         /* ──── 2A.4 GEÇİCİ TEST SEQUENCE — 18 sn döngülü ─────────────────
          * 2A.5 commit'inde KALDIRILACAK. Sequence:
@@ -135,16 +154,27 @@ int main(void)
         fused_pitch = alpha * (fused_pitch - gy_dps * dt) + (1.0f - alpha) * pitch;
         fused_roll  = alpha * (fused_roll  + gx_dps * dt) + (1.0f - alpha) * roll;
 
-        /* USB CDC transmit — 40 Hz throttle (her 25 ms'de bir).
-         * Loop 200 Hz Motor_Tick için, transmit plot/log için yeterli. */
+        /* USB CDC transmit — 40 Hz throttle (her 25 ms'de bir). */
         if (now - last_tx >= 25U) {
             int len = snprintf(buf, sizeof(buf),
                 "P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld\r\n",
                 pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll,
                 (long)enc_count);
             CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
-            HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
             last_tx = now;
+        }
+
+        /* Stall event — tetik anında bir kerelik USB mesajı */
+        if (Motor_PollStallEvent()) {
+            static const char ev[] = "STALL_DETECTED\r\n";
+            CDC_Transmit_FS((uint8_t *)ev, (uint16_t)(sizeof(ev) - 1));
+        }
+
+        /* LED durum kodu: normal 500 ms, stall 100 ms toggle (5 Hz) */
+        uint32_t led_period = Motor_IsStalled() ? 100U : 500U;
+        if (now - last_led >= led_period) {
+            HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+            last_led = now;
         }
 
         HAL_Delay(5);

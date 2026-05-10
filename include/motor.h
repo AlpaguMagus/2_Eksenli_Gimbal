@@ -2,6 +2,7 @@
 #define MOTOR_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 /* ============================================================================
  * TB6612FNG Motor Sürücü API
@@ -49,5 +50,20 @@ void  Motor_Tick(void);                       /* main loop'tan 200 Hz çağrıl�
 void  Motor_SoftStart(float target_duty01);   /* bloklayan ~200 ms rampa, init için */
 void  Motor_Stop(void);                       /* PWM=0, dir=STOP */
 void  Motor_EmergencyStop(void);              /* STBY=L + duty=0 + AIN=0 */
+
+/* ── Stall detection / lockout ────────────────────────────────────────────
+ * Tetik: |speed| < 2 rad/s VE current_duty > 0.20 VE 200 ms süre.
+ * Rampa sırasında (current_duty != target_duty) bypass — yanlış pozitif önleme.
+ * Tetiklenince EmergencyStop + 5 sn lockout (Motor_SetDuty/Enable reddedilir).
+ * Lockout otomatik açılır veya Motor_ResetLockout ile erken kapatılabilir.
+ * Motor_StallCheck main loop'tan her iterasyonda çağrılmalı.
+ * ─────────────────────────────────────────────────────────────────────── */
+void  Motor_StallCheck(float speed_radps);    /* main loop tick'i */
+bool  Motor_IsStalled(void);                  /* lockout aktif mi? */
+void  Motor_ResetLockout(void);               /* lockout'u erken kapat (USB komut için 2B'de) */
+bool  Motor_PollStallEvent(void);             /* tek seferlik event flag (read-and-clear) */
+
+/* Debug: fake stall injection (encoder hızını 0 sayar) — sıfır-risk test için */
+void  Motor_DebugInjectFakeStall(bool on);
 
 #endif /* MOTOR_H */
