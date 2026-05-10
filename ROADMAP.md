@@ -74,7 +74,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 | 2A.T1 | **Encoder mekanik** — Çıkış milini elle 1 tam tur çevir | ~466 count (48 × 9.7), CW/CCW yön tutarlı (Pololu CPR zaten quadrature-decoded) | ✅ PASS |
 | 2A.T2 | **PWM duty linearitesi** — %20, %30, %50 duty (40 sn log, 18 sn döngülü sequence) | %20→107, %30→166, %50→282 rad/s motor şaftı. K sapması %5.3 — Vsat etkisi kabul edilebilir. %50'de no-load tahminiyle (565 rad/s × 0.5 = 282) **mükemmel uyum**. | ✅ PASS |
 | 2A.T3 | **Yön + BRAKE** — CW/CCW/BRAKE | CW +165.65, CCW −164.16 rad/s (simetri farkı %0.9). BRAKE −164→%10 hıza 1456 ms (kontrollü durma). | ✅ PASS |
-| 2A.T4 | **Soft-start** — `Motor_SoftStart(0.40)` | Encoder hızı 0'dan ~200 ms içinde lineer artar | ☐ |
+| 2A.T4 | **Soft-start / non-blocking rampa** — Motor_SetDuty her duty değişiminde Motor_Tick yumuşatır | Eski (50 ms loop, ani sıçrama) → Yeni (5 ms loop + Motor_Tick): CCW%30 138 ms, CW%50 260 ms (spec 145 ve 249 ms). Tipik ortalama ~200 ms hedef ile uyumlu. Steady-state değişim < %3 (PSU droop/sıcaklık varyasyonu). | ✅ PASS |
 | 2A.T5 | **Stall detection (KRİTİK)** — Şaftı elle sıkıca tut, `Motor_SoftStart(0.40)`. **Ön hazırlık:** Bu testten önce manuel kill switch hazırlanması önerilir (README §8.6) — yazılım stall detection tek koruma, fiziksel yedek bulunsun. | Soft-start (200 ms) tamamlandıktan **sonra** ~200 ms içinde stall tetiklenir, motor keser, `STALL_DETECTED` USB'den, LED 5 Hz, 5 sn lock-out. Multimetre ile akım <0.9 A doğrulansın. | ☐ |
 | 2A.T6 | **Watchdog hazırlığı** | API yazılı, 2A'da bypass — 2B'de aktive | ☐ |
 | 2A.T7 | **Entegrasyon (KRİTİK)** — IMU pipeline, encoder okuma, motor sürme aynı anda 60 sn boyunca | USB CDC çıktısında EC, P, R, FP, FR alanları sürekli akıyor + bir önceki testlerde gözlenen davranışlar tekrar üretilebilir (motor +%30 duty 5 sn → encoder hızı doğru, IMU açıları bozulmadı). Hiçbir USB drop, watchdog reset, kasılma yok. | ☐ |
@@ -95,6 +95,13 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 - **2A.4** Motor_SetDir + Motor_SetDuty + geçici test sequence: `320d1d0`
 - **2A.5 + 2A.6** Motor_Tick non-blocking rampa, Motor_Stop, Motor_EmergencyStop, 200 Hz loop, 40 Hz USB throttle: `85e03a9`
 - _(devam edecek)_
+
+- **Test 2A.T4 PASS** — 80 sn log (`logs/test_2a5.csv`):
+  - **Rampa süreleri (ham hız, 10%-90%):** CCW%30 138 ms (spec 145), CW%50 260 ms (spec 249), CW%20 157 ms (spec 94, Vsat etkisi nedeniyle gecikme)
+  - **Eski/yeni karşılaştırma:** Eski log'ta transitionlar <50 ms ani sıçrama, yeni log'ta 200-300 ms yumuşak rampa. Motor_Tick non-blocking rampa çalışıyor.
+  - **Steady-state tutarlılık:** Eski/yeni hız farkı < %3 (PSU droop / motor sıcaklığı)
+  - **IMU çalışıyor:** Pitch range [-5.2°, +88°] (test sırasında kart eğilmiş). Önceki "IMU sıfır" şüphesi geçersiz — sabit kart için %.1f rounding'di.
+  - **Grafik:** `logs/test_2a5_ramp_comparison.png`
 
 - **Test 2A.T2/T3 PASS** — 40 sn döngülü sequence log (`logs/test_2a4.csv`):
   - **Duty linearitesi:** %20 → 107 rad/s, %30 → 166 rad/s, %50 → 282 rad/s (motor şaftı). K sapması %5.3, no-load tahmini ile mükemmel uyum.
