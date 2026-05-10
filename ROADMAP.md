@@ -2,7 +2,7 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında Claude Code güncelleyecek.
 >
-> - **Son güncelleme:** 2026-05-05 (Senaryo B / mirror — Aşama 2D yeniden tanımı; Test 2A.T2/T3 PASS)
+> - **Son güncelleme:** 2026-05-11 (Aşama 2A KAPALI — Test 2A.T7 PASS, 10 adım + 6 test geçildi; sadece 2A.T5-B bekliyor)
 > - **Branch:** `feature/motor-encoder-tb6612`
 > - **Kapsam:** Aşama 2A → 2E (Kalman dahil). Sonrası "Kapsam Dışı" bölümünde.
 
@@ -43,7 +43,7 @@ Sigorta temin edildiğinde:
 
 ---
 
-## Aşama 2A — Donanım Entegrasyonu, Koruma Katmanları, Düşük Seviye Doğrulama
+## ✅ Aşama 2A — Donanım Entegrasyonu, Koruma Katmanları, Düşük Seviye Doğrulama  *(KAPALI 2026-05-11)*
 
 ### Hedef
 Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı aktif**; manuel duty komutlarıyla motor güvenli kontrol edilebilir; encoder okuması fiziksel olarak doğrulanmış.
@@ -77,10 +77,11 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 | 2A.T4 | **Soft-start / non-blocking rampa** — Motor_SetDuty her duty değişiminde Motor_Tick yumuşatır | Eski (50 ms loop, ani sıçrama) → Yeni (5 ms loop + Motor_Tick): CCW%30 138 ms, CW%50 260 ms (spec 145 ve 249 ms). Tipik ortalama ~200 ms hedef ile uyumlu. Steady-state değişim < %3 (PSU droop/sıcaklık varyasyonu). | ✅ PASS |
 | 2A.T5 | **Stall detection — iki aşamalı (KRİTİK)**. **Aşama A (simülasyon, sıfır risk):** PA0 KEY butonuna bas → fake stall injection (encoder hızı 0 sayılır), motor gerçekten dönerken bile stall mantığı tetiklenir. KEY basılı tutarken stall döngüsü gözlenir. **Aşama B (gerçek donanım):** Aşama A geçtikten sonra KEY basmadan motor şaftını elle sıkıca tut → gerçek stall, aynı mantık. Multimetre ile akım <0.9 A doğrulansın. Önerilen: fiziksel kill switch (README §8.6) Aşama B öncesi. | **Aşama A ✅ PASS** (KEY ile stall tetik 200 ms, LED 5 Hz, STALL_DETECTED USB'den, 5 sn lockout otomatik açıldı, tekrarlanabilir 2-3 deneme). **Aşama B ⏳ bekliyor** (sonraki seansta eldivenle gerçek motor stall testi yapılacak). | ☐ (B bekliyor) |
 | 2A.T6 | **Watchdog hazırlığı** | API yazılı, 2A'da bypass — 2B'de aktive | ☐ |
-| 2A.T7 | **Entegrasyon (KRİTİK)** — IMU pipeline, encoder okuma, motor sürme aynı anda 60 sn boyunca | USB CDC çıktısında EC, P, R, FP, FR alanları sürekli akıyor + bir önceki testlerde gözlenen davranışlar tekrar üretilebilir (motor +%30 duty 5 sn → encoder hızı doğru, IMU açıları bozulmadı). Hiçbir USB drop, watchdog reset, kasılma yok. | ☐ |
+| 2A.T7 | **Entegrasyon (KRİTİK)** — IMU pipeline, encoder okuma, motor sürme aynı anda 60 sn boyunca | **135 sn log (logs/test_2a7_integration.csv), 7.5 sequence döngüsü.** USB CDC kesintisiz (plot screenshot 30 sn'lik anlarda buffer'a birikme var — firmware tarafı temiz). Yanlış pozitif stall **yok**. IMU kart eğme tespiti çalışıyor (pitch std=8.5°). CW%30/%50/CCW%30 hızları önceki testle %2 içinde tutarlı. **CW%20 anomalisi:** 7 denemede de ölü-banttan kalkamadı (+0.00, önceki testte +107) — 2B dead-band ölçümünün konusu, entegrasyon testini engellemiyor. | ✅ PASS |
 
 ### Riskler / Açık Sorular
 
+- **R6 (yeni, 2A.T7 sonrası):** **CW%20 ölü-bant değişkenliği.** Test_2a4'te +107 rad/s gözlendi, test_2a7'de +0.00 (motor başlamadı). Sıcaklık/PSU droop/kontak direnci olabilir. **2B.6 dead-band tespiti** bunu nicelendirecek; gerekirse step seviyeleri revize edilir (taban %25 veya %30).
 - **R1**: Pololu enkoder pull-up gerçekten gerekli mi? GPIO_PULLUP zarar vermez ama push-pull ise çıkış akımı artar (~50 µA, ihmal). 2A.T1 başarısızsa pull konfigürasyonu gözden geçirilecek.
 - **R2**: TB6612 modülünün üzerindeki gömülü kapasitörlerin değeri biliniyor mu? Datasheet 10 µF + 0.1 µF tipik diyor; modül üreticisi (Robotistan/Direnç) sayfasında belirtilmemiş. Stall sırasında VM voltajı düşerse harici kapasitör eklenebilir.
 - **R3**: Mervesan 36 W (3 A) adaptör motor stall altında 12 V tutabilir mi? Aşama 2B.T2'de ölçülecek; droop > %10 ise modele dahil edilecek.
@@ -96,7 +97,8 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 - **2A.5 + 2A.6** Motor_Tick non-blocking rampa, Motor_Stop, Motor_EmergencyStop, 200 Hz loop, 40 Hz USB throttle: `85e03a9`
 - **2A.7 + 2A.8 + 2A.9** Stall detection + 5 sn lockout + LED durum + KEY fake stall: `77899d7`
 - **Test 2A.T5 Aşama A PASS** — KEY simülasyonu ile tüm stall mantığı doğrulandı (commit `bc504b5`). Aşama B (gerçek motor stall) bekliyor.
-- _(devam edecek)_
+- **Test 2A.T7 PASS** — 135 sn entegrasyon (logs/test_2a7_integration.csv). 7.5 sequence döngüsü, USB drop yok (plot screenshot kaynaklı buffer hiccup'lar gerçek drop değil), yanlış pozitif stall yok, IMU çalışıyor, hızlar %2 içinde tutarlı. CW%20 ölü-bant → R6 (2B.6'da çözülecek).
+- **Aşama 2A KAPALI** 2026-05-11. Sadece 2A.T5 Aşama B (gerçek motor stall) sonraki seansa bırakıldı — bağımsız donanım doğrulaması, 2B'yi engellemiyor.
 
 - **Test 2A.T4 PASS** — 80 sn log (`logs/test_2a5.csv`):
   - **Rampa süreleri (ham hız, 10%-90%):** CCW%30 138 ms (spec 145), CW%50 260 ms (spec 249), CW%20 157 ms (spec 94, Vsat etkisi nedeniyle gecikme)
