@@ -645,7 +645,106 @@ htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
 - **Encoder pull-up:** STM32 internal `GPIO_PULLUP`. Harici direnç gerekmez.
 - **STBY init sırası:** Tüm peripheral init'ler tamamlandıktan sonra (en son) STBY=HIGH yapılır. TB6612 input pinlerinde dahili 200 kΩ pull-down var (datasheet sf 2) — STM32 GPIO Hi-Z iken bile sürücü güvenli olarak kapalı kalır.
 
-### 8.7. Motor Karakterizasyon — Vsat Düzeltmesi
+### 8.7. Donanım Bağlantı Şematiği
+
+Aşama 2A donanım kurulumunun kalıcı referansı. Pin-pin bağlantı listesi ve sistem topolojisi.
+
+#### 8.7.1. Bağlantı Tablosu
+
+**MPU6050 ↔ BlackPill (I2C1):**
+
+| MPU6050 pin | Kablo | BlackPill pin | Açıklama |
+|---|---|---|---|
+| VCC | kırmızı | **3V3** | Lojik besleme |
+| GND | siyah | **GND** | Ortak referans |
+| SCL | sarı | **PB6** | I2C1_SCL (AF4) |
+| SDA | yeşil | **PB7** | I2C1_SDA (AF4) |
+| INT | (boş) | — | Kullanılmıyor |
+| AD0 | siyah | **GND** | I2C adresi 0x68 |
+
+**TB6612FNG ↔ BlackPill (PWM + GPIO):**
+
+| TB6612 pin | Kablo | BlackPill pin | Açıklama |
+|---|---|---|---|
+| Vcc | kırmızı | **3V3** | Lojik besleme (2.7–5.5 V) |
+| GND | siyah | **GND** | Ortak referans |
+| PWMA | mor | **PB0** | TIM3_CH3 (AF2), 20 kHz |
+| AIN1 | turuncu | **PB12** | Yön kontrolü |
+| AIN2 | sarı | **PB13** | Yön kontrolü |
+| STBY | mavi | **PB14** | Sürücü enable (HIGH=aktif) |
+| BIN1/BIN2/PWMB | (boş) | — | İkinci motor kullanılmıyor (Aşama 2'de) |
+
+**TB6612FNG ↔ Pololu Motor:**
+
+| TB6612 pin | Pololu kablo | Açıklama |
+|---|---|---|
+| **AO1** | kırmızı | Motor + (CW yönde) |
+| **AO2** | siyah | Motor − (CW yönde) |
+| **VM** | (12V kaynak +) | Motor besleme (4.5–13.5 V) |
+| **GND** | (12V kaynak −) | **Ortak GND ile birleşmeli** |
+
+**Pololu Encoder ↔ BlackPill (TIM2 quadrature):**
+
+| Pololu kablo | BlackPill pin | Açıklama |
+|---|---|---|
+| Mavi (Vcc) | **5V** | Encoder besleme (3.5–20 V; 3V3 yetersiz) |
+| Yeşil (GND) | **GND** | Ortak referans |
+| Sarı (A) | **PA15** | TIM2_CH1 (AF1), GPIO_PULLUP |
+| Beyaz (B) | **PB3** | TIM2_CH2 (AF1), GPIO_PULLUP |
+
+#### 8.7.2. Güç Topolojisi (Yıldız GND)
+
+```
+                                    ┌───────────────┐
+                                    │ Mervesan 12V/3A│
+                                    │  Duvar Adaptör│
+                                    └──┬─────────┬──┘
+                                       │ 12V     │ GND
+                                       │         │
+                              VM ──────┘         │
+                                       ┌─────────┘
+                                       │
+                              ┌────────┴────────────┐
+                              │   TB6612FNG modülü  │
+                              │                     │
+        BlackPill 3V3 ────────► Vcc                 │
+                              │ PWMA ◄────PB0       │
+                              │ AIN1 ◄────PB12      │
+                              │ AIN2 ◄────PB13      │
+                              │ STBY ◄────PB14      │
+                              │   AO1 ─► Motor +    │
+                              │   AO2 ─► Motor −    │
+                              │   GND ──┐           │
+                              └─────────┼───────────┘
+                                        │
+                                        │
+                                ┌───────┴────────┐
+                                │  ⭐ YILDIZ GND  │ ←── BlackPill GND
+                                │   (tek nokta)   │ ←── 12V adaptör GND
+                                └────────────────┘ ←── Encoder GND (yeşil)
+                                                    ←── MPU6050 GND
+
+        BlackPill 5V ─────► Encoder Vcc (mavi)
+        BlackPill PA15 ◄── Encoder A   (sarı)
+        BlackPill PB3  ◄── Encoder B   (beyaz)
+
+        BlackPill 3V3 ─────► MPU6050 VCC
+        BlackPill PB6 ↔─── MPU6050 SCL (I2C1)
+        BlackPill PB7 ↔─── MPU6050 SDA (I2C1)
+
+        ST-Link V2 ──── SWD (PA13/PA14) — geliştirme için
+        Type-C ──────── USB CDC (PA11/PA12) — veri akışı + 5V besleme
+```
+
+#### 8.7.3. Kritik Notlar
+
+- **Ortak GND yıldız topology:** BlackPill GND, TB6612 GND, 12V adaptör GND, encoder GND, MPU6050 GND **tek noktada birleşir**. Motor akımı dönüş yolu için kritik; ground loop oluşmamalı.
+- **VM ≠ Vcc:** TB6612'nin VM (motor 12V) ve Vcc (lojik 3.3V) **ayrı** beslenir. Karıştırma motoru yakar.
+- **Encoder Vcc = 5V:** Pololu datasheet'inde min 3.5V belirtildiği için BlackPill 3V3 yetmez. USB direkt 5V kullanılır. STM32 PA15/PB3 **FT (5V tolerant)** olduğu için level shifter gerekmez.
+- **Kill switch (opsiyonel):** STBY hattına seri NO buton — fiziksel emniyet katmanı, Aşama 2A.T5 öncesi önerilir.
+- **Polyfuse (TODO):** VM hattında 1.5 A polyfuse veya 2 A cam sigorta planlı, henüz temin edilmedi. Sigortasız çalışmada yazılım koruma katmanları (stall detection, duty cap, soft-start, watchdog) zorunludur.
+
+### 8.8. Motor Karakterizasyon — Vsat Düzeltmesi
 
 PID kazanç ayarı için motor parametrelerinin (Kt, Ke, J, b) sistem tanımlamayla çıkarılması gerekir. TB6612'nin output saturating voltage'ı (Vsat ≈ 0.5 V @ 1 A) bu hesapta dikkate alınmalıdır:
 
