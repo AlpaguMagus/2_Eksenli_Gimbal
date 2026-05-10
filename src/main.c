@@ -88,10 +88,9 @@ int main(void)
     const float alpha = 0.98f;
     uint32_t last_tick = HAL_GetTick();
 
-    /* GEÇİCİ TEST SEQUENCE — 2B'de USB RX gelince kaldırılacak. */
-    uint32_t test_start  = HAL_GetTick();
-    uint32_t last_tx     = 0;
-    uint32_t last_led    = 0;
+    uint32_t last_tx          = 0;
+    uint32_t last_led         = 0;
+    bool     watchdog_tripped = false;   /* edge-detect — WATCHDOG_TIMEOUT mesajı */
 
     while (1)
     {
@@ -113,22 +112,18 @@ int main(void)
         /* Stall detection — her iterasyonda (200 Hz) */
         Motor_StallCheck(enc_speed);
 
-        /* ──── 2A GEÇİCİ TEST SEQUENCE — 2B.2 (watchdog) sonrası tamamen
-         * kaldırılacak. Şu an USB ilk DUTY/STOP gelene kadar paralel çalışır;
-         * sequence_armed=false olunca motor USB komutla sürülür. */
-        if (CmdParser_SequenceArmed()) {
-            uint32_t t = (HAL_GetTick() - test_start) % 18000U;
-            if      (t <  2000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
-            else if (t <  5000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.30f); }
-            else if (t <  6000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
-            else if (t <  9000) { Motor_SetDir(MOTOR_CCW);   Motor_SetDuty(0.30f); }
-            else if (t < 10000) { Motor_SetDir(MOTOR_BRAKE);                       }
-            else if (t < 13000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.20f); }
-            else if (t < 14000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
-            else if (t < 17000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.50f); }
-            else                { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
+        /* Watchdog — 1 sn boyunca komut yoksa Motor_Stop. Edge'de USB CDC'ye
+         * 'WATCHDOG_TIMEOUT\r\n' bir kerelik mesaj (sürekli flood yok). */
+        if (now - CmdParser_LastCmdTick() > 1000U) {
+            Motor_Stop();
+            if (!watchdog_tripped) {
+                static const char ev[] = "WATCHDOG_TIMEOUT\r\n";
+                CDC_Transmit_FS((uint8_t *)ev, (uint16_t)(sizeof(ev) - 1U));
+                watchdog_tripped = true;
+            }
+        } else {
+            watchdog_tripped = false;
         }
-        /* ──── TEST SEQUENCE BİTİŞ ──────────────────────────────────────── */
 
         /* Motor rampa step'i (non-blocking, target_duty'ye yaklaşır) */
         Motor_Tick();
