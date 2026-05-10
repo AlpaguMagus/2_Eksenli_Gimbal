@@ -633,12 +633,19 @@ htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
 - **12V kaynak:** **Mervesan 12V/3A 36W duvar adaptörü.** Donanım sigortası planlı (henüz temin edilmedi).
   > **TODO:** VM hattına 1.5 A polyfuse veya 2 A cam sigorta eklenecek (kullanıcı temin edecek). Sigorta entegre edildiğinde ROADMAP.md'den "VM hattı sigorta entegrasyonu" maddesi aşamaya alınacak.
 - **Manuel kill switch (önerilen, Aşama 2A test öncesi):** STBY hattı (PB14 → TB6612 STBY pini) üzerine seri normalde-açık basmalı buton. Buton basıldığında STBY GND'ye düşer, motor sürücü anında devre dışı kalır. Yazılım stall detection yedeği olarak fiziksel emniyet — özellikle ROADMAP § Test 2A.T5 (stall detection testi) öncesi hazırlanması önerilir.
-- **Yazılım koruma katmanları (sigorta gelinceye kadar zorunlu):**
-  1. **Stall detection** — Motor_StallCheck() ana döngüden 50 Hz çağrılır. |hız| < 2 rad/s + |duty| > 0.20 + 200 ms boyunca → emergency stop (STBY=L) + 5 sn lock-out. Soft-start sırasında bypass (yanlış pozitif önleme).
-  2. **Duty cycle hard cap** — Aşama 2A boyunca `MOTOR_MAX_DUTY = 0.50f`. Stall'da pik akım ~0.8 A, TB6612 1.2 A continuous limitinin altında.
-  3. **Soft-start zorunlu** — `Motor_SetDuty` doğrudan büyük adımlara izin vermez; |Δduty| > 0.10 ise içeride otomatik 10 ms / 0.01 step rampa.
-  4. **Watchdog timeout** — Aşama 2B'den itibaren USB CDC'den 1 sn komut gelmezse PWM=0.
-  5. **TB6612 dahili termal shutdown** — 175 °C tetikler, 20 °C histerezis (datasheet sf 5). Demo sırasında her birkaç dakikada motora dokunup **manuel termal kontrol** yapılır.
+- **Yazılım koruma katmanları (sigorta gelinceye kadar zorunlu) — Aşama 2A implementasyon durumu:**
+
+  | # | Katman | Durum | Davranış |
+  |---|---|---|---|
+  | 1 | **Stall detection** | ✅ Aktif (2A.7) | `Motor_StallCheck()` 200 Hz çağrılır. Tetik: \|hız\| < 2 rad/s + current_duty > 0.20 + 200 ms. Rampa sırasında (current ≠ target) bypass. Tetiklenince `Motor_EmergencyStop()` (STBY=L + duty=0 + AIN=0). USB CDC'ye `STALL_DETECTED\r\n`. |
+  | 2 | **Duty hard cap** | ✅ Aktif (2A.4) | `MOTOR_MAX_DUTY = 0.50f` motor.c iç sabiti. `Motor_SetDuty` clamp. Stall'da pik akım ~0.8 A, TB6612 1.2 A continuous altında. |
+  | 3 | **Soft-start / rampa** | ✅ Aktif (2A.5) | Non-blocking: `Motor_SetDuty` target'ı set, `Motor_Tick()` 200 Hz'de 0.01 step yumuşatır. \|Δduty\| ≤ 0.10 anında uygulanır. Bloklayan `Motor_SoftStart()` init için. |
+  | 4 | **5 sn lockout** | ✅ Aktif (2A.8) | Stall sonrası `Motor_SetDuty`/`Motor_Enable` sessizce reddedilir. Otomatik açılır, `Motor_ResetLockout()` erken kapatma (USB komut 2B). |
+  | 5 | **LED durum kodu** | ✅ Aktif (2A.9) | Normal 500 ms, stall 100 ms (5 Hz) toggle — kullanıcı görsel uyarı. |
+  | 6 | **Watchdog timeout** | ⏳ 2B'de aktive | USB CDC'den 1 sn komut yoksa PWM=0. |
+  | 7 | **TB6612 dahili termal shutdown** | ✅ Sürücü içinde | 175 °C tetik, 20 °C histerezis (datasheet sf 5). Demo sırasında **manuel termal kontrol** (motora dokun). |
+
+  **Debug aracı:** `PA0` KEY butonu basılı iken `Motor_DebugInjectFakeStall(true)` çağrılır — encoder hızı 0 sayılır, stall mantığı tetiklenir. Sıfır risk doğrulama (Test 2A.T5 Aşama A). Test 2A.T5 Aşama A ile yazılım mantığı PASS — gerçek motor stall (Aşama B) sonraki seansta eldivenle yapılacak.
 - **Ortak GND:** BlackPill GND ↔ TB6612 GND ↔ 12V kaynak GND tek noktada birleşmeli (yıldız topology). Motor akımının dönüş yolu ve TB6612 lojik referansı bu hatta tutulmalı.
 - **VM decoupling:** Modül üzerinde 10 µF + 0.1 µF kapasitörler yerleşik geliyor (Robotistan/Direnç). Harici eklemeye gerek yok.
 - **Encoder beslemesi:** BlackPill 5V pininden (USB direkt). Datasheet'te 3.5 V minimum belirtildiği için 3V3 kullanılmaz.

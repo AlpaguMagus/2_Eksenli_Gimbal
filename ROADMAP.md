@@ -65,7 +65,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
   > **Eşik gerekçesi:** Pololu 25D LP no-load çıkış hızı ~57 rad/s (560 RPM ÷ 9.55). 5 rad/s = ~%8 no-load — soft-start sırasında yanlış pozitif riski. 2 rad/s gerçek stall'a daha yakın (gerçek stall ≈ 0 rad/s, gürültü payı için 2 rad/s).
 - [x] **2A.8** — 5 sn lockout: stall sonrası `Motor_SetDuty`/`Motor_Enable` reddedilir; süre dolunca **otomatik açılır**. `Motor_ResetLockout()` API erken kapatma için (USB komut 2B'de doldurulacak). `Motor_IsStalled()`, `Motor_PollStallEvent()` getter'ları.
 - [x] **2A.9** — LED durum kodları: normal=500 ms toggle, stall=100 ms toggle (5 Hz). USB transmit'ten ayrı `last_led` zamanlayıcı.
-- [ ] **2A.10** — README §8.6 koruma katmanları bölümü → "implementasyon tamamlandı" notu.
+- [x] **2A.10** — README §8.6 koruma katmanları implementasyon tablosu eklendi (her katman: durum/commit/davranış). ✅ commit `[bu commit]`
 
 ### Test ve Doğrulama
 
@@ -75,7 +75,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 | 2A.T2 | **PWM duty linearitesi** — %20, %30, %50 duty (40 sn log, 18 sn döngülü sequence) | %20→107, %30→166, %50→282 rad/s motor şaftı. K sapması %5.3 — Vsat etkisi kabul edilebilir. %50'de no-load tahminiyle (565 rad/s × 0.5 = 282) **mükemmel uyum**. | ✅ PASS |
 | 2A.T3 | **Yön + BRAKE** — CW/CCW/BRAKE | CW +165.65, CCW −164.16 rad/s (simetri farkı %0.9). BRAKE −164→%10 hıza 1456 ms (kontrollü durma). | ✅ PASS |
 | 2A.T4 | **Soft-start / non-blocking rampa** — Motor_SetDuty her duty değişiminde Motor_Tick yumuşatır | Eski (50 ms loop, ani sıçrama) → Yeni (5 ms loop + Motor_Tick): CCW%30 138 ms, CW%50 260 ms (spec 145 ve 249 ms). Tipik ortalama ~200 ms hedef ile uyumlu. Steady-state değişim < %3 (PSU droop/sıcaklık varyasyonu). | ✅ PASS |
-| 2A.T5 | **Stall detection — iki aşamalı (KRİTİK)**. **Aşama A (simülasyon, sıfır risk):** PA0 KEY butonuna bas → fake stall injection (encoder hızı 0 sayılır), motor gerçekten dönerken bile stall mantığı tetiklenir. KEY basılı tutarken stall döngüsü gözlenir. **Aşama B (gerçek donanım):** Aşama A geçtikten sonra KEY basmadan motor şaftını elle sıkıca tut → gerçek stall, aynı mantık. Multimetre ile akım <0.9 A doğrulansın. Önerilen: fiziksel kill switch (README §8.6) Aşama B öncesi. | Her iki aşamada: rampa sonrası ~200 ms'de stall tetiklenir, motor keser, `STALL_DETECTED\r\n` USB CDC'den, LED 5 Hz, 5 sn lockout. Lockout sonrası otomatik açılır. | ☐ |
+| 2A.T5 | **Stall detection — iki aşamalı (KRİTİK)**. **Aşama A (simülasyon, sıfır risk):** PA0 KEY butonuna bas → fake stall injection (encoder hızı 0 sayılır), motor gerçekten dönerken bile stall mantığı tetiklenir. KEY basılı tutarken stall döngüsü gözlenir. **Aşama B (gerçek donanım):** Aşama A geçtikten sonra KEY basmadan motor şaftını elle sıkıca tut → gerçek stall, aynı mantık. Multimetre ile akım <0.9 A doğrulansın. Önerilen: fiziksel kill switch (README §8.6) Aşama B öncesi. | **Aşama A ✅ PASS** (KEY ile stall tetik 200 ms, LED 5 Hz, STALL_DETECTED USB'den, 5 sn lockout otomatik açıldı, tekrarlanabilir 2-3 deneme). **Aşama B ⏳ bekliyor** (sonraki seansta eldivenle gerçek motor stall testi yapılacak). | ☐ (B bekliyor) |
 | 2A.T6 | **Watchdog hazırlığı** | API yazılı, 2A'da bypass — 2B'de aktive | ☐ |
 | 2A.T7 | **Entegrasyon (KRİTİK)** — IMU pipeline, encoder okuma, motor sürme aynı anda 60 sn boyunca | USB CDC çıktısında EC, P, R, FP, FR alanları sürekli akıyor + bir önceki testlerde gözlenen davranışlar tekrar üretilebilir (motor +%30 duty 5 sn → encoder hızı doğru, IMU açıları bozulmadı). Hiçbir USB drop, watchdog reset, kasılma yok. | ☐ |
 
@@ -94,6 +94,8 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 - **2A.3** TB6612 TIM3 PWM init + STBY enable/disable: `60df499`
 - **2A.4** Motor_SetDir + Motor_SetDuty + geçici test sequence: `320d1d0`
 - **2A.5 + 2A.6** Motor_Tick non-blocking rampa, Motor_Stop, Motor_EmergencyStop, 200 Hz loop, 40 Hz USB throttle: `85e03a9`
+- **2A.7 + 2A.8 + 2A.9** Stall detection + 5 sn lockout + LED durum + KEY fake stall: `77899d7`
+- **Test 2A.T5 Aşama A PASS** — KEY simülasyonu ile tüm stall mantığı doğrulandı (5 hash sonra commit edilecek). Aşama B (gerçek motor stall) bekliyor.
 - _(devam edecek)_
 
 - **Test 2A.T4 PASS** — 80 sn log (`logs/test_2a5.csv`):
