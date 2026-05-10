@@ -65,7 +65,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
   > **Eşik gerekçesi:** Pololu 25D LP no-load çıkış hızı ~57 rad/s (560 RPM ÷ 9.55). 5 rad/s = ~%8 no-load — soft-start sırasında yanlış pozitif riski. 2 rad/s gerçek stall'a daha yakın (gerçek stall ≈ 0 rad/s, gürültü payı için 2 rad/s).
 - [x] **2A.8** — 5 sn lockout: stall sonrası `Motor_SetDuty`/`Motor_Enable` reddedilir; süre dolunca **otomatik açılır**. `Motor_ResetLockout()` API erken kapatma için (USB komut 2B'de doldurulacak). `Motor_IsStalled()`, `Motor_PollStallEvent()` getter'ları.
 - [x] **2A.9** — LED durum kodları: normal=500 ms toggle, stall=100 ms toggle (5 Hz). USB transmit'ten ayrı `last_led` zamanlayıcı.
-- [x] **2A.10** — README §8.6 koruma katmanları implementasyon tablosu eklendi (her katman: durum/commit/davranış). ✅ commit `[bu commit]`
+- [x] **2A.10** — README §8.6 koruma katmanları implementasyon tablosu eklendi (her katman: durum/commit/davranış). ✅ commit `bc504b5`
 
 ### Test ve Doğrulama
 
@@ -95,7 +95,7 @@ Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı
 - **2A.4** Motor_SetDir + Motor_SetDuty + geçici test sequence: `320d1d0`
 - **2A.5 + 2A.6** Motor_Tick non-blocking rampa, Motor_Stop, Motor_EmergencyStop, 200 Hz loop, 40 Hz USB throttle: `85e03a9`
 - **2A.7 + 2A.8 + 2A.9** Stall detection + 5 sn lockout + LED durum + KEY fake stall: `77899d7`
-- **Test 2A.T5 Aşama A PASS** — KEY simülasyonu ile tüm stall mantığı doğrulandı (5 hash sonra commit edilecek). Aşama B (gerçek motor stall) bekliyor.
+- **Test 2A.T5 Aşama A PASS** — KEY simülasyonu ile tüm stall mantığı doğrulandı (commit `bc504b5`). Aşama B (gerçek motor stall) bekliyor.
 - _(devam edecek)_
 
 - **Test 2A.T4 PASS** — 80 sn log (`logs/test_2a5.csv`):
