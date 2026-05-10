@@ -1,4 +1,5 @@
 #include "usbd_cdc_if.h"
+#include "cmd_parser.h"
 
 #define APP_RX_DATA_SIZE  512U
 #define APP_TX_DATA_SIZE  512U
@@ -42,8 +43,9 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t *pbuf, uint16_t length)
 
 static int8_t CDC_Receive_FS(uint8_t *Buf, uint32_t *Len)
 {
-    UNUSED(Buf);
-    UNUSED(Len);
+    /* USB host'tan gelen veriyi komut parser'a yedir. Buf zaten UserRxBuf'a
+     * yazılmış (USBD_CDC_SetRxBuffer ile). */
+    CmdParser_Feed(Buf, (uint16_t)*Len);
     USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBuf);
     USBD_CDC_ReceivePacket(&hUsbDeviceFS);
     return USBD_OK;

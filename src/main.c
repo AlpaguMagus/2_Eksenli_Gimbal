@@ -5,6 +5,7 @@
 #include "usbd_cdc_if.h"
 #include "encoder.h"
 #include "motor.h"
+#include "cmd_parser.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -79,7 +80,7 @@ int main(void)
     Motor_Enable();            /* STBY=HIGH — sürücü artık aktif */
 
     int16_t ax, ay, az, gx, gy, gz;
-    char    buf[96];
+    char    buf[128];   /* +OMEGA alanı için */
 
     /* Complementary filter durumu */
     float fused_pitch = 0.0f;
@@ -112,27 +113,21 @@ int main(void)
         /* Stall detection — her iterasyonda (200 Hz) */
         Motor_StallCheck(enc_speed);
 
-        /* ──── 2A.4 GEÇİCİ TEST SEQUENCE — 18 sn döngülü ─────────────────
-         * 2A.5 commit'inde KALDIRILACAK. Sequence:
-         *   0-2 sn   : STOP (encoder/IMU baseline)
-         *   2-5 sn   : CW  %30 — yön + orta duty
-         *   5-6 sn   : STOP
-         *   6-9 sn   : CCW %30 — ters yön
-         *   9-10 sn  : BRAKE — kısa devre fren (encoder hızı hızla 0'a düşer)
-         *   10-13 sn : CW  %20 — düşük duty (lineerlik testi)
-         *   13-14 sn : STOP
-         *   14-17 sn : CW  %50 — max duty (cap)
-         *   17-18 sn : STOP, döngü tekrar */
-        uint32_t t = (HAL_GetTick() - test_start) % 18000U;
-        if      (t <  2000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
-        else if (t <  5000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.30f); }
-        else if (t <  6000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
-        else if (t <  9000) { Motor_SetDir(MOTOR_CCW);   Motor_SetDuty(0.30f); }
-        else if (t < 10000) { Motor_SetDir(MOTOR_BRAKE);                       }
-        else if (t < 13000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.20f); }
-        else if (t < 14000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
-        else if (t < 17000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.50f); }
-        else                { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
+        /* ──── 2A GEÇİCİ TEST SEQUENCE — 2B.2 (watchdog) sonrası tamamen
+         * kaldırılacak. Şu an USB ilk DUTY/STOP gelene kadar paralel çalışır;
+         * sequence_armed=false olunca motor USB komutla sürülür. */
+        if (CmdParser_SequenceArmed()) {
+            uint32_t t = (HAL_GetTick() - test_start) % 18000U;
+            if      (t <  2000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
+            else if (t <  5000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.30f); }
+            else if (t <  6000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
+            else if (t <  9000) { Motor_SetDir(MOTOR_CCW);   Motor_SetDuty(0.30f); }
+            else if (t < 10000) { Motor_SetDir(MOTOR_BRAKE);                       }
+            else if (t < 13000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.20f); }
+            else if (t < 14000) { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
+            else if (t < 17000) { Motor_SetDir(MOTOR_CW);    Motor_SetDuty(0.50f); }
+            else                { Motor_SetDir(MOTOR_STOP);  Motor_SetDuty(0.0f);  }
+        }
         /* ──── TEST SEQUENCE BİTİŞ ──────────────────────────────────────── */
 
         /* Motor rampa step'i (non-blocking, target_duty'ye yaklaşır) */
@@ -154,12 +149,14 @@ int main(void)
         fused_pitch = alpha * (fused_pitch - gy_dps * dt) + (1.0f - alpha) * pitch;
         fused_roll  = alpha * (fused_roll  + gx_dps * dt) + (1.0f - alpha) * roll;
 
-        /* USB CDC transmit — 40 Hz throttle (her 25 ms'de bir). */
+        /* USB CDC transmit — 40 Hz throttle (her 25 ms'de bir).
+         * OMEGA: firmware tarafında hesaplanan motor şaftı hızı (rad/s).
+         * EC ham count ile yan yana — 2B fitting için ikisi de Python'da. */
         if (now - last_tx >= 25U) {
             int len = snprintf(buf, sizeof(buf),
-                "P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld\r\n",
+                "P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,OMEGA:%.1f\r\n",
                 pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll,
-                (long)enc_count);
+                (long)enc_count, enc_speed);
             CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
             last_tx = now;
         }
