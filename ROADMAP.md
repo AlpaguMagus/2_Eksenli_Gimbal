@@ -149,7 +149,7 @@ V_eff = V_supply · duty − V_sat,   V_supply=12.15 V,  V_sat=0.5 V
 ### Tamamlanma Kanıtı
 
 - **Veri toplama altyapısı:** commit `67db814` (T_US + step_response.py + MATLAB iskeleti)
-- **Pipeline + sonuçlar:** commit `<bu seans>` (validate_model + create_simulink_model + plot_results + run_pipeline)
+- **Pipeline + sonuçlar:** commit `e67e0c2` (validate_model + create_simulink_model + plot_results + run_pipeline)
 - **Motor parametreleri:** `K_cw=54.22`, `K_ccw=53.56`, `τ_median=60.5 ms`, `V_dead≈0`, `R²>0.9997`
 - **Test artifact:** `artifacts/1/step_response/20260518_011926/` (summary.md + meta.json + raw/data.csv.gz)
 - **Akademik çıktı:** `matlab/asama_1_model/results/20260518_011926/` (10 PNG + .slx + JSON + MD)
