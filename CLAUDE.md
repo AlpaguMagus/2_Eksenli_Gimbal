@@ -1,12 +1,39 @@
 Buddy ile tüm etkileşimler Türkçe olsun.
 
-## README.md güncel tut
+## README.md — jüri/hoca el kitapçığı disiplini
 
-Projede anlamlı değişiklik yaptığında (yeni özellik, donanım/pin değişikliği, kütüphane eklemesi, build adımı değişimi, dosya yapısı güncellemesi vs.) `README.md`'yi de güncelle.
+`README.md` projenin **el kitapçığıdır**. Hoca veya jüri açtığında *"ne, neden, nasıl, nerede, ne sonuç çıktı"* sorularına eksiksiz cevap veren tek dokümandır. Aklında soru kalmamalı.
 
-- Kullanıcı söylemeden de yap; commit'le birlikte güncellensin.
-- Yalnızca kod düzeltmesi / küçük refactor / yorum değişikliği gibi davranışı etkilemeyen değişiklikler için README'ye dokunma.
-- README dışında `PROJE_DURUMU.md` varsa onu da gözden geçir; durumu yansıtmıyorsa güncelle.
+### Her bileşen için (donanım, algoritma, peripheral, kontrolcü, filter):
+
+1. **Ne:** Kavram/bileşen tanımı — *"Complementary filter, iki sensörün tamamlayıcı frekans karakteristiğini birleştiren …"*
+2. **Neden:** Tasarım gerekçesi + kaynak — *"`[Franklin2010] §6.4` cascade'de iç döngü 5× daha hızlı olmalı"*
+3. **Nasıl:** İmplementasyon detayı — formül, register değeri, kod parçası, pin atama
+4. **Nerede:** Dosya/satır referansı veya datasheet sayfa — *"`src/motor.c:42`, `[TB6612_DS] sf 4 Tablo 1`"*
+5. **Ne sonuç çıktı:** Test sonucu, sayısal kanıt, görsel — *"Test 1.T2 NRMSE %3.2, fit grafiği: `matlab/asama_1_model/results/<id>/step_fit_cw.png`"*
+
+### Aşama kapanışlarında
+
+Her aşama (1, 2, 3, …) tamamlandığında `README.md`'ye **kalıcı sonuç bölümü** eklenir:
+- Aşama özeti (2-3 paragraf, ne yapıldı + neden)
+- Sayısal sonuçlar (tablo): K, τ, V_dead, NRMSE, settling time vb.
+- Görsel kanıt (PNG embed): `![Step fit CW](matlab/asama_1_model/results/<id>/step_fit_cw.png)`
+- Kaynaklı tartışma (`KAYNAKCA.md` etiketleri ile)
+- Sonraki aşamaya kalan açık konular
+
+### README'ye girmeyen şeyler
+
+- Yol haritası, TODO, planlanan işler → `ROADMAP.md`
+- Anlık durum özeti (5-10 satır) → `PROJE_DURUMU.md`
+- Etkileşim kuralları, AI standartları → `CLAUDE.md`
+- Akademik referans listesi → `KAYNAKCA.md` (README sadece etiketle referans verir)
+
+### Güncelleme tetikleri
+
+- Yeni davranış, yeni özellik, donanım/pin değişikliği, kütüphane eklemesi, build adımı değişimi, dosya yapısı güncellemesi → README güncellenir
+- Yalnızca kod düzeltmesi / küçük refactor / yorum değişikliği gibi davranışı etkilemeyen değişiklikler için README'ye dokunulmaz
+- Kullanıcı söylemeden de yap; commit'le birlikte güncellensin
+- README dışında `PROJE_DURUMU.md` durumu yansıtmıyorsa onu da güncelle
 
 ## Donanım çalışmalarında datasheet'i incele
 

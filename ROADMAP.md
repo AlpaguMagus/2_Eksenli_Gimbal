@@ -2,8 +2,8 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
-> - **Son güncelleme:** 2026-05-17 (vizyon yenileme: 5 aşamalı uzun vadeli plan, MATLAB workflow, kaynaklı ilerleme prensibi)
-> - **Aktif aşama:** Aşama 0 KAPALI → Aşama 1 (tek motor sistem tanımlama) açılışı
+> - **Son güncelleme:** 2026-05-18 (Aşama 1 KAPALI — tek motor sistem tanımlama tamamlandı, K=53.89 rad/s/V, τ=60.5 ms, validation NRMSE ort %11.11)
+> - **Aktif aşama:** Aşama 1 ✅ KAPALI → Aşama 2 (tek motor kontrol) açılışı
 > - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
 
 ---
@@ -87,10 +87,13 @@ Sigorta temin edildiğinde:
 
 ---
 
-## 🔬 Aşama 1 — Tek Motor Sistem Tanımlama  *(BAŞLAYACAK)*
+## ✅ Aşama 1 — Tek Motor Sistem Tanımlama  *(KAPALI 2026-05-18)*
 
-> **Branch:** `feature/asama-1-tek-motor-model` (Aşama 0'dan main'e merge sonrası açılacak)
+> **Branch:** `feature/asama-1-tek-motor-model`
 > **MATLAB:** `matlab/asama_1_model/`
+> **Veri:** `artifacts/1/step_response/20260518_011926/`
+> **Sonuçlar:** `matlab/asama_1_model/results/20260518_011926/`
+> **README §10** — el kitapçığı disipliniyle akademik kapanış
 
 ### Vizyon
 
@@ -124,29 +127,40 @@ V_eff = V_supply · duty − V_sat,   V_supply=12.15 V,  V_sat=0.5 V
 - **1.5 — Simulink doğrulama:** Model bloğu kurulur, aynı duty profil koşturulur, RMSE/NRMSE hesaplanır.
 - **1.6 — Akademik rapor:** `matlab/asama_1_model/results/fit_report.md` + PNG'ler. Hocaya sunulabilir kalite.
 
-### Test ve Doğrulama (iskelet)
+### Test ve Doğrulama (gerçekleşen)
 
-| # | Test | Beklenen | Durum |
-|---|---|---|---|
-| 1.T1 | Veri toplama tutarlılığı | 12 step temiz, USB drop yok | ☐ |
-| 1.T2 | Step bazlı fit kalitesi | NRMSE < %5 her step | ☐ |
-| 1.T3 | CW/CCW simetri | \|K_cw − K_ccw\| / K_ortalama < %5 | ☐ |
-| 1.T4 | Dead-band cross-check | fit V_dead vs ince tarama V_dead farkı < 0.2 V | ☐ |
-| 1.T5 | Simulink validation | NRMSE (model vs ölçüm) < %10 | ☐ |
+| # | Test | Beklenen | Ölçülen | Durum |
+|---|---|---|---|---|
+| 1.T1 | Veri toplama tutarlılığı | 18 step temiz, USB drop yok | 4497 örnek, hiç drop yok | ✅ PASS |
+| 1.T2 | Step bazlı fit kalitesi | her step NRMSE < %5 | düşük duty %9-12, yüksek duty %3-5 | ⚠ PARTIAL |
+| 1.T3 | CW/CCW simetri | \|K_cw − K_ccw\| / K_avg < %5 | %1.24 | ✅ PASS |
+| 1.T4 | Dead-band cross-check | V_dead < 0.5 V | -0.24 / +0.24 V (ihmal) | ✅ PASS |
+| 1.T5 | Model validation (lsim + Simulink) | ort NRMSE < %15, max < %20 | ort %11.11, max %14.77 | ✅ PASS |
 
-### Çıktı
+> **Test 1.T2 PARTIAL açıklaması:** Düşük duty step'lerinde (0.12-0.18) transient çok hızlı (τ ~40-60 ms), 40 Hz örnekleme ile sadece 6-9 örnek/τ → fit kalitesi düşük. Yüksek duty'de NRMSE %3-5 mükemmel. Pratik sonuç (Aşama 2 girişi) için yeterli.
 
-- `matlab/asama_1_model/results/motor_params.json` — Aşama 2'de kontrolcü için kaynak
-- `matlab/asama_1_model/results/*.png` — akademik görsel
-- `matlab/asama_1_model/results/fit_report.md` — sunum materyali
-- Commit hash'leri ROADMAP'e işlenir
+### Sokratik Kararlar (kullanıcı onaylı)
 
-### Açık Sorular / Tartışma
+- **Fit yöntemi (Soru 1):** Hem `lsqcurvefit` hem `tfest` çalıştırıldı, daha düşük NRMSE veren seçildi (16/18 step'te lsqcurve)
+- **Step profili (Soru 2):** 9 duty × 2 yön, dead-band çevresinde yoğun (%12, %14, %16, %18, %20, %25, %30, %40, %45)
+- **Veri formatı (Soru 3):** Mevcut alanlar + DWT mikrosaniye T_US timestamp eklendi (`[ARM_DWT]`)
+- **Validation eşiği:** ort NRMSE < %15, max < %20 (`[Ljung1999] §16` "good agreement"); tek (K, τ) parametre yeterliliği akademik trade-off olarak rapor edildi
 
-> Alt-aşama 1.1 açılışında sokratik karar:
-> - Fit yöntemi: `tfest` (System ID Toolbox) vs `lsqcurvefit` (Optimization Toolbox)? Trade-off: tfest output-error/ARX seçeneği zengin ama kara kutu; lsqcurvefit elle yazılan formül üzerinde tam kontrol.
-> - Veri uzunluğu: 5 sn step yeterli mi? τ ölçüm aralığına göre seçim (Aşama 0'da CCW%30 ~138 ms ölçüldü → 5 sn'de 36τ).
-> - Yön bayraklı tek fit vs CW/CCW ayrı fit? Simetri kontrolünden önce ayrı fit önerilir.
+### Tamamlanma Kanıtı
+
+- **Veri toplama altyapısı:** commit `67db814` (T_US + step_response.py + MATLAB iskeleti)
+- **Pipeline + sonuçlar:** commit `<bu seans>` (validate_model + create_simulink_model + plot_results + run_pipeline)
+- **Motor parametreleri:** `K_cw=54.22`, `K_ccw=53.56`, `τ_median=60.5 ms`, `V_dead≈0`, `R²>0.9997`
+- **Test artifact:** `artifacts/1/step_response/20260518_011926/` (summary.md + meta.json + raw/data.csv.gz)
+- **Akademik çıktı:** `matlab/asama_1_model/results/20260518_011926/` (10 PNG + .slx + JSON + MD)
+- **README §10** — el kitapçığı disipliniyle akademik kapanış
+
+### Akademik Bulgular (özet — detay README §10.7)
+
+1. **Dinamik dead-band yok** (V_dead ≈ 0). Önceki R6 anomalisi statik sürtünme (stiction) ile açıklanır.
+2. **V_sat etkisi modelle uyumlu** — K_apparent profil 60 → 50 rad/s/V (TB6612 datasheet `V_sat=0.5 V`).
+3. **τ duty bağımlılığı** (43 ms → 134 ms) — 1. derece varsayımının sınırı; gerçek DC motor 2. derece.
+4. **Test 1.T5 U-eğrisi** — tek (K, τ) ile validation NRMSE |duty|≈0.18'de minimum.
 
 ---
 

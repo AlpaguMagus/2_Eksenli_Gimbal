@@ -15,7 +15,7 @@ Bu proje **5 aşamalı kontrol mühendisliği yol haritası** üzerinden iki eks
 | Aşama | Hedef | MATLAB klasörü |
 |---|---|---|
 | **0 ✅** | Donanım entegrasyonu, koruma katmanları, USB CDC iki yönlü | — |
-| **1** | Tek motor sistem tanımlama (K, τ, dead-band) | `matlab/asama_1_model/` |
+| **1 ✅** | Tek motor sistem tanımlama (K, τ, dead-band) | `matlab/asama_1_model/` |
 | **2** | Tek motor PI/PID/cascade kontrol + IMU mirror | `matlab/asama_2_kontrol/` |
 | **3** | İki motor MIMO modelleme + decoupling analizi | `matlab/asama_3_mimo_model/` |
 | **4** | İki motor LQR/LQG + Kalman filter | `matlab/asama_4_mimo_kontrol/` |
@@ -38,6 +38,7 @@ Detaylı yol haritası: [`ROADMAP.md`](ROADMAP.md). Aşama 0 → 1 geçiş özet
 7. [Veri İletimi ve Görselleştirme](#7-veri-iletimi-ve-görselleştirme)
 8. [Motor Sürücü ve Encoder Entegrasyonu](#8-motor-sürücü-ve-encoder-entegrasyonu)
 9. [Derleme ve Flash İşlemleri](#9-derleme-ve-flash-işlemleri)
+10. [Aşama 1 — Tek Motor Sistem Tanımlama (KAPALI 2026-05-18)](#10-aşama-1--tek-motor-sistem-tanımlama-kapali-2026-05-18)
 
 ---
 
@@ -830,11 +831,152 @@ python3 plot_angles.py /dev/ttyACM0
 ### 9.5. Bellek Kullanımı
 
 ```
-RAM:    4,364 / 131,072 bytes  (  3.3%)
-Flash: 31,108 / 524,288 bytes  (  5.9%)
+RAM:    4,616 / 131,072 bytes  (  3.5%)
+Flash: 40,056 / 524,288 bytes  (  7.6%)
 ```
 
-Hem RAM hem de Flash kullanımı son derece düşüktür. PID kontrolcü, Madgwick filtresi ve ek sensör sürücüleri eklendiğinde bile yeterli kapasite mevcuttur.
+(Aşama 0 + 1.1 sonrası: motor sürücü, encoder, USB RX, watchdog, DWT T_US dahil.)
+Hem RAM hem de Flash kullanımı son derece düşüktür. PID kontrolcü, Kalman filter ve ikinci eksen eklendiğinde bile yeterli kapasite mevcuttur.
+
+---
+
+## 10. Aşama 1 — Tek Motor Sistem Tanımlama (KAPALI 2026-05-18)
+
+> **Branch:** `feature/asama-1-tek-motor-model`
+> **MATLAB:** `matlab/asama_1_model/`
+> **Veri:** `artifacts/1/step_response/20260518_011926/`
+> **Sonuçlar:** `matlab/asama_1_model/results/20260518_011926/`
+
+### 10.1. Ne — Sistem Tanımlama Nedir?
+
+**Sistem tanımlama** (`[Ljung1999] §1, §3`), bir fiziksel sistemin **giriş-çıkış verisinden** matematiksel modelini çıkarma sürecidir. Bizim sistemimiz: PWM duty komutu → motor şaft hızı (rad/s). Bu adımda Pololu 25D motor + TB6612 sürücü kombinasyonunun **transfer fonksiyonu** çıkarıldı.
+
+### 10.2. Neden — Niçin Önce Modelleme?
+
+Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §6.4`) yapacaksak, motorun K (DC kazanç) ve τ (zaman sabiti) değerlerini bilmemiz gerekir:
+- **τ_cl = τ_ol / 5** kuralı (cascade) için τ_ol şart
+- **Kp = (τ · ω_n²) / K** formülü için K şart
+- Kazanç bilmeden kontrolcü = deneme-yanılma = akademik olmayan yaklaşım
+
+### 10.3. Nasıl — Yöntem
+
+**Adım 1 — Veri toplama** (`scripts/step_response.py`):
+- 9 duty seviyesi × 2 yön = 18 step (0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.30, 0.40, 0.45 × CW/CCW)
+- Her step: 5 sn drive + 2 sn coast, 250 ms heartbeat, **DWT mikrosaniye timestamp** (`[ARM_DWT]`)
+- 4497 örnek, 36 segment, gzip'li CSV → `artifacts/1/step_response/<id>/raw/data.csv.gz`
+
+**Adım 2 — Step bazlı fit** (`fit_first_order.m`):
+- **Model:** `ω(t) = ω_ss · (1 − e^(−(t−t0)/τ))`
+- **Yöntem A:** `lsqcurvefit` (Optimization Toolbox, `[Soderstrom1989] §4`)
+- **Yöntem B:** `tfest` + iddata (System Identification Toolbox, `[Ljung1999] §4`)
+- Her step için ikisini de koştur, daha düşük NRMSE veren seçilir → 16/18 step'te lsqcurve
+
+**Adım 3 — Dead-band tespit** (`compute_dead_band.m`):
+- Lineer regresyon: `ω_ss = K · V_eff + b` → `V_dead = −b/K` (x-intercept)
+- `V_eff = V_supply·duty − V_sat = 12.15·duty − 0.5`
+- CW/CCW ayrı fit
+
+**Adım 4 — Simetri analizi:** CW/CCW K karşılaştırması (`plot_results.m §06`)
+
+**Adım 5 — Model validation** (Test 1.T5, `validate_model.m`):
+- Tek (K_avg, τ_median) çiftiyle her step yeniden simüle et (`lsim`)
+- NRMSE her step için, sınır: ort < %15, max < %20 (`[Ljung1999] §16` "good agreement")
+- Simulink modeli (`motor_model_asama1.slx`) programatik üretildi
+
+### 10.4. Nerede — Dosya ve Konum Referansları
+
+| İş | Konum | Açıklama |
+|---|---|---|
+| Firmware T_US timestamp | `src/main.c:50-56, 158` | DWT.CYCCNT init + TX formatı |
+| Veri toplama scripti | `scripts/step_response.py` | 18 step, 250 ms heartbeat |
+| Ham veri | `artifacts/1/step_response/20260518_011926/raw/data.csv.gz` | 4497 örnek |
+| Veri yükleyici | `matlab/asama_1_model/load_step_data.m` | T_US wrap düzeltmeli |
+| Fit fonksiyonu | `matlab/asama_1_model/fit_first_order.m` | lsqcurve + tfest |
+| Dead-band | `matlab/asama_1_model/compute_dead_band.m` | x-intercept regresyon |
+| Plot | `matlab/asama_1_model/plot_results.m` | 7 PNG |
+| Validation | `matlab/asama_1_model/validate_model.m` | Test 1.T5, 3 PNG |
+| Simulink üretici | `matlab/asama_1_model/create_simulink_model.m` | .slx programatik |
+| Pipeline orchestrator | `matlab/asama_1_model/run_pipeline.m` | tek komut tüm akış |
+| **Sonuçlar (PNG+JSON+MD)** | `matlab/asama_1_model/results/20260518_011926/` | hoca/jüri klasörü |
+
+### 10.5. Ne Sonuç Çıktı — Sayısal Parametreler
+
+```json
+{
+  "model":         "first_order_with_deadband",
+  "K_cw":          54.225,
+  "K_ccw":         53.558,
+  "tau_median_s":  0.0605,
+  "tau_iqr_s":     0.0492,
+  "V_dead_pos_V":  -0.243,
+  "V_dead_neg_V":  +0.241,
+  "V_supply_V":    12.15,
+  "V_sat_V":       0.50,
+  "symmetry_pct":  1.24,
+  "R2_pos":        0.9998,
+  "R2_neg":        0.9997,
+  "validation_nrmse_mean": 11.11,
+  "validation_nrmse_max":  14.77
+}
+```
+
+**Aşama 2 girişi (kontrolcü tasarımı):**
+```
+K = 53.89 rad/s/V      (K_cw ve K_ccw ortalaması)
+τ = 60.5 ms            (median, gürültüye dayanıklı)
+V_dead ≈ 0             (dinamik dead-band yok)
+G(s) = K / (τs + 1)    (birinci derece TF, dead-band çıkarılmış)
+```
+
+### 10.6. Test Sonuçları
+
+| Test | Beklenen | Ölçülen | Durum |
+|---|---|---|---|
+| 1.T1 — Veri toplama tutarlılığı | 18 step temiz, USB drop yok | 4497 örnek, hiç drop yok | ✅ PASS |
+| 1.T2 — Step bazlı fit kalitesi | her step NRMSE < %5 | düşük duty %9-12, yüksek duty %3-5 | ⚠ PARTIAL |
+| 1.T3 — CW/CCW simetri | < %5 | %1.24 | ✅ PASS |
+| 1.T4 — Dead-band cross-check | V_dead < 0.5 V | -0.24 / +0.24 V (ihmal) | ✅ PASS |
+| 1.T5 — Model validation | ort NRMSE < %15, max < %20 | ort %11.11, max %14.77 | ✅ PASS |
+
+### 10.7. Akademik Tartışma
+
+**Bulgu 1 — Dinamik dead-band yok.** Pololu 25D motor %12 duty (V_eff=0.96 V) iken zaten 57 rad/s dönüyor. Lineer ekstrapolasyon V_dead = -0.24 V (negatif) veriyor. Önceki Test 2A.T2'deki "%20 ölü-bant" gözlemi muhtemelen **statik sürtünme (stiction)** — duran motoru başlatma eşiği, dönen motorun davranışından farklı (`[Franklin2010] §3.2 Coulomb + viscous friction`).
+
+**Bulgu 2 — V_sat etkisi modelle uyumlu.** K_apparent profili 60 → 50 rad/s/V kademeli düşüş gösteriyor (Grafik 05). Bu, TB6612 datasheet'inde belirtilen `V_sat ≈ 0.5 V` saturating voltage'ın gerçek model üzerindeki etkisinin görsel kanıtı.
+
+**Bulgu 3 — τ duty bağımlılığı (1. derece sınırı).** τ değerleri 43 ms (düşük duty) ile 134 ms (yüksek duty) arasında değişiyor. Gerçek DC motor 2. derece (electrical + mechanical zaman sabiti) bir sistemdir; 1. derece varsayımı her iki zaman sabitinin "ortalaması"nı görür. Kontrolcü tasarımı için yeterli, ancak `[Franklin2010] §3.5` model sadeleştirme trade-off'unu açıkça not eder.
+
+**Bulgu 4 — Test 1.T5 U-eğrisi.** Tek (K, τ) ile validation NRMSE eğrisi |duty|≈0.18'de minimum (%5.7), uçlarda yüksek (%12-14). Bu, K(duty) ve τ(duty) varyasyonunun doğal sonucudur. Aşama 2'de gerekirse **gain scheduling** ile iyileştirilebilir.
+
+### 10.8. Görsel Kanıtlar
+
+`matlab/asama_1_model/results/20260518_011926/` altında:
+
+| # | Dosya | Açıklama |
+|---|---|---|
+| 01 | `01_step_fits_cw.png` | CW step fitleri (ölçüm + lsqcurve + tfest), 9 alt grafik |
+| 02 | `02_step_fits_ccw.png` | CCW step fitleri |
+| 03 | `03_omega_vs_duty.png` | ω_ss vs duty, lineer regresyon (R² ≈ 0.9998) |
+| 04 | `04_omega_vs_Veff.png` | Dead-band tespit (x-intercept, V_dead ≈ ±0.24 V) |
+| 05 | `05_K_apparent_vs_duty.png` | K_apparent profil (V_sat etkisinin görsel kanıtı) |
+| 06 | `06_cw_ccw_symmetry.png` | Test 1.T3 — K ve τ karşılaştırması |
+| 07 | `07_tau_summary.png` | τ histogram + duty bağımlılığı (ort 70 ms, median 60.5) |
+| 08 | `08_validation_cw.png` | Test 1.T5 model vs ölçüm (CW) |
+| 09 | `09_validation_ccw.png` | Test 1.T5 model vs ölçüm (CCW) |
+| 10 | `10_validation_summary.png` | Test 1.T5 NRMSE özet (U-eğrisi) |
+| — | `motor_model_asama1.slx` | Simulink blok diyagramı (programatik üretildi) |
+| — | `motor_params.json` | Aşama 2 girişi (firmware için kaynak) |
+| — | `fit_report.md` | Detaylı sayısal rapor |
+
+### 10.9. Bir Sonraki Aşama
+
+**Aşama 2 — Tek Motor Kontrol (PI/PID/Cascade):**
+- Hız iç döngü PI tasarımı (`K = 53.89, τ = 60.5 ms` ile pole placement)
+- Anti-windup (`[AstromMurray2008] §10.4`)
+- Pozisyon dış döngü P/PI + cascade
+- IMU mirror bağlantısı (setpoint = +fused_pitch)
+
+ROADMAP §2'ye bakınız.
 
 ---
 

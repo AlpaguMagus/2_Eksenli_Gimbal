@@ -72,9 +72,22 @@ for i = 1:n
         continue
     end
     t_us = double(sub.t_us_fw);
-    % T_US wrap koruması: monotonic olmayan fark varsa 2^32 ekle
+    % T_US wrap koruması:
+    %   firmware'de T_US = DWT.CYCCNT / 96 (integer division)
+    %   CYCCNT 32-bit (2^32 cycle wrap) → T_US wrap = floor(2^32 / 96) = 44739242
+    %   Wrap aralığı (0..44739242 dahil) = 44739243
+    %   Doğru düzeltme: dt_us < 0 ise +44739243 ekle, "2^32" değil.
+    T_US_WRAP = 44739243;
     dt_us = [0; diff(t_us)];
-    dt_us(dt_us < 0) = dt_us(dt_us < 0) + 2^32;
+    dt_us(dt_us < 0) = dt_us(dt_us < 0) + T_US_WRAP;
+    % Ekstra güvenlik: anormal büyük dt (>1 sn) varsa median ile değiştir
+    %   (USB CDC kopma + wrap kombinasyonu nadir, ama mümkün)
+    median_dt = median(dt_us(dt_us > 0 & dt_us < 1e6));
+    if ~isnan(median_dt)
+        anomaly = dt_us > 5 * median_dt;
+        anomaly(1) = false;
+        dt_us(anomaly) = median_dt;
+    end
     t_s = cumsum(dt_us) * 1e-6;
 
     data.steps(i).step_idx = sub.step_idx(1);

@@ -1,0 +1,28 @@
+{
+  "model": "first_order_with_deadband",
+  "K_cw": 54.224790541719408,
+  "K_ccw": 53.557538282927304,
+  "tau_median_s": 0.060548919656930669,
+  "tau_iqr_s": 0.049247054349890906,
+  "V_dead_pos_V": -0.24331389773565945,
+  "V_dead_neg_V": 0.24110618518274382,
+  "V_supply_V": 12.15,
+  "V_sat_V": 0.5,
+  "symmetry_pct": 1.2381477855756302,
+  "R2_pos": 0.99981209082417022,
+  "R2_neg": 0.99967961359614654,
+  "validation_nrmse_mean": 11.112864445478971,
+  "validation_nrmse_max": 14.771400337012333,
+  "validation_pass_T1_T5": true,
+  "n_steps_fitted": 18,
+  "test_id": "20260518_011926",
+  "commit": "67db814",
+  "kaynak": [
+    "Ljung1999 §3",
+    "Ljung1999 §4",
+    "Ljung1999 §16",
+    "Franklin2010 §3",
+    "Soderstrom1989 §4",
+    "TB6612_DS §1"
+  ]
+}
