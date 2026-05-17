@@ -152,3 +152,52 @@ write_summary(...)   # artifacts/<id>/summary.md
 write_meta(...)      # artifacts/<id>/meta.json
 gzip_raw_logs(...)   # >50 KB → gzip
 ```
+
+## Kaynaklı ilerleme (akademik disiplin)
+
+Algoritma seçimi, parametre değeri, kontrolcü tasarımı, fit yöntemi, model varsayımı — her teknik karar için `KAYNAKCA.md`'ye **etiketli giriş** yap (ör. `[Franklin2010]`, `[Ljung1999]`). Kod yorumları, commit mesajları, ROADMAP girişleri bu etikete referans verir.
+
+**Yasak:** *"Genelde böyle yapılır"*, *"Tipik değer ~X'tir"* gibi kaynaksız ifadeler.  
+**Onaylanan:** *"`[Franklin2010] §6.4`'e göre cascade PID'de iç döngü en az 5× daha hızlı olmalı, bu yüzden hız döngüsü 200 Hz, pozisyon döngüsü 40 Hz seçildi."*  
+**Onaylanan alternatif:** *"Denenmemiş varsayım — `Test 1.3` ile doğrulanacak."* (kaynak yoksa açıkça "varsayım" işareti)
+
+`KAYNAKCA.md` sınıflandırılmış Markdown: sistem tanımlama, klasik kontrol, optimal kontrol, state estimation, MIMO, donanım, yazılım. BibTeX/LaTeX kullanılmaz (gerekirse sonra dönüşüm).
+
+## Sokratik rehber rolü (kontrol/gömülü/robotik mühendisi)
+
+Kullanıcının önerdiği yöntemi **doğrudan uygulamak yerine** alternatifleri sun. Özellikle akademik açıdan zengin konularda (kontrolcü tasarımı, sistem tanımlama, model yapısı, parametre seçimi) bu zorunludur.
+
+Her trade-off'u açıkça yaz:
+- En az 2 seçenek + trade-off tablosu
+- *"Bu basit ama X durumunda zayıf; şu daha sağlam ama Y hesap maliyetinde"*
+- Hangi koşullar altında hangisi daha uygun
+
+Kararı kullanıcı verir, ama bilinçli olsun. *"Madde 1: önerim X, madde 2: önerim Y"* gibi seçenekleri etiketle ki kullanıcı kısa cevapla seçebilsin.
+
+Bu kural mevcut **Sokratik doğrulama** ilkesi (yukarıdaki §) ile birlikte uygulanır — sorgulama + alternatif sunma birlikte.
+
+Ferhat'ın tezi ve önceki yıllardaki ekip çalışmaları **kutsal değil**. Kaynak/referans olarak kullanılabilir, ama otomatik kabul yok. Bağımsız literatür temeli (`KAYNAKCA.md`) bu projeyle birlikte kuruluyor.
+
+## MATLAB workflow
+
+Sistem tanımlama, kontrolcü tasarımı, Kalman filter tasarımı, simülasyon (Simulink) işleri **MATLAB'da** yapılır:
+- System Identification Toolbox, Control System Toolbox, Optimization Toolbox
+- Bode, root locus, step response, durum-uzayı analizi → akademik açıdan zengin görsel/sayısal çıktı
+- Tez/sunum materyali otomatik üretim
+
+**Firmware tarafı C/STM32Cube HAL ile devam** — Embedded Coder kullanılmaz. MATLAB sonuçları (gain matrisleri, eşik değerleri, kontrolcü katsayıları) **manuel** olarak firmware'e transfer edilir. Bu transferi yorumlarda dokümante et:
+
+```c
+/* LQR gain — matlab/asama_2_kontrol/lqr_design.m §3'ten:
+ *   Q = diag([10, 1, 0.1]),  R = 0.01
+ *   K = [4.32, 1.18, 0.21]  (Riccati çözümü)
+ * Kaynak: [Anderson2007] §3.1 */
+const float K_lqr[3] = { 4.32f, 1.18f, 0.21f };
+```
+
+MATLAB dosyaları:
+- `matlab/<asama_adi>/` klasör yapısı (her aşama kendi alt klasörü)
+- `.m` script ve `.slx` Simulink modelleri git'te
+- `.mat` (workspace), `.fig` (figure binary), `.asv` (autosave) git dışı (`.gitignore`)
+- Üretilen PNG'ler git'te (görsel kanıt için)
+- Ham veri `artifacts/<aşama>/<test_id>/raw/`'tan okunur

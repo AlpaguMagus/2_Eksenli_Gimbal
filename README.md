@@ -4,6 +4,26 @@
 > **Sensör:** MPU6050 6-DOF IMU  
 > **Mimari:** Bare-metal, STM32Cube HAL  
 > **Build Sistemi:** PlatformIO  
+> **Paralel araç:** MATLAB (System Identification, Control System, Simulink Toolbox)
+
+---
+
+## Uzun Vadeli Vizyon
+
+Bu proje **5 aşamalı kontrol mühendisliği yol haritası** üzerinden iki eksenli kamera gimbal'ına ulaşır:
+
+| Aşama | Hedef | MATLAB klasörü |
+|---|---|---|
+| **0 ✅** | Donanım entegrasyonu, koruma katmanları, USB CDC iki yönlü | — |
+| **1** | Tek motor sistem tanımlama (K, τ, dead-band) | `matlab/asama_1_model/` |
+| **2** | Tek motor PI/PID/cascade kontrol + IMU mirror | `matlab/asama_2_kontrol/` |
+| **3** | İki motor MIMO modelleme + decoupling analizi | `matlab/asama_3_mimo_model/` |
+| **4** | İki motor LQR/LQG + Kalman filter | `matlab/asama_4_mimo_kontrol/` |
+| **5** | Gerçek 3D-print gimbal — klasik stabilizasyon | `matlab/asama_5_gimbal/` |
+
+**Felsefe:** Her teknik karar **kaynaklı** ([`KAYNAKCA.md`](KAYNAKCA.md) etiketli). Embedded Coder kullanılmaz; MATLAB çıktıları (kazançlar, eşikler) **manuel** olarak firmware'e transfer edilir, kaynak yorumu eşliğinde.
+
+Detaylı yol haritası: [`ROADMAP.md`](ROADMAP.md). Aşama 0 → 1 geçiş özeti: [`PROJE_DURUMU.md`](PROJE_DURUMU.md).
 
 ---
 
@@ -823,30 +843,44 @@ Hem RAM hem de Flash kullanımı son derece düşüktür. PID kontrolcü, Madgwi
 ```
 2_Eksenli_Gimbal/
 ├── src/
-│   ├── main.c               ← Ana firmware: init, sensör okuma, filter, USB çıktı
+│   ├── main.c               ← Ana firmware: init, sensör okuma, filter, USB I/O, motor kontrol
+│   ├── motor.c              ← TB6612 sürücü API (Init/Enable/SetDir/SetDuty/Tick/Stop/Stall)
+│   ├── encoder.c            ← TIM2 quadrature encoder (Init/GetCount/GetSpeed)
+│   ├── cmd_parser.c         ← USB CDC RX komut parser (DUTY/STOP/RESET/PING)
 │   ├── usbd_cdc_if.c        ← USB CDC interface (Tx/Rx callback'leri)
 │   ├── usbd_conf.c          ← USB donanım konfigürasyonu (GPIO, IRQ, PCD)
 │   └── usbd_desc.c          ← USB cihaz tanımlayıcıları (VID/PID, string desc)
 ├── include/
-│   ├── usbd_cdc_if.h
-│   ├── usbd_conf.h
-│   └── usbd_desc.h
+│   ├── motor.h, encoder.h, cmd_parser.h
+│   ├── usbd_cdc_if.h, usbd_conf.h, usbd_desc.h
 ├── platformio.ini            ← Build konfigürasyonu
 ├── add_usb_middleware.py     ← PlatformIO pre-build: USB middleware dahil etme
-├── plot_angles.py            ← PC tarafı: gerçek zamanlı matplotlib grafik
+├── plot_angles.py            ← PC tarafı: gerçek zamanlı matplotlib grafik (5 panel)
+├── scripts/                  ← PC tarafı test/veri toplama scriptleri (Python)
+│   └── handshake_test.py     ← Faz 2 USB CDC sanity script
+├── matlab/                   ← MATLAB analiz/tasarım scriptleri (toolbox tabanlı)
+│   ├── README.md             ← Klasör yapısı, toolbox bağımlılıkları, veri akışı
+│   └── asama_1_model/        ← Tek motor sistem tanımlama (Aşama 1)
+├── artifacts/                ← Test sonuç artifact'ları (summary.md + meta.json + raw/)
+│   ├── 2A/T2_duty/, T4_rampa/, T7_integration/
+│   └── 2B/F2_handshake/
+├── logs/                     ← Ham CSV log'lar (gitignored)
 ├── screenshots/              ← Otomatik kaydedilen IMU grafik PNG'leri
 ├── datasheets/               ← Donanım PDF/şematik belgeleri
 │   ├── WeAct Black Pill V2.0 STM32F411CEU6/
-│   ├── MPU6050/
-│   ├── TB6612FNG/
-│   └── Pololu 9.7:1 .../
-├── PROJE_DURUMU.md           ← Proje durum takibi (handoff belgesi)
+│   ├── MPU6050/, TB6612FNG/, Pololu 9.7:1 .../
+├── ROADMAP.md                ← 5 aşamalı yol haritası (vizyon → gerçek gimbal)
+├── PROJE_DURUMU.md           ← 5-10 satır durum özeti (handoff)
+├── KAYNAKCA.md               ← Akademik referanslar + datasheet etiketleri
+├── CLAUDE.md                 ← AI etkileşim kuralları + proje standartları
 └── README.md                 ← Bu teknik rapor
 ```
 
 ---
 
 ## Referanslar
+
+> Akademik kaynaklar, datasheet etiketleri ve teknik karar dayanakları **etiketli liste** olarak [`KAYNAKCA.md`](KAYNAKCA.md)'de tutulur. Bu README sadece donanım PDF lokasyonlarını ve üretici linkleri özetler.
 
 ### Donanım Belgeleri
 

@@ -1,27 +1,37 @@
-# ROADMAP — Aşama 2 Yol Haritası
+# ROADMAP — İki Eksenli Gimbal Geliştirme Yol Haritası
 
-> **Bu doküman canlıdır.** Her milestone tamamlandığında Claude Code güncelleyecek.
+> **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
-> - **Son güncelleme:** 2026-05-11 (Aşama 2A KAPALI, 2B planı detaylandırıldı: Model B dead-band gömülü, 6 step %15-45, USB RX komut seti, V_supply=12.15V ölçüm)
-> - **Branch:** `feature/motor-encoder-tb6612`
-> - **Kapsam:** Aşama 2A → 2E (Kalman dahil). Sonrası "Kapsam Dışı" bölümünde.
+> - **Son güncelleme:** 2026-05-17 (vizyon yenileme: 5 aşamalı uzun vadeli plan, MATLAB workflow, kaynaklı ilerleme prensibi)
+> - **Aktif aşama:** Aşama 0 KAPALI → Aşama 1 (tek motor sistem tanımlama) açılışı
+> - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
 
 ---
 
-## Proje Amacı
+## Vizyon
 
-İki eksenli kamera gimbal'ı için stabilizasyon sistemi geliştirmek: STM32F411 üzerinde MPU6050 ile açı ölçümü, complementary/Kalman füzyonu, encoder geri beslemeli BDC motor sürücüsü, kademeli kontrol döngüleri (hız iç + pozisyon dış). Aşama 2 tek motor + tek IMU ile mini doğrulama; iki eksen entegrasyonu kapsam dışı (Aşama 3'te).
+İki eksenli kamera gimbal'ı için **akademik açıdan zengin**, kaynaklı, MATLAB destekli kontrol mühendisliği projesi:
+
+1. **Tek motor** ile sistem tanımlama → modelleme disiplinini öğren
+2. **Tek motor** üzerinde klasik PI/PID + cascade → kontrol teorisini uygula
+3. **İki motor** MIMO sisteminde modelleme + decoupling → çok değişkenli sistem
+4. **İki motor** üzerinde modern kontrol (LQR/LQG + Kalman) → akademik derinlik
+5. **Gerçek 3D-print gimbal** entegrasyonu → uçtan uca demo + tez/sunum materyali
+
+**Felsefe:** Her teknik karar için *kaynak + alternatif + trade-off + bilinçli seçim*. Ferhat'ın tezi kutsal değil; bağımsız literatür temeli (`KAYNAKCA.md`) bu projeyle birlikte kuruluyor.
+
+**Paralel araçlar:** MATLAB (System Identification, Control System, Simulink, Optimization toolbox'ları) + STM32Cube HAL (C, bare-metal). Embedded Coder kullanılmaz; MATLAB çıktıları manuel transfer.
 
 ## Doküman Sözleşmesi
 
-Üç farklı doküman, üç farklı görev:
-
 | Doküman | İçerik | Güncelleme tetiği |
 |---|---|---|
-| `ROADMAP.md` (bu dosya) | Yol haritası, aşamalar, adımlar, testler, tamamlanma kanıtı | Her adım/aşama bitiminde, plan değişikliğinde |
+| `ROADMAP.md` (bu dosya) | Yol haritası, aşamalar, adımlar, testler, tamamlanma kanıtı | Her adım/aşama bitiminde |
 | `PROJE_DURUMU.md` | "Şu an neredeyiz?" 5-10 satır özet + ROADMAP linki | Aşama geçişlerinde |
-| `README.md` | Kalıcı teknik bilgi (mimari, pin tablosu, tamamlanmış altyapı açıklaması) | Davranış değiştiren teknik karar geldiğinde |
-| `CLAUDE.md` | AI etkileşim kuralları, proje çalışma standartları | Yeni kural eklendiğinde |
+| `README.md` | Kalıcı teknik bilgi (mimari, pin tablosu, tamamlanmış altyapı) | Davranış değiştiren teknik karar |
+| `CLAUDE.md` | AI etkileşim kuralları + proje standartları | Yeni kural eklendiğinde |
+| `KAYNAKCA.md` | Etiketli akademik referanslar + datasheet'ler | Her yeni teknik karar |
+| `matlab/<aşama>/README.md` | Aşama-spesifik MATLAB workflow | Aşama açılışında |
 
 **README'ye yol haritası veya TODO girmez.** Sadece "şu sistem nasıl çalışıyor" tarzı kalıcı doküman.
 
@@ -31,308 +41,276 @@
 
 **12V hattında donanım sigortası yok** (Mervesan 12V/3A adaptör, sigorta planlı ama henüz temin edilmedi). Tek koruma katmanları:
 
-1. Yazılım — stall detection, duty cap, soft-start, watchdog
-2. TB6612 dahili termal shutdown (175°C)
+1. **Yazılım** — stall detection, duty cap %50, soft-start rampa, watchdog (Aşama 0'da implementasyon tamamlandı)
+2. **TB6612 dahili termal shutdown** — 175°C tetik (datasheet sf 5)
 
-> **Yazılım koruma katmanları (Aşama 2A çıktısı) aktif olmadan motor çalıştırılmamalı.**
+> **Yazılım koruma katmanları aktif olmadan motor çalıştırılmamalı.**
 
 Sigorta temin edildiğinde:
 - Bu uyarı güncellenir
-- "Kapsam Dışı" altındaki *VM hattı sigorta entegrasyonu* yeni bir aşamaya alınır
-- Duty cap %50 → daha yüksek bir değere gevşetilir (ROADMAP'te ayrıca planlanır)
+- "Kapsam Dışı"ndan *VM hattı sigorta entegrasyonu* yeni aşamaya alınır
+- Duty cap %50 → daha yüksek değere gevşetilir
 
 ---
 
-## ✅ Aşama 2A — Donanım Entegrasyonu, Koruma Katmanları, Düşük Seviye Doğrulama  *(KAPALI 2026-05-11)*
+## ✅ Aşama 0 — Donanım Entegrasyonu, Koruma Katmanları, USB Komut Altyapısı  *(KAPALI 2026-05-17)*
 
-### Hedef
-Encoder ve motor sürücü çalışır durumda; **beş yazılım koruma katmanı aktif**; manuel duty komutlarıyla motor güvenli kontrol edilebilir; encoder okuması fiziksel olarak doğrulanmış.
+> **Not (vizyon yenileme):** Bu aşama önceki yapıda "Aşama 2A + 2B.1-2" olarak bilinen kısmı kapsar. Yeni 5-aşamalı yapıda "Aşama 0 — temel altyapı" rolündedir. Bundan sonra modelleme = Aşama 1.
 
-### Önkoşul
-- ✅ Aşama 1 IMU pipeline (main branch'te) çalışıyor
-- ✅ Donanım plan onaylı, iskelet commit (`59df6a8`)
-- ⚠ Donanım kurulu olmalı: TB6612 modülü, motor, encoder, Mervesan 12V/3A adaptör, ortak GND
-
-### Adımlar (her biri kendi commit'i, build edilebilir)
-
-- [x] **2A.1** — Encoder TIM2 implementasyonu (`Encoder_Init`, `Encoder_GetCount`, `Encoder_Reset`, `Encoder_GetSpeed`). PA15+PB3 GPIO_PULLUP, AF1, encoder mode TI12, both edges. Build kontrol. ✅ commit `5c9dc88`
-- [x] **2A.2** — USB CDC formatına `EC:%ld` (encoder count) eklenmesi. `plot_angles.py` 5. paneli (encoder count) eklenecek şekilde güncelle. ✅ commit `b75cee8`
-- [x] **2A.3** — TB6612 PWM implementasyonu (`Motor_Init` TIM3 + GPIO, `Motor_Enable`, `Motor_Disable`). PB0 AF2, PB12-14 GPIO out (başlangıç LOW). 20 kHz PWM doğrulanır. ✅ commit `60df499` (frekans doğrulaması 2A.4 + Test 2A.T2'ye ertelendi — duty=0 iken PWM görünmez)
-- [x] **2A.4** — TB6612 temel sürücü (`Motor_SetDir`, `Motor_SetDuty`). `MOTOR_MAX_DUTY = 0.50f` hard cap içeride. Naive AIN1/AIN2 set (donanım dead-time yeterli). ✅ commit `320d1d0` (main.c'de 18 sn'lik geçici test sequence — 2A.5'te kaldırılacak)
-- [x] **2A.5** — Soft-start + non-blocking rampa hibrit. ✅ commit `85e03a9` (Motor_Tick 200 Hz, Motor_SetDuty target+rampa, Motor_SoftStart bloklayan init için, main loop 50 ms → 5 ms + USB CDC 40 Hz throttle)
-- [x] **2A.6** — `Motor_Stop` ve `Motor_EmergencyStop`. ✅ commit `85e03a9` (aynı commit'te)
-- [x] **2A.7** — `Motor_StallCheck()` 200 Hz ana döngüden çağrılır. Tetik koşulu: **|encoder_speed| < 2 rad/s** VE current_duty > 0.20 VE 200 ms süre. **Soft-start grace period:** rampa sırasında (current ≠ target) bypass. Tetiklenince: `Motor_EmergencyStop()` + USB CDC `STALL_DETECTED\r\n` + LED 5 Hz. PA0 KEY butonu fake stall enjekte eder (debug, sıfır risk test).
-  > **Eşik gerekçesi:** Pololu 25D LP no-load çıkış hızı ~57 rad/s (560 RPM ÷ 9.55). 5 rad/s = ~%8 no-load — soft-start sırasında yanlış pozitif riski. 2 rad/s gerçek stall'a daha yakın (gerçek stall ≈ 0 rad/s, gürültü payı için 2 rad/s).
-- [x] **2A.8** — 5 sn lockout: stall sonrası `Motor_SetDuty`/`Motor_Enable` reddedilir; süre dolunca **otomatik açılır**. `Motor_ResetLockout()` API erken kapatma için (USB komut 2B'de doldurulacak). `Motor_IsStalled()`, `Motor_PollStallEvent()` getter'ları.
-- [x] **2A.9** — LED durum kodları: normal=500 ms toggle, stall=100 ms toggle (5 Hz). USB transmit'ten ayrı `last_led` zamanlayıcı.
-- [x] **2A.10** — README §8.6 koruma katmanları implementasyon tablosu eklendi (her katman: durum/commit/davranış). ✅ commit `bc504b5`
-
-### Test ve Doğrulama
-
-| # | Test | Beklenen | Tamamlandı |
-|---|---|---|---|
-| 2A.T1 | **Encoder mekanik** — Çıkış milini elle 1 tam tur çevir | ~466 count (48 × 9.7), CW/CCW yön tutarlı (Pololu CPR zaten quadrature-decoded) | ✅ PASS |
-| 2A.T2 | **PWM duty linearitesi** — %20, %30, %50 duty (40 sn log, 18 sn döngülü sequence) | %20→107, %30→166, %50→282 rad/s motor şaftı. K sapması %5.3 — Vsat etkisi kabul edilebilir. %50'de no-load tahminiyle (565 rad/s × 0.5 = 282) **mükemmel uyum**. | ✅ PASS |
-| 2A.T3 | **Yön + BRAKE** — CW/CCW/BRAKE | CW +165.65, CCW −164.16 rad/s (simetri farkı %0.9). BRAKE −164→%10 hıza 1456 ms (kontrollü durma). | ✅ PASS |
-| 2A.T4 | **Soft-start / non-blocking rampa** — Motor_SetDuty her duty değişiminde Motor_Tick yumuşatır | Eski (50 ms loop, ani sıçrama) → Yeni (5 ms loop + Motor_Tick): CCW%30 138 ms, CW%50 260 ms (spec 145 ve 249 ms). Tipik ortalama ~200 ms hedef ile uyumlu. Steady-state değişim < %3 (PSU droop/sıcaklık varyasyonu). | ✅ PASS |
-| 2A.T5 | **Stall detection — iki aşamalı (KRİTİK)**. **Aşama A (simülasyon, sıfır risk):** PA0 KEY butonuna bas → fake stall injection (encoder hızı 0 sayılır), motor gerçekten dönerken bile stall mantığı tetiklenir. KEY basılı tutarken stall döngüsü gözlenir. **Aşama B (gerçek donanım):** Aşama A geçtikten sonra KEY basmadan motor şaftını elle sıkıca tut → gerçek stall, aynı mantık. Multimetre ile akım <0.9 A doğrulansın. Önerilen: fiziksel kill switch (README §8.6) Aşama B öncesi. | **Aşama A ✅ PASS** (KEY ile stall tetik 200 ms, LED 5 Hz, STALL_DETECTED USB'den, 5 sn lockout otomatik açıldı, tekrarlanabilir 2-3 deneme). **Aşama B ⏳ bekliyor** (sonraki seansta eldivenle gerçek motor stall testi yapılacak). | ☐ (B bekliyor) |
-| 2A.T6 | **Watchdog hazırlığı** | API yazılı, 2A'da bypass — 2B'de aktive | ☐ |
-| 2A.T7 | **Entegrasyon (KRİTİK)** — IMU pipeline, encoder okuma, motor sürme aynı anda 60 sn boyunca | **135 sn log (logs/test_2a7_integration.csv), 7.5 sequence döngüsü.** USB CDC kesintisiz (plot screenshot 30 sn'lik anlarda buffer'a birikme var — firmware tarafı temiz). Yanlış pozitif stall **yok**. IMU kart eğme tespiti çalışıyor (pitch std=8.5°). CW%30/%50/CCW%30 hızları önceki testle %2 içinde tutarlı. **CW%20 anomalisi:** 7 denemede de ölü-banttan kalkamadı (+0.00, önceki testte +107) — 2B dead-band ölçümünün konusu, entegrasyon testini engellemiyor. | ✅ PASS |
-
-### Riskler / Açık Sorular
-
-- **R6 (yeni, 2A.T7 sonrası):** **CW%20 ölü-bant değişkenliği.** Test_2a4'te +107 rad/s gözlendi, test_2a7'de +0.00 (motor başlamadı). Sıcaklık/PSU droop/kontak direnci olabilir. **2B.6 dead-band tespiti** bunu nicelendirecek; gerekirse step seviyeleri revize edilir (taban %25 veya %30).
-- **R1**: Pololu enkoder pull-up gerçekten gerekli mi? GPIO_PULLUP zarar vermez ama push-pull ise çıkış akımı artar (~50 µA, ihmal). 2A.T1 başarısızsa pull konfigürasyonu gözden geçirilecek.
-- **R2**: TB6612 modülünün üzerindeki gömülü kapasitörlerin değeri biliniyor mu? Datasheet 10 µF + 0.1 µF tipik diyor; modül üreticisi (Robotistan/Direnç) sayfasında belirtilmemiş. Stall sırasında VM voltajı düşerse harici kapasitör eklenebilir.
-- ~~**R3**~~ ✅ **KAPALI 2026-05-11**: Mervesan adaptör droop ölçüldü — VM = 12.12–12.19 V (%0.6 droop). Sabit V_supply=12.15 V varsayımı modele dahil edildi. ADC online izleme kapsam dışı.
-- **R4**: Stall lock-out süresi 5 sn yeterli mi yoksa kullanıcı reset zorunlu olmalı mı? İki yaklaşım da implemente edilebilir; varsayılan: 5 sn otomatik açılma + `Motor_ResetLockout()` API'si erken açmak için.
-- **R5**: Aşama 2A boyunca komut girişi yok (sabit duty test). Watchdog 2B'de aktive olduğunda mevcut sabit-duty testleri etkilenmez (tek yönde duty komutu zaten 1 sn'den kısa).
+### Hedef (gerçekleşen)
+- ✅ IMU pipeline (MPU6050 + complementary filter)
+- ✅ Encoder TIM2 quadrature, Pololu 48 CPR konvansiyonu
+- ✅ TB6612 PWM (20 kHz) + non-blocking rampa
+- ✅ Beş yazılım koruma katmanı (stall + duty cap + soft-start + watchdog + LED)
+- ✅ USB CDC iki yönlü (TX: telemetri, RX: DUTY/STOP/RESET/PING komutları)
+- ✅ Watchdog 1 sn timeout
+- ✅ Test artifact disiplini (`artifacts/<faz>/<test_id>/`)
 
 ### Tamamlanma Kanıtı
 
-- **2A.1** Encoder TIM2 implementasyonu: `5c9dc88`
-- **2A.2** USB CDC EC alanı + plot 5. panel: `b75cee8`
-- **2A.3** TB6612 TIM3 PWM init + STBY enable/disable: `60df499`
-- **2A.4** Motor_SetDir + Motor_SetDuty + geçici test sequence: `320d1d0`
-- **2A.5 + 2A.6** Motor_Tick non-blocking rampa, Motor_Stop, Motor_EmergencyStop, 200 Hz loop, 40 Hz USB throttle: `85e03a9`
-- **2A.7 + 2A.8 + 2A.9** Stall detection + 5 sn lockout + LED durum + KEY fake stall: `77899d7`
-- **Test 2A.T5 Aşama A PASS** — KEY simülasyonu ile tüm stall mantığı doğrulandı (commit `bc504b5`). Aşama B (gerçek motor stall) bekliyor.
-- **Test 2A.T7 PASS** — 135 sn entegrasyon (logs/test_2a7_integration.csv). 7.5 sequence döngüsü, USB drop yok (plot screenshot kaynaklı buffer hiccup'lar gerçek drop değil), yanlış pozitif stall yok, IMU çalışıyor, hızlar %2 içinde tutarlı. CW%20 ölü-bant → R6 (2B.6'da çözülecek).
-- **Aşama 2A KAPALI** 2026-05-11. Sadece 2A.T5 Aşama B (gerçek motor stall) sonraki seansa bırakıldı — bağımsız donanım doğrulaması, 2B'yi engellemiyor.
+| Bileşen | Commit | Test artifact |
+|---|---|---|
+| Encoder TIM2 + 48 CPR | `5c9dc88`, `b75cee8` | `artifacts/2A/T1_encoder/` |
+| TB6612 PWM + yön + duty | `60df499`, `320d1d0` | `artifacts/2A/T2_duty/` |
+| Non-blocking rampa (200 Hz) | `85e03a9` | `artifacts/2A/T4_rampa/` |
+| Stall detection + lockout + LED | `77899d7`, `bc504b5` | (KEY simülasyon PASS) |
+| Entegrasyon 135 sn | `f8bf5c7` | `artifacts/2A/T7_integration/` |
+| USB RX komut parser + OMEGA | `0f27dd3` | — |
+| Watchdog 1 sn | `4d6d047` | — |
+| Handshake sanity | `02bd1ee` | `artifacts/2B/F2_handshake/` |
+| Logging disiplini | `94ab1db` | (CLAUDE.md güncellendi) |
 
-- **Test 2A.T4 PASS** — 80 sn log (`logs/test_2a5.csv`):
-  - **Rampa süreleri (ham hız, 10%-90%):** CCW%30 138 ms (spec 145), CW%50 260 ms (spec 249), CW%20 157 ms (spec 94, Vsat etkisi nedeniyle gecikme)
-  - **Eski/yeni karşılaştırma:** Eski log'ta transitionlar <50 ms ani sıçrama, yeni log'ta 200-300 ms yumuşak rampa. Motor_Tick non-blocking rampa çalışıyor.
-  - **Steady-state tutarlılık:** Eski/yeni hız farkı < %3 (PSU droop / motor sıcaklığı)
-  - **IMU çalışıyor:** Pitch range [-5.2°, +88°] (test sırasında kart eğilmiş). Önceki "IMU sıfır" şüphesi geçersiz — sabit kart için %.1f rounding'di.
-  - **Grafik:** `logs/test_2a5_ramp_comparison.png`
+### Açık Konu (Aşama 0 → 1'e taşınan)
 
-- **Test 2A.T2/T3 PASS** — 40 sn döngülü sequence log (`logs/test_2a4.csv`):
-  - **Duty linearitesi:** %20 → 107 rad/s, %30 → 166 rad/s, %50 → 282 rad/s (motor şaftı). K sapması %5.3, no-load tahmini ile mükemmel uyum.
-  - **Yön simetrisi:** CW +165.65 vs CCW −164.16 rad/s (fark %0.9).
-  - **BRAKE:** CCW −164 rad/s → %10 hız 1456 ms.
-  - **Vsat etkisi:** Düşük duty'de %5 kayıp (Pololu Vsat=0.5V/12V=%4 ile uyumlu) — 2B fitting'de detaylı modellenecek.
-  - **IMU notu:** Sabit kart yatay → pitch/roll=0 normal. Sanity check: kartı eğince pitch değişiyor mu (manuel doğrulama önerildi).
-  - **Grafik:** `logs/test_2a4_analysis.png` (3 panel: encoder count delta, hız profili sequence renkli, IMU)
-
-- **Test 2A.T1 PASS** — Çıkış milini 1 tam tur çevirme:
-  - **Gözlem:** ~470 count, CW/CCW yön tutarlı, sıçrama yok, 0'a geri dönüş
-  - **Beklenti:** ~466 count = 48 × 9.7 (motor şaftı 48 olay × redüktör 9.7:1)
-  - **Hata:** %0.85 — mekanik tolerans + manuel tur tamlığı içinde
-  - **Teknik dayanak:** Pololu "48 CPR" konvansiyonu zaten quadrature-decoded sayım. Kaynak: robotsepeti.com 25D LP sayfası — *"Kuadratür enkoder her iki kanalda kenarlar için sayım yapması durumunda 48 CPR'lık bir çözünürlük sağlar."*
-  - **Çözünürlük:** Çıkış milinde **0.77° / count** (360°/466). Motor şaftında 7.5° / count.
-  - **Düzeltme:** İlk hesabımda 192 olay/motor devri (48 × 4) yanlıştı; gerçekte 48 olay/motor devri. `EVENTS_PER_REV` 192 → 48 düzeltildi.
-- Stall detection test logu/video: _(USB CDC çıktısı + LED gözlemi — 2A.T5 sonrası)_
-- Stall detection test logu/video: _(USB CDC çıktısı + LED gözlemi — 2A.T5 sonrası)_
-- README §8.6 sigortasız çalışma testi geçti notu: _(2A tamamlanınca)_
+- **2A.T5-B (gerçek motor stall testi):** KEY simülasyonu (Aşama A) PASS. Gerçek motor stall (eldivenle şaftı tut + multimetre <0.9 A) bağımsız donanım doğrulaması, sonraki seansa bırakıldı — Aşama 1'i engellemiyor.
+- **R6 (CW%20 ölü-bant değişkenliği):** Test 2A.T2'de +107 rad/s, Test 2A.T7'de +0 rad/s. Aşama 1.3 (dead-band fitting) bu varyasyonu nicelendirecek.
 
 ---
 
-## Aşama 2B — Motor Sistem Tanımlama (Modelleme)
+## 🔬 Aşama 1 — Tek Motor Sistem Tanımlama  *(BAŞLAYACAK)*
 
-### Hedef
-Motor için **dead-band gömülü 1. dereceden** model parametreleri (K, τ, V_dead) çıkarılmış; veri toplama altyapısı (USB CDC RX + Python script) ile fitting raporu hocaya sunulabilir formatta hazır.
+> **Branch:** `feature/asama-1-tek-motor-model` (Aşama 0'dan main'e merge sonrası açılacak)
+> **MATLAB:** `matlab/asama_1_model/`
 
-### Model Yapısı (Karar 1)
+### Vizyon
 
-**Model B — Dead-band gömülü:**
+Tek motor için **parametrik 1. derece + dead-band** model. Hocaya sunulabilir kalitede:
+- Veri toplama scripti (`scripts/step_response.py`)
+- MATLAB tabanlı fit (`tfest` veya `curve_fit`)
+- Simulink doğrulama (model output vs ölçüm)
+- Akademik rapor (`fit_report.md` + PNG'ler)
 
+**Model:**
 ```
 ω(t) = K · max(V_eff − V_dead, 0) · (1 − e^(−t/τ))
-
-V_eff = V_supply · duty − V_sat
-V_supply = 12.15 V   (Mervesan ölçüm ortalaması, droop %0.6)
-V_sat    = 0.5 V     (TB6612 datasheet @1A)
+V_eff = V_supply · duty − V_sat,   V_supply=12.15 V,  V_sat=0.5 V
 ```
 
-Parametreler: **K** (rad/s/V), **τ** (s), **V_dead** (V). R6 (CW%20 ölü-bant) modelle açıklanır.
+**Kaynaklar:** `[Ljung1999] §3, §16`, `[Franklin2010] §3`, `[TB6612_DS] §1`, `[Pololu_25D]`.
 
 ### Önkoşul
-- ✅ Aşama 2A tamamlandı, koruma katmanları aktif
-- ✅ V_supply ölçüldü (12.15 V ortalama)
+- ✅ Aşama 0 KAPALI
+- ✅ USB CDC komut altyapısı çalışıyor
+- ✅ MATLAB kurulu (`mcp__matlab__detect_matlab_toolboxes` ile doğrulanacak)
 
-### Adımlar
+### Alt-Aşamalar (yüksek seviye)
 
-- [ ] **2B.1** — Firmware USB CDC RX + komut parser. **Komut seti (minimum + PING):**
-  - `DUTY:<signed_float>\n` → işaret yön belirler (+CW, -CCW)
-  - `STOP\n` → Motor_Stop()
-  - `RESET\n` → Motor_ResetLockout()
-  - `PING\n` → `PONG\r\n` yanıt (handshake)
+> Alt-aşama detayları (adımlar + testler) **her alt-aşama açılışında** sokratik tartışma sonrası eklenecek. Şu an iskelet:
 
-  Aynı commit'te: main.c'deki **2A geçici test sequence kaldırılır**, USB CDC çıktısına **`OMEGA:<firmware_speed>`** alanı eklenir (firmware tarafında hesaplanan motor şaftı rad/s — Python'da hem ham EC hem işlenmiş OMEGA olur).
+- **1.1 — Veri toplama altyapısı:** `scripts/step_response.py` Python tarafı (handshake_test.py temel alınarak). 6 duty × 2 yön = 12 step. 200 Hz örnekleme. Çıktı: `artifacts/1/step_response/<test_id>/raw/data.csv.gz` + meta.json + summary.md.
+- **1.2 — Step bazlı 1. derece fit:** MATLAB'da her step için `tfest` veya `lsqcurvefit`. Her step → (K_i, τ_i, ω_ss_i).
+- **1.3 — Dead-band tespiti:** ω_ss vs V_eff lineer regresyon, x-intercept = V_dead. R6 (CW%20 değişkenliği) bu adımda nicelendirilecek.
+- **1.4 — CW/CCW simetri analizi:** K_cw vs K_ccw, V_dead_cw vs V_dead_ccw. Yön farkı kayıt altına alınır.
+- **1.5 — Simulink doğrulama:** Model bloğu kurulur, aynı duty profil koşturulur, RMSE/NRMSE hesaplanır.
+- **1.6 — Akademik rapor:** `matlab/asama_1_model/results/fit_report.md` + PNG'ler. Hocaya sunulabilir kalite.
 
-- [ ] **2B.2** — **Watchdog timeout:** son komut zamanı (last_cmd_tick) tutulur. 1 sn boyunca yeni komut yoksa `Motor_Stop()`. PING komutu da watchdog'u resetler.
+### Test ve Doğrulama (iskelet)
 
-- [ ] **2B.3** — `scripts/step_response.py` (Python):
-  - pyserial bağlantı + handshake (PING → PONG kontrol)
-  - Programatik step sekansı: 6 step × 5 sn + 2 sn coast
-  - 200 Hz örnekleme hedef, CSV log (timestamp, duty_cmd, omega_firmware, ec, pitch, ...)
-  - Hata durumunda STOP gönder, kullanıcıya rapor
-
-- [ ] **2B.4** — Veri toplama: **%15, %20, %25, %30, %40, %45 duty** (signed: hem CW hem CCW kayıt). MOTOR_MAX_DUTY=%50 cap'e güvenli mesafe. %50 yerine %45 — Vsat doyumu fit'i bozmasın.
-  > **Aralık gerekçesi:** %15 dead-band altı referans (muhtemelen hiç dönmez = bilgi). %45 üst sınır cap'e güvenli mesafede. 6 step ince tarama dead-band çevresinde yoğun fit verir.
-
-- [ ] **2B.5** — `scripts/fit_motor.py` (Python):
-  - Her step için 1. dereceden fit: `scipy.optimize.curve_fit`, model ω(t) = ω_ss · (1 - exp(-(t-t0)/τ))
-  - Tüm steplerden K, τ ortalama ± std
-  - **Dead-band çıkarımı:** ω_ss vs V_eff lineer regresyon → V_dead = x-intercept
-  - Çıktı: `fit_motor_<ts>.json` (parametreler), `fit_motor_<ts>.png` (görseller), `fit_report_<ts>.md` (Markdown şablon, hocaya sunum için placeholder'lar)
-
-- [ ] **2B.6** — Dead-band tespit doğrulaması: fit'ten çıkan V_dead, %5'lik ince tarama (V_dead ± 0.1) ile cross-check edilir. R6 nicelendirilmiş olur.
-
-- [x] **2B.7** — ~~Adaptör droop ölçümü~~ ✅ **MEASURED 2026-05-11**: VM = 12.12–12.19 V (motor sürüş altında, multimetre). Droop %0.6 — ihmal edilebilir, sabit V_supply=12.15V varsayımı modele dahil edildi. ADC online izleme **kapsam dışı** (gelecek çalışma).
-
-### Test ve Doğrulama
-
-| # | Test | Beklenen | Tamamlandı |
+| # | Test | Beklenen | Durum |
 |---|---|---|---|
-| 2B.T1 | Komut handshake | PING → PONG <100 ms gecikme, watchdog 1 sn'de tetik | ☐ |
-| 2B.T2 | Step response tutarlılığı | 6 step'te K aynı (±%10), τ aynı (±%15) — model varsayımı | ☐ |
-| 2B.T3 | Dead-band cross-check | fit V_dead, ince tarama V_dead'i ±0.2 V içinde | ☐ |
-| 2B.T4 | CW/CCW simetri | K_cw vs K_ccw farkı < %5 | ☐ |
+| 1.T1 | Veri toplama tutarlılığı | 12 step temiz, USB drop yok | ☐ |
+| 1.T2 | Step bazlı fit kalitesi | NRMSE < %5 her step | ☐ |
+| 1.T3 | CW/CCW simetri | \|K_cw − K_ccw\| / K_ortalama < %5 | ☐ |
+| 1.T4 | Dead-band cross-check | fit V_dead vs ince tarama V_dead farkı < 0.2 V | ☐ |
+| 1.T5 | Simulink validation | NRMSE (model vs ölçüm) < %10 | ☐ |
 
-### Tamamlanma Kanıtı
+### Çıktı
 
-> _Aşama tamamlandığında doldurulacak._
+- `matlab/asama_1_model/results/motor_params.json` — Aşama 2'de kontrolcü için kaynak
+- `matlab/asama_1_model/results/*.png` — akademik görsel
+- `matlab/asama_1_model/results/fit_report.md` — sunum materyali
+- Commit hash'leri ROADMAP'e işlenir
 
-- Motor parametreleri: K=___, τ=___ s, V_dead=___ V
-- V_supply: 12.15 V (MEASURED 2026-05-11)
-- Step response grafikleri (PNG)
-- `fit_motor_<ts>.json` (parametreler)
-- `fit_report_<ts>.md` (hocaya sunum için Markdown şablonu)
-- Commit hash'leri
+### Açık Sorular / Tartışma
+
+> Alt-aşama 1.1 açılışında sokratik karar:
+> - Fit yöntemi: `tfest` (System ID Toolbox) vs `lsqcurvefit` (Optimization Toolbox)? Trade-off: tfest output-error/ARX seçeneği zengin ama kara kutu; lsqcurvefit elle yazılan formül üzerinde tam kontrol.
+> - Veri uzunluğu: 5 sn step yeterli mi? τ ölçüm aralığına göre seçim (Aşama 0'da CCW%30 ~138 ms ölçüldü → 5 sn'de 36τ).
+> - Yön bayraklı tek fit vs CW/CCW ayrı fit? Simetri kontrolünden önce ayrı fit önerilir.
 
 ---
 
-## Aşama 2C — Hız Kontrolü (İç Döngü PI)
+## 🎛 Aşama 2 — Tek Motor Kontrol (PI / PID / Cascade)  *(planlanan)*
 
-### Hedef
-Encoder hızını referans değere oturan PI kontrolcü çalışır durumda; setpoint adımlarına settling time < 5τ, overshoot < %10, steady-state error < %2.
+### Vizyon
+
+Aşama 1'de çıkarılan modelle:
+- **Hız iç döngü PI** — pole placement (`[Franklin2010] §6.4`)
+- **Pozisyon dış döngü P/PI** — cascade
+- **IMU mirror** — encoder pozisyon setpoint = +fused_pitch (taklit, gimbal değil)
+- **Anti-windup** — back-calculation `[AstromMurray2008] §10.4`
+
+**MATLAB:** `matlab/asama_2_kontrol/`
+- `design_pi_speed.m` — pole placement
+- `design_cascade.m` — iç/dış döngü bant genişliği oranı
+- `simulink_closed_loop.slx` — kapalı döngü simülasyonu
 
 ### Önkoşul
-- ✅ Aşama 2B parametreleri çıkarılmış
+- Aşama 1 motor parametreleri (K, τ, V_dead) JSON'da
 
-### Adımlar
+### Hedef Performans
 
-- [ ] **2C.1** — Pole placement ile Kp_w, Ki_w analitik hesabı. Closed-loop τ_cl ≈ τ_ol / 5 hedefi.
-- [ ] **2C.2** — Hız PI kontrolcü implementasyonu (firmware, 200 Hz fixed sample). USB CDC formatına setpoint + measured speed + duty eklenir.
-- [ ] **2C.3** — Anti-windup (saturation back-calculation veya basit clamp). Duty hard cap %50 göz önünde — integral wind-up bu sınırda da olmamalı.
-- [ ] **2C.4** — Setpoint komut alımı (USB CDC): `SP_W:15.0\n` → ω_ref = 15 rad/s.
+| Metrik | Hedef | Kaynak |
+|---|---|---|
+| Hız döngüsü settling time | < 5τ | `[Franklin2010] §6.4` |
+| Pozisyon overshoot | < %10 | `[Franklin2010] §4` |
+| Steady-state error | < %2 | PI integral aksiyonu |
+| Mirror takip RMS | < 5° (yavaş eğme ~10°/s) | proje hedefi |
+| İç/dış bant genişliği oranı | ≥ 5× | `[Franklin2010] §6.4` |
 
-### Test ve Doğrulama
+### Alt-Aşamalar (iskelet)
 
-| # | Test | Beklenen | Tamamlandı |
-|---|---|---|---|
-| 2C.T1 | Setpoint adımı (10, 20, 30 rad/s) | settling < 5τ, overshoot < %10, ss_error < %2 | ☐ |
-| 2C.T2 | Disturbance (motor şaftına yük) | PI integral düzeltir, ss_error < %2 sağlanır | ☐ |
-| 2C.T3 | Yön değiştirme | Setpoint −20 rad/s'e geçtiğinde TB6612 dead-time düzgün çalışır, akım sıçraması yok | ☐ |
+- **2.1 — Hız PI tasarımı (MATLAB)** → kazançlar
+- **2.2 — Firmware'de hız PI implementasyonu** (200 Hz fixed sample)
+- **2.3 — Hız step response testi** (USB SP_W:X.X komutu)
+- **2.4 — Anti-windup**
+- **2.5 — Pozisyon P/PI tasarımı + cascade**
+- **2.6 — Firmware cascade implementasyonu**
+- **2.7 — IMU mirror bağlantısı** (setpoint = +fused_pitch)
+- **2.8 — Disturbance rejection testi** (elle motor şaftı bozulması)
+- **2.9 — Akademik rapor + Simulink karşılaştırma**
 
-### Tamamlanma Kanıtı
-
-> _Aşama tamamlandığında doldurulacak._
-
-- Kp_w=___, Ki_w=___
-- Step response grafiği
-- Commit hash
+> Alt-aşama detayları her açılışta sokratik tartışma sonrası eklenecek.
 
 ---
 
-## Aşama 2D — Pozisyon Kontrolü + IMU Mirror
+## 🔄 Aşama 3 — İki Motor MIMO Modelleme  *(planlanan)*
 
-### Senaryo Notu (Mimari Karar)
+### Vizyon
 
-**Senaryo B — Mirror/Takip:** IMU breadboard'da sabit kalır (motor şaftına mekanik bağ yok). Breadboard kullanıcı tarafından eğildiğinde motor şaftı IMU pitch açısını **TAKLİT EDER** — aynı yöne, aynı miktarda. *"Bak, ben breadboard'u eğdim, motor da eğiliyor."*
+İkinci motor + ikinci encoder eklenir. **Çapraz coupling** karakterize edilir:
+- Motor 1 sürülürken Motor 2 ekseninde dönüş var mı? (mekanik bağ + IMU geri besleme)
+- 2×2 transfer matrisi G(s)
+- Relative Gain Array (RGA) analizi `[Skogestad2005] §10`
 
-Klasik gimbal senaryosu (Senaryo A — IMU motor şaftında, ters çevirme ile stabilizasyon) bu projede **kapsam dışı** — mekanik mount kompleksitesi olmadan akademik karmaşıklık (sistem ID, hız PI, pozisyon kontrolü, IMU entegrasyonu) korunur.
+**Donanım eklemesi:**
+- İkinci TB6612 kanalı veya ikinci modül (BIN1/BIN2/PWMB)
+- TIM4 quadrature encoder (PB6/PB7 — I2C ile çakışıyor → revize: TIM5 PA0/PA1)
+- ⚠ PA0 = KEY butonu, çakışma! → pin yeniden değerlendirme Aşama 3 açılışında
 
-### Hedef
-Motor şaftı, IMU pitch açısını gecikme/takip hatası içinde **taklit etsin**. Breadboard yavaşça ±30° eğildiğinde motor şaftı ±30° dönsün; takip hatası RMS < 5°.
+**MATLAB:** `matlab/asama_3_mimo_model/`
 
 ### Önkoşul
-- ✅ Aşama 2C hız döngüsü stabil
+- Aşama 2 KAPALI (tek motor kontrol stabil)
+- İkinci motor + encoder donanımı
 
-### Adımlar
+### Alt-Aşamalar (iskelet)
 
-- [ ] **2D.1** — Dış döngü P kontrolcü; setpoint başlangıçta sabit 0°. Ölçü: encoder pozisyon (count → derece, 466 count/çıkış mili devri = 0.77° / count).
-- [ ] **2D.2** — Cascade: dış döngü P çıkışı → iç döngü hız setpoint'i.
-- [ ] **2D.3** — **IMU mirror bağlantısı:** setpoint = **`+fused_pitch`** (taklit, **ters değil**). Breadboard +30° eğilince motor şaftı +30° döner. Tersleme istense gimbal olurdu, mirror için pozitif eşleştirme.
-- [ ] **2D.4** — **Duty cap gevşetme kararı**: 2C testleri geçer ve sistem akım davranışı stabilse, MOTOR_MAX_DUTY %50 → %70'e çıkarılabilir. Karar bu aşamada test sonuçlarına göre verilir; ROADMAP güncellemesi gerektirir.
+- **3.1 — Pin yeniden değerlendirme** (ikinci encoder için)
+- **3.2 — İkinci motor sürücüsü hazırlığı** (TB6612 B kanalı veya ikinci modül)
+- **3.3 — SISO ↔ MIMO veri toplama** (her motoru ayrı sür, diğerini ölç)
+- **3.4 — Transfer matrisi G(s) tahmini** (MATLAB)
+- **3.5 — RGA + condition number** — decoupling potansiyeli
+- **3.6 — Coupling derecesinin akademik raporu**
 
-### Test ve Doğrulama
-
-| # | Test | Beklenen | Tamamlandı |
-|---|---|---|---|
-| 2D.T1 | Sabit setpoint disturbance | Motor şaftı 0°'da iken elle bozulmaya karşı geri 0°'ye döner | ☐ |
-| 2D.T2 | **IMU mirror (KRİTİK)** | Breadboard'u yavaşça ±30° eğ → motor şaftı ±30° taklit eder. Takip hatası `\|motor_pos − fused_pitch\|` RMS **< 5°** | ☐ |
-| 2D.T3 | **Takip kalitesi** | Yavaş eğme (~10°/s) → motor sorunsuz takip; hızlı eğme (~60°/s+) → kontrolcü bant genişliği sınırı görünür (faz gecikmesi). Hız–hata eğrisi karakterize edilsin. | ☐ |
-
-### Tamamlanma Kanıtı
-
-> _Aşama tamamlandığında doldurulacak._
-
-- Stabilizasyon demosu video/screenshot
-- Disturbance rejection oranı sayısal
-- Commit hash
+> Kaynaklar: `[Skogestad2005] §3, §10`, `[Ljung1999] §16`.
 
 ---
 
-## Aşama 2E — Kalman Füzyonu
+## 🚀 Aşama 4 — İki Motor Modern Kontrol (LQR/LQG + Kalman)  *(planlanan)*
 
-### Hedef
-3 durumlu Kalman filter (`x = [θ, ω, gyro_bias]`) MPU6050 verisini complementary'den daha az gürültülü açı verir; Kalman çıktısı kontrolcüye beslendiğinde motor sürüş akustik olarak daha sakin (kontrolcü daha az "yakalama" hareketi yapar).
+### Vizyon
+
+MIMO sistemde:
+- **Decoupling** (basit P diagonal + RGA kompansatör)
+- **LQR** durum geri-besleme `[Anderson2007] §2`
+- **Kalman filter** state estimation `[Simon2006] §5` — IMU + encoder füzyonu
+- **LQG = LQR + Kalman** kombinasyonu
+
+**MATLAB:** `matlab/asama_4_mimo_kontrol/`
+- `lqr_design.m` — Q, R tuning + Riccati çözümü
+- `kalman_design.m` — 3 durum (`x = [θ, ω, gyro_bias]`)
+- `simulink_lqg.slx` — kapalı döngü simülasyon
 
 ### Önkoşul
-- ✅ Aşama 2D çalışan demo
+- Aşama 3 MIMO modeli + RGA analizi
+- Yazılım: float32 yeterli (STM32F411 FPU)
 
-### Adımlar
+### Alt-Aşamalar (iskelet)
 
-- [ ] **2E.1** — Kalman filter implementasyonu (firmware). 3 durumlu, fixed-point veya float seçilecek (F411 FPU var, float makul).
-- [ ] **2E.2** — Q ve R matrislerinin başlangıç değerleri (MPU6050 datasheet gürültü yoğunluklarından hesaplanır):
-  - Accelerometer noise density: ~400 µg/√Hz
-  - Gyro noise density: ~0.005 °/s/√Hz
-- [ ] **2E.3** — Mevcut complementary filter ile yan yana çalıştır; USB CDC formatı: `KP:..., KR:...` Kalman pitch/roll, `BIAS_X:..., BIAS_Y:...` gyro bias estimate.
-- [ ] **2E.4** — Kalman vs complementary anahtar (firmware): `MODE:CF` veya `MODE:KF` USB komutu ile kontrolcüye hangi açı kaynağı beslenecek.
+- **4.1 — Klasik vs LQR karşılaştırma** (akademik tartışma)
+- **4.2 — Q ve R matris tasarımı** — fiziksel anlam
+- **4.3 — LQR firmware implementasyonu** (durum geri-besleme)
+- **4.4 — Kalman filter tasarımı** (MATLAB) — Q ve R matrisleri MPU6050 datasheet'inden
+- **4.5 — Kalman firmware implementasyonu** (3 durumlu, float)
+- **4.6 — LQG kapalı döngü testi**
+- **4.7 — Complementary vs Kalman karşılaştırma** (gürültü RMS)
+- **4.8 — Akademik karşılaştırma raporu** — klasik PID vs LQG
 
-### Test ve Doğrulama
+> Kaynaklar: `[Anderson2007]`, `[Friedland2005]`, `[Simon2006]`, `[Luenberger1971]`.
 
-| # | Test | Beklenen | Tamamlandı |
-|---|---|---|---|
-| 2E.T1 | Sabit dururken bias yakınsaması | Bias estimate ~30 sn içinde sabit değere oturur | ☐ |
-| 2E.T2 | Titreşim altında gürültü | Kalman pitch RMS < complementary pitch RMS | ☐ |
-| 2E.T3 | Aynı kontrolcü, akustik fark | Kalman moduna geçilince motor ses seviyesi azalır (subjektif gözlem + mikrofon kayıt opsiyonel) | ☐ |
+---
 
-### Tamamlanma Kanıtı
+## 🎁 Aşama 5 — Gerçek 3D-Print Gimbal Entegrasyonu  *(planlanan)*
 
-> _Aşama tamamlandığında doldurulacak._
+### Vizyon
 
-- Kalman vs complementary karşılaştırma grafikleri
-- R/Q tuning notları
-- Commit hash
+Tüm yazılım altyapısı hazır → 3D-print gimbal şasisi + iki motor + IMU. **Gerçek gimbal** senaryosu (IMU motor şaftında, **ters çevirme** ile stabilizasyon — mirror değil).
+
+### Önkoşul
+- Aşama 4 LQG simülasyonda stabil
+- 3D-print şasi tasarımı (Fusion 360 / FreeCAD)
+- Motor mount + IMU mount
+- Slip-ring veya esnek kablo (kabloların kopmaması)
+
+### Senaryo Değişimi
+
+**Aşama 0-4: Senaryo B (Mirror)** — IMU breadboard'da sabit, motor IMU'yu taklit eder.
+**Aşama 5: Senaryo A (Klasik gimbal)** — IMU motor şaftında, ters çevirme ile stabilizasyon. *"Kamera sabit kalsın."*
+
+### Alt-Aşamalar (iskelet)
+
+- **5.1 — Şasi tasarımı + 3D print**
+- **5.2 — Mekanik montaj + statik denge**
+- **5.3 — Senaryo A için kontrol kuralı uyarlama** (setpoint = −fused_pitch)
+- **5.4 — Yatay/dikey eksen tuning**
+- **5.5 — Performans testi** (kameranın sabit kalması, RMS hata)
+- **5.6 — Demo video + akademik kapanış raporu**
 
 ---
 
 ## Kapsam Dışı (Sonraki İterasyonlar)
 
-Bu yol haritası 2E'de duruyor. Sonraki adımlar:
-
 - **VM hattı sigorta entegrasyonu** — Kullanıcı 1.5 A polyfuse veya 2 A cam sigorta temin ettiğinde aktif aşamaya alınır. Duty cap %50 sınırı gevşetilir.
 - **Duty cap %50 → %100 gevşetme** — Sigorta sonrası, kontrolcü stabilse.
-- **İkinci motor + ikinci eksen** — Tam 2-DOF gimbal entegrasyonu (TIM4 PWM + ek encoder TIM5).
-- **Madgwick / quaternion füzyon** — ±90° singülarite çözümü.
-- **Cascade PID, LQR, LQG karşılaştırması** — Akademik karşılaştırma.
+- **Madgwick / quaternion füzyon** — ±90° singülarite çözümü. Mevcut complementary ±45° için yeterli; gerekirse Aşama 5+'ta eklenir.
+- **µ-synthesis, H∞ kontrol** — `[Skogestad2005] §11`. Akademik olarak zengin ama proje kapsamı dışı.
 - **Bluetooth gecikme analizi** — Ferhat'ın tezi tarafı, BLE/HC-05 üzerinden komut gecikmesi.
+- **Embedded Coder ile MATLAB → C otomatik üretim** — Manuel transfer disiplini terk edilmez.
 
 ---
 
 ## Güncelleme Protokolü
 
-Claude Code aşağıdaki durumlarda ROADMAP.md'yi güncelleyecek:
+ROADMAP.md aşağıdaki durumlarda güncellenir:
 
-1. **Adım tamamlanınca**: ilgili kontrol kutusu işaretlenir, "Tamamlanma kanıtı" bölümüne commit hash + ölçüm değerleri yazılır.
-2. **Aşama tamamlanınca**: aşama başlığına ✅ ve tarih damgası eklenir.
-3. **Plan değişiminde** (yeni risk, yeni adım, sıralama değişimi): ilgili bölüm doğrudan güncellenir, üst kısımdaki "son güncelleme" tarihi yenilenir.
-4. **Büyük yapısal değişiklikler için kullanıcıya danışılır**: adım ekle/çıkar öncesinde sor.
-5. **Kullanıcı sigorta temin ettiğinde**: "Açık Emniyet Uyarısı" güncellenir, "Kapsam Dışı"ndan *VM hattı sigorta entegrasyonu* maddesi yeni bir aşama olarak ROADMAP'e alınır, duty cap gevşetme planlanır.
+1. **Alt-aşama tamamlanınca:** kontrol kutusu işaretlenir, "Tamamlanma kanıtı" doldurulur (commit hash + ölçüm değerleri + artifact path).
+2. **Aşama tamamlanınca:** aşama başlığına ✅ ve tarih damgası, "KAPALI <YYYY-MM-DD>".
+3. **Plan değişiminde:** ilgili bölüm doğrudan güncellenir, üst kısımdaki "son güncelleme" tarihi yenilenir.
+4. **Yeni alt-aşama açılışı:** sokratik tartışma sonrası adım/test detayları eklenir. Öncesinde sadece iskelet.
+5. **Yeni teknik karar:** `KAYNAKCA.md`'ye etiketli giriş + ROADMAP'te ilgili adımda referans.
+6. **Büyük yapısal değişiklik:** kullanıcıya danışılır.
 
 `PROJE_DURUMU.md` 5-10 satır özet + ROADMAP linki tutar; detay ROADMAP'te.
 `README.md` sadece kalıcı teknik bilgi tutar; yol haritası veya TODO girmez.
+`KAYNAKCA.md` her teknik karar için etiketli giriş tutar.

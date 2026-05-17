@@ -3,3 +3,10 @@ screenshots/
 datasheets/**/*_pages/
 logs/
 artifacts/**/raw/
+
+# MATLAB
+*.mat
+*.fig
+*.asv
+*.m~
+slprj/
