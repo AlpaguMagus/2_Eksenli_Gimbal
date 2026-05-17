@@ -44,6 +44,15 @@ int main(void)
 
     HAL_Init();
     SystemClock_Config();
+
+    /* DWT cycle counter — mikrosaniye timestamp için (T_US alanı).
+     * ARM Cortex-M4 Generic User Guide §11.3 [ARM_DWT]. 32-bit @ 96 MHz →
+     * unsigned subtraction ile fark hesabı her zaman doğru; mutlak değer
+     * ~44.7 sn'de wrap eder ama Python tarafı diff alıyor, sorun yok. */
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    DWT->CYCCNT       = 0U;
+    DWT->CTRL        |= DWT_CTRL_CYCCNTENA_Msk;
+
     I2C1_Init();
 
     /* PC13 LED */
@@ -145,11 +154,16 @@ int main(void)
         fused_roll  = alpha * (fused_roll  + gx_dps * dt) + (1.0f - alpha) * roll;
 
         /* USB CDC transmit — 40 Hz throttle (her 25 ms'de bir).
+         * T_US: DWT.CYCCNT / 96  → mikrosaniye timestamp (firmware tarafı,
+         *       Python tarafı clock'tan bağımsız precision). Aşama 1 motor
+         *       sistem tanımlama fit'inde τ ölçümü için kullanılır.
          * OMEGA: firmware tarafında hesaplanan motor şaftı hızı (rad/s).
-         * EC ham count ile yan yana — 2B fitting için ikisi de Python'da. */
+         * EC ham count ile yan yana — Aşama 1 fitting için ikisi de Python'da. */
         if (now - last_tx >= 25U) {
+            uint32_t t_us = DWT->CYCCNT / 96U;
             int len = snprintf(buf, sizeof(buf),
-                "P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,OMEGA:%.1f\r\n",
+                "T_US:%lu,P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,OMEGA:%.1f\r\n",
+                (unsigned long)t_us,
                 pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll,
                 (long)enc_count, enc_speed);
             CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);

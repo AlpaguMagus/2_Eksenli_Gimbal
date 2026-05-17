@@ -105,6 +105,11 @@
   - §13.3.12 (sf 340-342): Encoder Interface Mode, Tablo 52
   - §23.3 (sf 808): SWJ debug port — PA15/PB3 SWD modunda serbest
 
+- **[ARM_DWT]** ARM, *"Cortex-M4 Devices Generic User Guide"*, ARM DUI 0553.
+  - <https://developer.arm.com/documentation/dui0553/latest/>
+  - §11.3: Data Watchpoint and Trace Unit — DWT.CYCCNT 32-bit cycle counter
+  - Aşama 1 T_US alanı: `DWT->CYCCNT / 96` → mikrosaniye (SYSCLK 96 MHz). 32-bit ≈ 44.7 sn wrap; fark hesabı unsigned subtraction ile her zaman doğru
+
 - **[Pololu_25D]** Pololu Corp., *"25D mm Metal Gearmotors with 48 CPR Encoders"*.
   - <https://www.pololu.com/category/116>
   - Robotsepeti Türkçe sayfa: <https://www.robotsepeti.com/971-metal-gearmotor-25dx63l-mm-lp-12v-with-48-cpr-encoder>
