@@ -6,6 +6,7 @@
 #include "encoder.h"
 #include "motor.h"
 #include "cmd_parser.h"
+#include "speed_pi.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -78,6 +79,22 @@ int main(void)
     Encoder_Init();           /* TIM2, PA15+PB3 */
     Motor_Init();              /* TIM3, PB0 PWM, PB12-14 GPIO, STBY=LOW */
 
+    /* Hız iç döngü PI — Aşama 2.1 MATLAB tasarımı (conservative pole placement):
+     *   matlab/asama_2_kontrol/results/a2_1_20260518_071843/speed_pi_params.json
+     *   ζ = 1.0 (critically damped), ω_n = 60 rad/s, τ_cl = 16.7 ms
+     *   Kp = (2·ζ·ω_n·τ − 1) / K
+     *   Ki = ω_n²·τ / K
+     * Kaynaklar: [Franklin2010] §6.4 (pole placement), §3.6 (critical damping)
+     *            [AstromMurray2008] §10.2 (Tustin), §10.4 (back-calculation) */
+    static const SpeedPI_Config SPEED_PI_CFG = {
+        .Kp       = 0.1163f,
+        .Ki       = 4.0447f,
+        .Ts       = 0.005f,           /* 200 Hz fixed sample */
+        .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı */
+        .T_t      = 0.02875f          /* Kp/Ki — Aström-Murray T_t = T_i */
+    };
+    SpeedPI_Init(&SPEED_PI_CFG);
+
     /* USB CDC başlat */
     USBD_Init(&hUsbDeviceFS, &CDC_Desc, DEVICE_FS);
     USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC);
@@ -89,7 +106,7 @@ int main(void)
     Motor_Enable();            /* STBY=HIGH — sürücü artık aktif */
 
     int16_t ax, ay, az, gx, gy, gz;
-    char    buf[128];   /* +OMEGA alanı için */
+    char    buf[160];   /* +OMEGA, +SP, +U alanları için */
 
     /* Complementary filter durumu */
     float fused_pitch = 0.0f;
@@ -137,6 +154,22 @@ int main(void)
         /* Motor rampa step'i (non-blocking, target_duty'ye yaklaşır) */
         Motor_Tick();
 
+        /* ── Hız PI kontrolcü — Aşama 2.2 ──────────────────────────────
+         * SP_W modda her ana döngü iterasyonunda (200 Hz, Ts=5 ms) PI step alınır.
+         * Signed çıktıyı işaret + |duty|'ye böl → Motor_SetDir + Motor_SetDuty.
+         * DUTY modda speed PI çalıştırılmaz; cmd_parser direkt Motor API'lerini
+         * çağırır. Mod geçişinde cmd_parser Motor_Stop + SpeedPI_Reset yapar. */
+        if (CmdParser_GetMode() == CMD_MODE_SP_W) {
+            float u = SpeedPI_Step(enc_speed);
+            if (u >= 0.0f) {
+                Motor_SetDir(MOTOR_CW);
+                Motor_SetDuty(u);
+            } else {
+                Motor_SetDir(MOTOR_CCW);
+                Motor_SetDuty(-u);
+            }
+        }
+
         float fax = (float)ax, fay = (float)ay, faz = (float)az;
 
         /* İvmeölçer açısı */
@@ -154,24 +187,29 @@ int main(void)
         fused_roll  = alpha * (fused_roll  + gx_dps * dt) + (1.0f - alpha) * roll;
 
         /* USB CDC transmit — 40 Hz throttle (her 25 ms'de bir).
-         * T_US: DWT.CYCCNT / 96  → mikrosaniye timestamp (firmware tarafı,
-         *       Python tarafı clock'tan bağımsız precision). Aşama 1 motor
-         *       sistem tanımlama fit'inde τ ölçümü için kullanılır.
-         * OMEGA: firmware tarafında hesaplanan motor şaftı hızı (rad/s).
-         * EC ham count ile yan yana — Aşama 1 fitting için ikisi de Python'da. */
+         * T_US: DWT.CYCCNT / 96 → mikrosaniye timestamp ([ARM_DWT]).
+         * OMEGA: firmware'in hesapladığı motor şaftı hızı (rad/s, signed).
+         * EC: ham encoder count (long, signed).
+         * SP: hız PI setpoint (rad/s) — sadece SP_W modda anlamlı, DUTY modda 0.
+         * U:  hız PI kontrol çıkışı (signed duty) — son SpeedPI_Step sonucu. */
         if (now - last_tx >= 25U) {
             uint32_t t_us = DWT->CYCCNT / 96U;
+            float sp = SpeedPI_GetSetpoint();
+            float u  = SpeedPI_GetControl();
             int len = snprintf(buf, sizeof(buf),
-                "T_US:%lu,P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,OMEGA:%.1f\r\n",
+                "T_US:%lu,P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,OMEGA:%.1f,SP:%.1f,U:%.3f\r\n",
                 (unsigned long)t_us,
                 pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll,
-                (long)enc_count, enc_speed);
+                (long)enc_count, enc_speed, sp, u);
             CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
             last_tx = now;
         }
 
-        /* Stall event — tetik anında bir kerelik USB mesajı */
+        /* Stall event — tetik anında bir kerelik USB mesajı.
+         * Stall sırasında Motor_SetDuty reddedildiği için SP_W modda PI integrator
+         * wind-up etmemesi için resetlenir (lockout dolduktan sonra ani patlama yok). */
         if (Motor_PollStallEvent()) {
+            SpeedPI_Reset();
             static const char ev[] = "STALL_DETECTED\r\n";
             CDC_Transmit_FS((uint8_t *)ev, (uint16_t)(sizeof(ev) - 1));
         }

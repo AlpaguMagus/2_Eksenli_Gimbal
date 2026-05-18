@@ -1,0 +1,53 @@
+#ifndef SPEED_PI_H
+#define SPEED_PI_H
+
+#include <stdbool.h>
+
+/* ============================================================================
+ * Hız iç döngü PI kontrolcü (Aşama 2.2)
+ *
+ * Tustin (bilinear) z-dönüşümü ile discrete-time ayrıştırma + back-calculation
+ * anti-windup. Aşama 2.1 MATLAB tasarımının firmware karşılığı:
+ *   matlab/asama_2_kontrol/results/a2_1_20260518_071843/speed_pi_params.json
+ *   pole_placement_conservative — Kp=0.1163, Ki=4.0447, ζ=1.0, ω_n=60 rad/s
+ *
+ * Model: Aşama 1 motor parametreleri
+ *   G(s) = K / (τs + 1),  K=53.89 rad/s/V, τ=60.5 ms
+ *
+ * Form: paralel — P + I integrator ayrı state'te tutulur, anti-windup için
+ *   integrator'a back-calculation feedback uygulanır.
+ *
+ * Tustin integration adımı:
+ *   i[k] = i[k-1] + Ki·Ts/2·(e[k] + e[k-1])     [AstromMurray2008 §10.2]
+ *
+ * Anti-windup back-calculation:
+ *   u_unsat = Kp·e + i
+ *   u_sat   = clamp(u_unsat, ±duty_max)
+ *   i      += (Ts/T_t) · (u_sat − u_unsat)       [AstromMurray2008 §10.4]
+ *   T_t     = T_i = Kp/Ki  (varsayılan tracking time)
+ *
+ * Çıktı: signed duty [-duty_max, +duty_max].
+ * main.c bu işareti kullanarak Motor_SetDir + Motor_SetDuty çağırır.
+ * ============================================================================ */
+
+typedef struct {
+    float Kp;
+    float Ki;
+    float Ts;        /* örnekleme süresi (s) — 0.005 (200 Hz) */
+    float duty_max;  /* saturation (0.50 = MOTOR_MAX_DUTY) */
+    float T_t;       /* anti-windup tracking time (s) — tipik Kp/Ki */
+} SpeedPI_Config;
+
+void  SpeedPI_Init(const SpeedPI_Config *cfg);
+void  SpeedPI_Reset(void);                  /* integrator = 0, prev_error = 0 */
+
+void  SpeedPI_SetSetpoint(float omega_ref); /* rad/s, signed */
+float SpeedPI_GetSetpoint(void);            /* USB TX SP: alanı için */
+float SpeedPI_GetControl(void);             /* USB TX U: alanı için (son u_sat) */
+
+/* Tek adım: error hesabı + P + I (Tustin) + anti-windup back-calculation.
+ * omega_measured: motor şaftı hızı (rad/s, signed — encoder'dan).
+ * Dönüş: signed duty komutu [-duty_max, +duty_max]. */
+float SpeedPI_Step(float omega_measured);
+
+#endif /* SPEED_PI_H */

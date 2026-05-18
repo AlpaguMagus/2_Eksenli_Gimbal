@@ -210,12 +210,28 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
   - Simulink kapalı döngü simülasyonu (`speed_loop_a2_1.slx`)
   - Çıktı: `matlab/asama_2_kontrol/results/<test_id>/speed_pi_params.json`
 
-- **2.2 — Firmware hız PI implementasyonu** (200 Hz fixed sample)
-  - `src/speed_pi.c` + `include/speed_pi.h` (yeni)
-  - Discrete-time bilinear (Tustin) ayrıştırma: Ts=5 ms
-  - Anti-windup back-calculation (S2 onaylı)
-  - USB komutu: `SP_W:<float>` (rad/s setpoint)
-  - USB TX formatına `SP:` + `U:` (kontrol çıkışı duty) alanları
+- **2.2 — Firmware hız PI implementasyonu** *(implementasyon tamamlandı, test bekleniyor)*
+
+  Sokratik kararlar (kullanıcı onaylı):
+  | # | Karar | Gerekçe |
+  |---|---|---|
+  | 2.2.A | **Tustin (bilinear)** | s-domain özelliklerini en iyi koruyor, Ts=5 ms / τ=60 ms oran için emniyetli |
+  | 2.2.B | **T_t = T_i = Kp/Ki** | Aström-Murray varsayılan tracking time (T_t = 28.75 ms) |
+  | 2.2.C | **Açık MODE komutu** | `MODE:DUTY\n` ve `MODE:SP_W\n` — temiz akademik, geriye uyumlu |
+  | 2.2.D | **A+C: saf step + anti-windup'a güven** | Step response testi için saf step, slew rate 2.5'te ekle |
+
+  Yeni firmware modülleri:
+  - `include/speed_pi.h` + `src/speed_pi.c` — Paralel form PI (P + I), Tustin
+    integration `i[k] = i[k-1] + Ki·Ts/2·(e[k] + e[k-1])`, back-calculation
+    `i += (Ts/T_t)·(u_sat − u_unsat)` (`[AstromMurray2008] §10.2-§10.4`)
+  - `include/cmd_parser.h` + `src/cmd_parser.c` — `MODE:DUTY`, `MODE:SP_W`,
+    `SP_W:<float>` komutları + `CmdParser_GetMode()` accessor
+  - `src/main.c` — SpeedPI_Init (Kp=0.1163, Ki=4.0447, Ts=5ms, T_t=28.75ms),
+    SP_W modda her 200 Hz tick'te SpeedPI_Step → Motor_SetDir + Motor_SetDuty,
+    USB TX formatına `SP:` (setpoint) + `U:` (kontrol çıkışı) alanları
+  - Stall event'inde SpeedPI_Reset (integrator wind-up önleme)
+
+  Build: PASS, RAM 3.6%, Flash 7.8% (Aşama 2.1 öncesi 3.5% / 7.6%).
 
 - **2.3 — Hız step response testi** (`scripts/speed_step_test.py`)
   - 6 setpoint × 2 yön = 12 step (10, 20, 50, 100, 150, 200 rad/s)
