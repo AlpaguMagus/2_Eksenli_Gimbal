@@ -10,3 +10,9 @@ artifacts/**/raw/
 *.asv
 *.m~
 slprj/
+
+# Yusuf'un kişisel çalışma klasörü — repo dışı
+Yusufun anlatacakları/
+
+# Editor lock dosyaları
+.~lock.*#
