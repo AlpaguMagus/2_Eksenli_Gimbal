@@ -83,7 +83,7 @@ Sigorta temin edildiğinde:
 ### Açık Konu (Aşama 0 → 1'e taşınan)
 
 - **2A.T5-B (gerçek motor stall testi):** KEY simülasyonu (Aşama A) PASS. Gerçek motor stall (eldivenle şaftı tut + multimetre <0.9 A) bağımsız donanım doğrulaması, sonraki seansa bırakıldı — Aşama 1'i engellemiyor.
-- **R6 (CW%20 ölü-bant değişkenliği):** Test 2A.T2'de +107 rad/s, Test 2A.T7'de +0 rad/s. Aşama 1.3 (dead-band fitting) bu varyasyonu nicelendirecek.
+- ~~**R6 (CW%20 ölü-bant değişkenliği)**~~ ✅ **ÇÖZÜLDÜ 2026-05-18 (artifact: `artifacts/1/stiction_test/20260518_111200/`):** Önce stiction hipotezi ile açıklandı (Aşama 1.3), sonra deneysel test ile **stiction reddedildi** (cold-start dahil tüm duty'lerde motor başlıyor). T7 ham log yeniden analizi: motor T7'de aslında dönmüş (ΔEC ≈ 1750 her cycle, ω ≈ 76 rad/s). Anomalinin nedeni: o dönem firmware OMEGA alanını göndermiyordu, Python analizi varsayılan 0.0 raporladı. **R6 fiziksel değil, analiz/parsing artefaktıydı.**
 
 ---
 
@@ -122,7 +122,7 @@ V_eff = V_supply · duty − V_sat,   V_supply=12.15 V,  V_sat=0.5 V
 
 - **1.1 — Veri toplama altyapısı:** `scripts/step_response.py` Python tarafı (handshake_test.py temel alınarak). 6 duty × 2 yön = 12 step. 200 Hz örnekleme. Çıktı: `artifacts/1/step_response/<test_id>/raw/data.csv.gz` + meta.json + summary.md.
 - **1.2 — Step bazlı 1. derece fit:** MATLAB'da her step için `tfest` veya `lsqcurvefit`. Her step → (K_i, τ_i, ω_ss_i).
-- **1.3 — Dead-band tespiti:** ω_ss vs V_eff lineer regresyon, x-intercept = V_dead. R6 (CW%20 değişkenliği) bu adımda nicelendirilecek.
+- **1.3 — Dead-band tespiti:** ω_ss vs V_eff lineer regresyon, x-intercept = V_dead. R6 (CW%20 değişkenliği) bu adımda nicelendirildi → V_dead ≈ 0, dead-band yok. (2026-05-18 stiction doğrulama testi ile bağımsız teyit edildi, R6 ölçüm artefaktı çıktı.)
 - **1.4 — CW/CCW simetri analizi:** K_cw vs K_ccw, V_dead_cw vs V_dead_ccw. Yön farkı kayıt altına alınır.
 - **1.5 — Simulink doğrulama:** Model bloğu kurulur, aynı duty profil koşturulur, RMSE/NRMSE hesaplanır.
 - **1.6 — Akademik rapor:** `matlab/asama_1_model/results/fit_report.md` + PNG'ler. Hocaya sunulabilir kalite.
@@ -157,7 +157,7 @@ V_eff = V_supply · duty − V_sat,   V_supply=12.15 V,  V_sat=0.5 V
 
 ### Akademik Bulgular (özet — detay README §10.7)
 
-1. **Dinamik dead-band yok** (V_dead ≈ 0). Önceki R6 anomalisi statik sürtünme (stiction) ile açıklanır.
+1. **Dinamik dead-band yok** (V_dead ≈ 0). İlk hipotez "stiction" 2026-05-18 deneysel testi ile reddedildi. R6 anomalisi T7 dönemindeki firmware'in OMEGA alanı eksikliğinden kaynaklanan **analiz/parsing artefaktı** — motor T7'de gerçekten dönmüş, biz yanlış ölçmüşüz.
 2. **V_sat etkisi modelle uyumlu** — K_apparent profil 60 → 50 rad/s/V (TB6612 datasheet `V_sat=0.5 V`).
 3. **τ duty bağımlılığı** (43 ms → 134 ms) — 1. derece varsayımının sınırı; gerçek DC motor 2. derece.
 4. **Test 1.T5 U-eğrisi** — tek (K, τ) ile validation NRMSE |duty|≈0.18'de minimum.

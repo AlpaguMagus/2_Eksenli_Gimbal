@@ -941,27 +941,52 @@ G(s) = K / (τs + 1)    (birinci derece TF, dead-band çıkarılmış)
 
 ### 10.7. Akademik Tartışma
 
-#### Bulgu 1 — Dinamik Dead-band Yok; Önceki "%20 Ölü-Bant" Aslında Stiction
+#### Bulgu 1 — Dinamik Dead-band Yok; Stiction Hipotezi Deneysel Reddedildi; R6 Analiz Artefaktıydı
 
-Pololu 25D motor %12 duty (V_eff=0.96 V) iken zaten 57 rad/s dönüyor. Lineer ekstrapolasyon V_dead = **−0.24 V (negatif)** veriyor — dönen motorda dead-band yok demektir.
+> **Akademik mühendislik akıl yürütmesinin canlı örneği:** gözlem → hipotez → deneysel test → revizyon.
 
-**Sürtünme tipi ayrımı** (`[Franklin2010] §3.2`):
+Pololu 25D motor %12 duty (V_eff=0.96 V) iken zaten 57 rad/s dönüyor. Aşama 1.3 lineer regresyon V_dead = **−0.24 V (negatif)** verdi — dönen motorda dead-band yok demektir.
 
-| Tip | Açıklama | Fiziksel kaynak | Pololu 25D'de |
+##### İlk hipotezimiz (Aşama 1.3 yorumu)
+
+Önceki Test 2A.T2'de motor %20 duty'de döndü (+107 rad/s), Test 2A.T7'de aynı duty'de motor "+0.00 rad/s" gösterdi (R6 anomalisi). Bunu **statik sürtünme (stiction)** ile açıkladık (`[Franklin2010] §3.2 Coulomb + viscous friction`): T2'de motor önceden sürülmüş sıcak, T7'de coast'tan başladı soğuk, stiction eşiği aşılamadı.
+
+##### Deneysel doğrulama testi (2026-05-18) — HİPOTEZ REDDEDİLDİ
+
+Artifact: `artifacts/1/stiction_test/20260518_111200/`
+
+**Test protokolü:**
+- **Faz A:** 30 sn cold-start sonrası 8 duty seviyesi (%10-25), her birinin arasında 15 sn cooldown
+- **Faz B:** Motor 0.30 ile 10 sn sürüş (sıcak), sonra düşük duty'ler kontrol grubu
+
+**Sonuç:**
+
+| duty | cold ω_ss | sıcak ω_ss | fark |
 |---|---|---|---|
-| **Statik (stiction)** | Duran cismi kıpırdatmak için gereken kritik eşik | Yüzey adezyonu, mikrokaynaşma | **~%20 duty civarı** |
-| **Kinetik (Coulomb)** | Dönen cismi sürmek için gereken sabit fren | Yüzey kayma sürtünmesi | **~%12 duty veya altı** |
+| 0.100 | +46.75 | +44.41 | %5.0 |
+| 0.120 | +56.10 | +58.44 | %4.2 |
+| 0.140 | +67.79 | +70.12 | %3.4 |
+| 0.160 | +79.47 | +79.47 | %0.0 |
 
-**R6 fenomeni açıklaması (Aşama 0 anomalisi):**
-- Test 2A.T2'de motor önceden sürülmüş + sıcak → duty %20 stiction eşiğini geçti → kıpırdadı (+107 rad/s)
-- Test 2A.T7'de coast'tan başladı + soğuk → duty %20 stiction eşiğine takıldı → motor başlamadı (+0 rad/s)
-- **Sonuç:** Aşama 1 fit'i bu anomaliyi fiziksel olarak açıkladı. Bir gözlem-anomali-açıklama döngüsü çalıştı.
+**Hepsi 🟢 BAŞLADI** — cold-start ile sıcak motor arasında ölçüm gürültüsü içinde fark var. **Stiction yok ya da minimal.**
 
-**Pratik etkisi:** Kontrolcü düşük setpoint (10-30 rad/s) verirse stiction eşiği nedeniyle başlangıç tepkisi gecikebilir. İki çözüm seçeneği:
-1. **Gain scheduling** — düşük setpoint'lerde Kp boost
-2. **Stiction kicker** — başlangıç sırasında kısa süreli yüksek duty pulse
+##### R6 anomalisinin gerçek açıklaması
 
-Aşama 2.3 testinde gerçek motorda gözlemlenecek; gerekirse Aşama 2'ye alt madde eklenir.
+Stiction reddedildikten sonra T7 ham CSV log'u (`artifacts/2A/T7_integration/raw/test_2a7_integration.csv.gz`) yeniden incelendi. 8 cycle hepsinde CW%20 segmentinde encoder count **tutarlı şekilde artmış** (ΔEC ≈ 1750 / 3 sn → motor şaftında ~76 rad/s). Motor o testte **gerçekten dönmüş**.
+
+**Anomalinin kaynağı:** T7 yapıldığında firmware USB CDC TX formatına `OMEGA:` alanını henüz eklememişti (sonradan `0f27dd3` commit'te eklendi). Python analiz scripti `OMEGA:` regex'ini bulamayınca varsayılan **0.0 raporladı**.
+
+**R6 fiziksel bir fenomen değil, veri analizi / parsing artefaktıydı.** Dynamic dead-band yok, stiction da yok — Aşama 1 modeli (V_dead ≈ 0) zaten doğru söylüyordu, biz onu stiction olarak yanlış yorumladık.
+
+##### Pratik etkisi (revize)
+
+| Konu | Önceki yorum (stiction hipotezi) | Yeni yorum (deneysel doğrulama sonrası) |
+|---|---|---|
+| Düşük setpoint riski | Stiction nedeniyle gecikir | Motor %10 duty'den itibaren dönüyor, **sorun yok** |
+| Stiction kicker önerisi | Aşama 2.3'te değerlendir | **Gerek yok** |
+| Gain scheduling önerisi | Stiction kompanse için | Hâlâ **τ duty bağımlılığı** (Bulgu 3) için geçerli |
+
+**Akademik vurgu:** İlk hipotezimizi (stiction) deneysel olarak test ettik ve reddettik. Yanlış bir yoruma sarılmadık. Bu mühendislik biliminin klasik döngüsü — `[Ljung1999] §16`'nın model validation prensibinin sokratik genişletmesi.
 
 #### Bulgu 2 — V_sat Profili: TB6612 Datasheet Doğrulaması
 
@@ -1003,7 +1028,7 @@ Tek (K, τ) ile validation NRMSE |duty|≈0.18'de minimum (%5.7), uçlarda yüks
 
 **Gain scheduling kavramı:** Farklı çalışma noktalarında farklı (Kp, Ki) kullanmak. Bir tabloyla yerel kazanç değiştirilir:
 ```
-ω_setpoint < 50 rad/s:    Kp=0.08, Ki=2.5   (düşük setpoint, stiction kompanse)
+ω_setpoint < 50 rad/s:    Kp=0.08, Ki=2.5   (düşük setpoint, τ_e baskın bölge)
 50 ≤ ω_setpoint < 150:    Kp=0.12, Ki=4.0   (orta — bizim mevcut)
 ω_setpoint ≥ 150:         Kp=0.15, Ki=5.5   (yüksek)
 ```

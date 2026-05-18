@@ -1,0 +1,62 @@
+{
+  "test_id": "20260518_111200",
+  "title": "Stiction hipotezi doğrulama testi — REDDEDİLDİ",
+  "timestamp": "2026-05-18T11:09:00",
+  "commit": "8109fa1",
+  "status": "PASS_HYPOTHESIS_REJECTED",
+  "hypothesis": "R6 (CW%20 değişkenliği) statik sürtünme (stiction) nedeniyle — duran motorun başlatma eşiği",
+  "result": "Hipotez REDDEDİLDİ. Cold ve sıcak motor arasında %0-5 fark var (ölçüm gürültüsü içinde). Motor cold dahi %10 duty'de güvenli şekilde dönüyor.",
+  "test_phases": {
+    "FAZ_A_cold_start": {
+      "wait_before_s": 30,
+      "duties_tested": [0.10, 0.12, 0.14, 0.16, 0.18, 0.20, 0.22, 0.25],
+      "drive_s_each": 2.5,
+      "cooldown_s_each": 15,
+      "results_rad_s": {
+        "0.100": 46.75,
+        "0.120": 56.10,
+        "0.140": 67.79,
+        "0.160": 79.47,
+        "0.180": 93.50,
+        "0.200": 102.85,
+        "0.220": 114.54,
+        "0.250": 130.90
+      },
+      "all_started": true
+    },
+    "FAZ_B_warm_motor": {
+      "warmup_duty": 0.30,
+      "warmup_s": 10,
+      "duties_tested": [0.10, 0.12, 0.14, 0.16],
+      "drive_s_each": 2.5,
+      "cooldown_s_each": 4,
+      "results_rad_s": {
+        "0.100": 44.41,
+        "0.120": 58.44,
+        "0.140": 70.12,
+        "0.160": 79.47
+      },
+      "all_started": true
+    }
+  },
+  "cold_vs_warm_diff_pct": {
+    "0.100": 5.0,
+    "0.120": 4.2,
+    "0.140": 3.4,
+    "0.160": 0.0
+  },
+  "t7_reanalysis": {
+    "note": "T7 ham CSV log incelendi — motor CW%20'de gerçekten dönmüş (8 cycle hepsinde tutarlı). Orijinal summary'deki '+0.00 rad/s' o dönemde firmware'in OMEGA alanı göndermediği için Python analiz scriptinin yanılgısı.",
+    "cycles_observed": 8,
+    "cw20_delta_ec_avg": 1761,
+    "estimated_motor_shaft_rad_s": 76,
+    "orig_summary_omega_value": "+0.00 (artefact)"
+  },
+  "r6_conclusion": "R6 anomalisi gerçek bir fiziksel fenomen değildi — analiz/parsing artefaktı. Aşama 1 modeli V_dead≈0 doğruydu, fakat 'stiction nedeniyle dynamic dead-band sıfır görünüyor' yorumumuz yanlıştı. Dynamic dead-band gerçekten sıfır, stiction da yok.",
+  "implications_for_phase2": {
+    "low_setpoint_concern": "Yok — motor %10 duty'den başlıyor",
+    "stiction_kicker_needed": false,
+    "gain_scheduling_still_valid": "Evet — tau duty bağımlılığı (43-134 ms) için geçerli, stiction için değil"
+  },
+  "artifacts": ["raw/test_output.log"]
+}

@@ -10,7 +10,8 @@
 
 **Açık konular:**
 - 2A.T5-B (gerçek motor stall testi) — bağımsız donanım doğrulaması.
-- Stiction tartışması (R6 açıklaması) — Aşama 2.3 testinde düşük setpoint davranışı izlenecek, gerekirse gain scheduling eklenir.
+- ~~Stiction tartışması (R6 açıklaması)~~ ✅ ÇÖZÜLDÜ 2026-05-18 (`artifacts/1/stiction_test/20260518_111200/`): Stiction hipotezi deneysel test ile reddedildi, R6 analiz artefaktı çıktı. Aşama 2 düşük setpoint riski yok.
+- Gain scheduling — τ duty bağımlılığı (43-134 ms) için Aşama 2.3 testi sonrası değerlendirilecek.
 
 **Sıradaki:** Aşama 2.3 — `scripts/speed_step_test.py` ile firmware hız PI step response testi (24 step, settling/overshoot/ss_error ölçüm).
 

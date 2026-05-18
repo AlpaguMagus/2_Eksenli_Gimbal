@@ -17,12 +17,14 @@
     "cw30_avg_rad_s": 167.98,
     "ccw30_avg_rad_s": -166.48,
     "cw50_avg_rad_s": 287.56,
-    "cw20_avg_rad_s": 0.0
+    "cw20_avg_rad_s": 0.0,
+    "cw20_avg_rad_s_revize_2026_05_18": 76.0,
+    "cw20_avg_note": "Orijinal +0.0 değeri Python analiz scriptinin yanılgısı (firmware o dönem OMEGA göndermiyordu). Ham EC delta'larından hesaplanan gerçek değer ~76 rad/s motor şaftı (8 cycle tutarlı, ΔEC ≈ 1750 / 3 sn)."
   },
   "artifacts": [
     "raw/test_2a7_integration.csv.gz"
   ],
-  "open_issues": [
-    "R6: CW%20 ölü-bant — test_2a4'te +107, test_2a7'de +0. 2B.6'da nicelendirilecek."
+  "open_issues_resolved_2026_05_18": [
+    "R6 (CW%20 ölü-bant): artifacts/1/stiction_test/20260518_111200/ ile çözüldü. Stiction hipotezi deneysel reddedildi, T7 ham log yeniden analizi motor T7'de zaten dönmüş olduğunu gösterdi. R6 fiziksel değil parsing artefaktıydı."
   ]
 }
