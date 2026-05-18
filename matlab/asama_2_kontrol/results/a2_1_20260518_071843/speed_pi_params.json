@@ -1,0 +1,116 @@
+{
+  "model_source": "/home/alpagumagus/workspace/2_Eksenli_Gimbal/matlab/asama_1_model/results/20260518_011926/motor_params.json",
+  "a1_test_id": "20260518_011926",
+  "K_used": 53.891164412323356,
+  "tau_used_s": 0.060548919656930669,
+  "design_pole_placement_aggressive": {
+    "Kp": 0.11330507283268866,
+    "Ki": 7.7400722746530919,
+    "zeta": 0.707,
+    "omega_n": 83,
+    "tau_cl_s": 0.012048192771084338
+  },
+  "design_pole_placement_conservative": {
+    "Kp": 0.11626897334953216,
+    "Ki": 4.0447467250328248,
+    "zeta": 1,
+    "omega_n": 60,
+    "tau_cl_s": 0.016666666666666666
+  },
+  "design_pidtune_robust": {
+    "Kp": 0.0045275207109049323,
+    "Ki": 0.51118437200201994,
+    "PM_deg": 50.999999999999986,
+    "wc_rad_s": 18.559287819365228
+  },
+  "design_pidtune_balanced": {
+    "Kp": 0,
+    "Ki": 0.26636939216366096,
+    "PM_deg": 54.6620227305573,
+    "wc_rad_s": 11.710118957950282
+  },
+  "design_pidtune_fast": {
+    "Kp": 0,
+    "Ki": 0.26636939216366096,
+    "PM_deg": 54.6620227305573,
+    "wc_rad_s": 11.710118957950282
+  },
+  "firmware_selected": "pole_placement_conservative",
+  "firmware_Kp": 0.11626897334953216,
+  "firmware_Ki": 4.0447467250328248,
+  "comparison": [
+    {
+      "name": "pole_placement_aggressive",
+      "Kp": 0.11330507283268866,
+      "Ki": 7.7400722746530919,
+      "GM_dB": null,
+      "PM_deg": 67.593542175026414,
+      "wcg": null,
+      "wcp": 115.89184355559209,
+      "settling_time_s": 0.0598608606441801,
+      "overshoot_pct": 15.388244232545611,
+      "rise_time_s": 0.012125985940651861,
+      "ss_error_pct": 0
+    },
+    {
+      "name": "pole_placement_conservative",
+      "Kp": 0.11626897334953216,
+      "Ki": 4.0447467250328248,
+      "GM_dB": null,
+      "PM_deg": 80.802748020394517,
+      "wcg": null,
+      "wcp": 107.50645621058494,
+      "settling_time_s": 0.080466501908736693,
+      "overshoot_pct": 6.7080922263501375,
+      "rise_time_s": 0.015715015079385292,
+      "ss_error_pct": 0
+    },
+    {
+      "name": "pidtune_Robust",
+      "Kp": 0.0045275207109049323,
+      "Ki": 0.51118437200201994,
+      "GM_dB": null,
+      "PM_deg": 51.000006936122389,
+      "wcg": null,
+      "wcp": 18.559281143784514,
+      "settling_time_s": 0.37653087790637296,
+      "overshoot_pct": 18.1411041720674,
+      "rise_time_s": 0.073301429040806693,
+      "ss_error_pct": 0
+    },
+    {
+      "name": "pidtune_Balanced",
+      "Kp": 0,
+      "Ki": 0.26636939216366096,
+      "GM_dB": null,
+      "PM_deg": 54.662212945395204,
+      "wcg": null,
+      "wcp": 11.710036563967098,
+      "settling_time_s": 0.37640603292920621,
+      "overshoot_pct": 13.578408882483339,
+      "rise_time_s": 0.11121134844004978,
+      "ss_error_pct": 0
+    },
+    {
+      "name": "pidtune_Fast",
+      "Kp": 0,
+      "Ki": 0.26636939216366096,
+      "GM_dB": null,
+      "PM_deg": 54.662212945395204,
+      "wcg": null,
+      "wcp": 11.710036563967098,
+      "settling_time_s": 0.37640603292920621,
+      "overshoot_pct": 13.578408882483339,
+      "rise_time_s": 0.11121134844004978,
+      "ss_error_pct": 0
+    }
+  ],
+  "Ts_firmware_s": 0.005,
+  "kaynak": [
+    "Franklin2010 §6.4",
+    "Franklin2010 §6.7",
+    "Franklin2010 §3.6 (critical damping)",
+    "AstromMurray2008 §10.2",
+    "AstromMurray2008 §10.4"
+  ]
+}

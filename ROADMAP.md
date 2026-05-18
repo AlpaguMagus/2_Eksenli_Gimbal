@@ -164,47 +164,106 @@ V_eff = V_supply · duty − V_sat,   V_supply=12.15 V,  V_sat=0.5 V
 
 ---
 
-## 🎛 Aşama 2 — Tek Motor Kontrol (PI / PID / Cascade)  *(planlanan)*
+## 🎛 Aşama 2 — Tek Motor Kontrol (PI / PID / Cascade)  *(AÇILDI 2026-05-18)*
 
 ### Vizyon
 
-Aşama 1'de çıkarılan modelle:
-- **Hız iç döngü PI** — pole placement (`[Franklin2010] §6.4`)
-- **Pozisyon dış döngü P/PI** — cascade
+Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
+- **Hız iç döngü PI** — pole placement (analitik) + `pidtune` (otomatik) karşılaştırma
+- **Pozisyon dış döngü P/PI** — cascade, iç döngüden 5× yavaş
 - **IMU mirror** — encoder pozisyon setpoint = +fused_pitch (taklit, gimbal değil)
-- **Anti-windup** — back-calculation `[AstromMurray2008] §10.4`
+- **Anti-windup** — back-calculation (`[AstromMurray2008] §10.4`)
 
 **MATLAB:** `matlab/asama_2_kontrol/`
-- `design_pi_speed.m` — pole placement
-- `design_cascade.m` — iç/dış döngü bant genişliği oranı
-- `simulink_closed_loop.slx` — kapalı döngü simülasyonu
+
+### Sokratik Kararlar (kullanıcı onaylı)
+
+| # | Karar | Gerekçe |
+|---|---|---|
+| **S1** | **C — Pole placement + pidtune ikisi de** | Akademik açıdan zengin; klasik analitik tasarım (`[Franklin2010] §6.4`) ile modern auto-tune (`pidtune`) yan yana sunulur, robustluk + performans karşılaştırılır |
+| **S2** | **B — Back-calculation anti-windup** | Akademik standart (`[AstromMurray2008] §10.4`), basit clamp'ten daha iyi recovery; T_b = T_i ile başlangıç |
+| **S3** | **5× iç/dış oran** | `[Franklin2010] §6.4` cascade kuralı; ihtiyatlı seçim, coupling riskini minimize eder. Hız τ_cl ≈ 12 ms, pozisyon τ_cl ≈ 60 ms |
 
 ### Önkoşul
-- Aşama 1 motor parametreleri (K, τ, V_dead) JSON'da
+- ✅ Aşama 1 motor parametreleri (`motor_params.json`) — K=53.89 rad/s/V, τ=60.5 ms
+- ✅ Aşama 0 USB komut altyapısı (DUTY: zaten var; SP_W: ve SP_POS: eklenecek)
+- ✅ MATLAB Control System Toolbox + Simulink (zaten kurulu)
 
 ### Hedef Performans
 
 | Metrik | Hedef | Kaynak |
 |---|---|---|
-| Hız döngüsü settling time | < 5τ | `[Franklin2010] §6.4` |
+| Hız döngüsü settling time | < 5×τ_ol = 300 ms (konservatif, kapalı döngü 4×τ_cl = 48 ms olur) | `[Franklin2010] §6.4` |
+| Hız overshoot | < %10 (ζ=0.707, Butterworth) | `[Franklin2010] §3.6` |
+| Hız steady-state error | < %2 | PI integral aksiyonu |
 | Pozisyon overshoot | < %10 | `[Franklin2010] §4` |
-| Steady-state error | < %2 | PI integral aksiyonu |
 | Mirror takip RMS | < 5° (yavaş eğme ~10°/s) | proje hedefi |
-| İç/dış bant genişliği oranı | ≥ 5× | `[Franklin2010] §6.4` |
+| Gain margin | ≥ 6 dB | `[Franklin2010] §6.7` |
+| Phase margin | ≥ 45° | `[Franklin2010] §6.7` |
 
-### Alt-Aşamalar (iskelet)
+### Alt-Aşamalar
 
-- **2.1 — Hız PI tasarımı (MATLAB)** → kazançlar
-- **2.2 — Firmware'de hız PI implementasyonu** (200 Hz fixed sample)
-- **2.3 — Hız step response testi** (USB SP_W:X.X komutu)
-- **2.4 — Anti-windup**
+- **2.1 — Hız PI tasarımı (MATLAB)** *(BAŞLAYACAK)*
+  - Pole placement (analitik): ζ=0.707, ω_n=83 rad/s (τ_cl=12 ms)
+  - `pidtune` (otomatik): Robust + Balanced + Fast varyasyonlar
+  - Bode + step response + gain/phase margin karşılaştırma
+  - Simulink kapalı döngü simülasyonu (`speed_loop_a2_1.slx`)
+  - Çıktı: `matlab/asama_2_kontrol/results/<test_id>/speed_pi_params.json`
+
+- **2.2 — Firmware hız PI implementasyonu** (200 Hz fixed sample)
+  - `src/speed_pi.c` + `include/speed_pi.h` (yeni)
+  - Discrete-time bilinear (Tustin) ayrıştırma: Ts=5 ms
+  - Anti-windup back-calculation (S2 onaylı)
+  - USB komutu: `SP_W:<float>` (rad/s setpoint)
+  - USB TX formatına `SP:` + `U:` (kontrol çıkışı duty) alanları
+
+- **2.3 — Hız step response testi** (`scripts/speed_step_test.py`)
+  - 6 setpoint × 2 yön = 12 step (10, 20, 50, 100, 150, 200 rad/s)
+  - Settling time, overshoot, ss_error ölçüm
+  - artifacts/2/speed_step/ yapısı (logging disiplini)
+
+- **2.4 — Disturbance rejection testi**
+  - Sabit setpoint (50 rad/s), elle motor şaftını yavaşla
+  - Kontrolcü recovery'i ölçülür
+
 - **2.5 — Pozisyon P/PI tasarımı + cascade**
-- **2.6 — Firmware cascade implementasyonu**
-- **2.7 — IMU mirror bağlantısı** (setpoint = +fused_pitch)
-- **2.8 — Disturbance rejection testi** (elle motor şaftı bozulması)
-- **2.9 — Akademik rapor + Simulink karşılaştırma**
+  - Pozisyon ω_n = 17 rad/s (5× yavaş, S3 onaylı)
+  - P veya PI? — sokratik tartışma alt-açılışta
+  - Simulink cascade simülasyonu
 
-> Alt-aşama detayları her açılışta sokratik tartışma sonrası eklenecek.
+- **2.6 — Firmware cascade implementasyonu**
+  - `src/position_p.c` (dış döngü)
+  - Encoder count → derece dönüşümü (0.77° / count)
+  - Setpoint: USB `SP_POS:<float>` veya `MODE:MIRROR`
+
+- **2.7 — IMU mirror bağlantısı**
+  - Setpoint = +fused_pitch (taklit, ters değil)
+  - Aşama 0 IMU pipeline zaten çalışıyor
+
+- **2.8 — Mirror takip testi**
+  - Breadboard ±30° eğme → motor şaftı takip
+  - Takip hatası RMS < 5° hedef
+
+- **2.9 — Akademik rapor + Simulink karşılaştırma**
+  - README §11 — el kitapçığı disipliniyle Aşama 2 sonuç bölümü
+  - 4 yöntem karşılaştırma tablosu (pole placement / pidtune robust / balanced / fast)
+
+### Test ve Doğrulama (iskelet)
+
+| # | Test | Beklenen | Durum |
+|---|---|---|---|
+| 2.T1 | Pole placement + pidtune kazançları | Gain margin ≥ 6 dB, phase margin ≥ 45° | ☐ |
+| 2.T2 | Hız step response (firmware) | settling < 5τ, overshoot < %10, ss_error < %2 | ☐ |
+| 2.T3 | Anti-windup recovery | Saturation sonrası recovery < 100 ms | ☐ |
+| 2.T4 | Disturbance rejection | Yük sonrası setpoint'e dönüş < 200 ms | ☐ |
+| 2.T5 | Cascade pozisyon step | Overshoot < %10, ss_error < 1° | ☐ |
+| 2.T6 | Mirror takip (KRİTİK) | RMS < 5° (yavaş eğme ~10°/s) | ☐ |
+
+### Açık Sorular (alt-aşama açılışlarında)
+
+- **2.1:** Pole placement için τ_cl hedef seçimi (12 ms / 20 ms / 30 ms tradeoff)? `pidtune` Robustness slider varsayılan mı, override mı?
+- **2.5:** Dış döngü P vs PI? Pozisyon ss_error gerekiyorsa PI, ama integral wind-up artar — P ile başlayalım, gerekirse PI'a geç.
+- **2.7:** IMU mirror gain (1.0 sabit mi yoksa ölçek faktörü mü)? Breadboard hareketi vs motor şaftı 1:1 mi yoksa 9.7:1 redüktör hesaba katılır mı?
 
 ---
 
