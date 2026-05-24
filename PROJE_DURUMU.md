@@ -29,4 +29,4 @@
 - Aşama 1: `matlab/asama_1_model/results/20260518_011926/` — 10 PNG + `motor_model_asama1.slx` + `motor_params.json` + `fit_report.md`
 - Aşama 2.1: `matlab/asama_2_kontrol/results/a2_1_20260518_071843/` — 3 PNG + `speed_loop_a2_1.slx` + `speed_pi_params.json` + `speed_pi_design_report.md`
 - Aşama 2.5: `matlab/asama_2_kontrol/results/` — `position_p_design.png` + `realistic_cascade.png` + `position_strategy_sweep.png` + `position_p_params.json`; test `artifacts/2/position_step/20260524_212456/`
-- README §10 (Aşama 1, 9 alt başlık) + §11 (Aşama 2, §11.13 pozisyon cascade dahil)
+- Teknik belgeler: [`docs/asama_1_model.md`](docs/asama_1_model.md) (Aşama 1) + [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md) (Aşama 2, pozisyon cascade dahil)

@@ -1,0 +1,446 @@
+# Aşama 2 — Tek Motor Kontrol (Hız PI → Pozisyon Cascade)
+
+> **Ekosistem:** Aşama 1 modeli üzerine klasik kontrol: hız PI, sim-to-real gap, disturbance rejection, pozisyon cascade. Model temeli → [`asama_1_model.md`](asama_1_model.md). MATLAB tasarım → [`../matlab/asama_2_kontrol/`](../matlab/asama_2_kontrol/). Plan + açık sorular → [`../ROADMAP.md`](../ROADMAP.md). Kaynaklar → [`../KAYNAKCA.md`](../KAYNAKCA.md).
+
+## Özet
+
+Hız iç döngüsü Tustin PI + anti-windup ile tasarlandı; Aşama 2.3'te ideal-sim kazancı (Kp=0.1163) gerçek motorda bang-bang verdi → **sim-to-real gap** sistematik tanı ile çözüldü (ampirik Kp=0.002, Ki=0.1), gerçekçi Simulink teorik doğruladı. Disturbance rejection (Test 2.T4) ve pozisyon cascade (poz P → hız PI, Test 2.5) PASS. Cascade'de gerçekçi sim limit-cycle öngördü ama gerçek motor sürtünmesi söndürdü (ss<0.8°). Tüm kazançlar serbest mil içindir.
+
+---
+
+> **Branch:** `feature/asama-1-tek-motor-model`
+> **MATLAB:** `matlab/asama_2_kontrol/`
+> **Durum:** 2.1→2.6 tamamlandı (hız PI + sim-to-real + disturbance + pozisyon cascade), 2.7 IMU mirror sırada.
+
+### 11.1. Ne — Kontrolcü Nedir?
+
+**Kontrolcü**, sistem çıkışını (motor hızı, ω) istenen değere (setpoint, ω_ref) ulaştıran kapalı döngü hesaplayıcıdır. Bizim seçimimiz **PI (Proportional + Integral)**:
+
+```
+e(t)   = ω_ref − ω_measured       (hata)
+u(t)   = Kp·e(t) + Ki·∫e(τ)dτ      (kontrol çıkışı = duty)
+```
+
+- **P (Kp):** Anlık hatayla orantılı tepki — hızlı düzeltme.
+- **I (Ki):** Birikmiş hatayla orantılı — steady-state error'u sıfıra getirir.
+- **D yok:** Encoder zaten hızı ölçüyor (yani zaten "türev"); D ile gürültü amplifiye edilirdi.
+
+### 11.2. Neden — Niçin Pole Placement?
+
+Pole placement, kapalı döngünün **karakteristik denkleminin köklerini** istenen yerlere taşıyarak parametre hesabı yapan **analitik** bir tasarım yöntemidir (`[Franklin2010] §6.4`).
+
+**Kapalı döngü transfer fonksiyonu (1. derece plant + PI):**
+```
+T(s) = K(Kp·s + Ki) / [τs² + (1 + K·Kp)s + K·Ki]
+```
+
+Bunu standart 2. derece formla eşitlersek:
+```
+τs² + (1 + K·Kp)s + K·Ki  =  τ · (s² + 2ζω_n·s + ω_n²)
+                              ⇓
+Kp = (2·ζ·ω_n·τ − 1) / K
+Ki = ω_n² · τ / K
+```
+
+**Parametre seçimi (Aşama 2.1, kullanıcı onaylı):**
+- ζ = 1.0 (kritik sönüm) — sıfır overshoot, `[Franklin2010] §3.6`
+- ω_n = 60 rad/s — `τ_cl = 1/ω_n = 16.7 ms`, açık döngü τ'nun ~3.5× üzerinde hızlı
+
+**Alternatif olarak `pidtune`** (MATLAB Control System Toolbox) da koşturuldu — otomatik frekans bölgesi tasarımı, robustluk slider'ı ile. **Aşama 2.1'de 5 kontrolcü karşılaştırması** akademik kanıt olarak rapora alındı.
+
+### 11.3. Nasıl — Aşama 2.1 (MATLAB Tasarım)
+
+#### Adım 1: Pole placement (analitik)
+- `design_speed_pi_pole_placement.m` — Kp, Ki formülle hesaplanır
+- İki varyant koşturuldu:
+  - **Aggressive:** ζ=0.707, ω_n=83 → Kp=0.1133, Ki=7.7401 (60 ms settling, %15 OS)
+  - **Conservative:** ζ=1.0, ω_n=60 → Kp=0.1163, Ki=4.0447 (80 ms settling, %6.7 OS) ⭐ **seçildi**
+
+#### Adım 2: pidtune (otomatik karşılaştırma)
+- `design_speed_pi_autotune.m` — Robust / Balanced / Fast modları
+- Üçü de **376 ms settling, %13-18 OS** — çok yavaş, hedef altında
+
+#### Adım 3: Karşılaştırma + Validation
+- `compare_speed_pi.m` — Bode, step response, gain/phase margin
+- 5 kontrolcü tablosu hocaya sunum için
+
+#### Adım 4: Simulink kapalı döngü
+- `create_speed_loop_simulink.m` — programatik `.slx` üretimi
+- Setpoint → Sum → PI → Saturation ±0.5 → V_supply → −V_sat → Plant G(s) → ω
+
+#### Adım 5: Firmware için JSON parametre dosyası
+- `speed_pi_params.json` — Aşama 2.2 girişi (Kp, Ki, T_t, Ts)
+
+### 11.4. Nerede — Dosya Referansları
+
+| Bileşen | Konum |
+|---|---|
+| Plant yükleyici | `matlab/asama_2_kontrol/load_motor_params.m` |
+| Pole placement | `matlab/asama_2_kontrol/design_speed_pi_pole_placement.m` |
+| pidtune | `matlab/asama_2_kontrol/design_speed_pi_autotune.m` |
+| Karşılaştırma | `matlab/asama_2_kontrol/compare_speed_pi.m` |
+| Simulink üretici | `matlab/asama_2_kontrol/create_speed_loop_simulink.m` |
+| Orchestrator | `matlab/asama_2_kontrol/run_pipeline_2_1.m` |
+| **Sonuçlar** | `matlab/asama_2_kontrol/results/a2_1_20260518_071843/` |
+| Firmware hız PI | `src/speed_pi.c`, `include/speed_pi.h` |
+| Firmware komut parser | `src/cmd_parser.c` (MODE:DUTY, MODE:SP_W) |
+| Firmware integrasyon | `src/main.c:80-95` (SpeedPI_Init), `src/main.c:130-145` (SP_W loop) |
+
+### 11.5. Ne Sonuç Çıktı — Aşama 2.1 Sayısal
+
+```json
+{
+  "design_pole_placement_conservative": {
+    "Kp":      0.1163,
+    "Ki":      4.0447,
+    "zeta":    1.0,
+    "omega_n": 60,
+    "tau_cl_s": 0.0167
+  },
+  "firmware_selected": "pole_placement_conservative",
+  "comparison": {
+    "GM_dB":            "Inf  (1. derece plant + integrator → stabil)",
+    "PM_deg":           80.8,
+    "settling_time_ms": 80.5,
+    "overshoot_pct":    6.71,
+    "ss_error_pct":     0
+  }
+}
+```
+
+**5 kontrolcü karşılaştırma tablosu:**
+
+| Kontrolcü | Kp | Ki | PM | T_set | OS | Hedef ✓? |
+|---|---|---|---|---|---|---|
+| pole_placement_aggressive | 0.1133 | 7.7401 | 67.6° | 60 ms | %15.4 | ✗ OS>10 |
+| **pole_placement_conservative** ⭐ | **0.1163** | **4.0447** | **80.8°** | **80 ms** | **%6.7** | ✅ TÜMÜ |
+| pidtune_Robust | 0.0045 | 0.5112 | 51.0° | 376 ms | %18.1 | ✗ |
+| pidtune_Balanced | ~0 | 0.2664 | 54.7° | 376 ms | %13.6 | ✗ |
+| pidtune_Fast | ~0 | 0.2664 | 54.7° | 376 ms | %13.6 | ✗ |
+
+### 11.6. Aşama 2.2 — Firmware Hız PI
+
+#### Tustin (bilinear) discretization
+
+Sürekli zaman PI'yi z-domain'e dönüştürmek için Tustin yaklaşımı (`[AstromMurray2008] §10.2`):
+```
+s ≈ (2/Ts)·(z−1)/(z+1)
+```
+
+PI integratoru:
+```
+i[k] = i[k-1] + Ki·Ts/2·(e[k] + e[k-1])
+```
+
+**Paralel form (firmware'de uygulanan):**
+```c
+float SpeedPI_Step(float omega_measured) {
+    float error = setpoint - omega_measured;
+    float u_p = Kp * error;
+    integrator += Ki * Ts * 0.5f * (error + prev_error);  // Tustin
+    float u_unsat = u_p + integrator;
+    /* Saturation + anti-windup → bkz. §11.7 */
+    prev_error = error;
+    return u_sat;
+}
+```
+
+#### Anti-windup back-calculation (Aström-Murray §10.4)
+
+PI saturation'a girdiğinde integrator wind-up eder — sınırı aşan komutları biriktirir, recovery'i bozar. Çözüm:
+
+```
+u_sat   = clamp(u_unsat, ±duty_max)        // saturation
+e_aw    = u_sat − u_unsat                   // saturation hatası
+i[k]   += (Ts/T_t) · e_aw                   // integratorda geri-hesapla
+T_t     = T_i = Kp/Ki = 28.75 ms            // klasik tracking time
+```
+
+Saturation yokken `e_aw = 0` → düzeltme sıfır. Saturation girince integrator "saturation tarafına çekilir", lockout sonrası ani patlama önlenir.
+
+#### Mode-tabanlı komut seti (Aşama 2.2.C — kullanıcı onaylı A: açık MODE)
+
+| Komut | Mod | Davranış |
+|---|---|---|
+| `MODE:DUTY\n` | — | DUTY moda geç (varsayılan); Motor_Stop + SpeedPI_Reset |
+| `MODE:SP_W\n` | — | SP_W moda geç; Motor_Stop + SpeedPI_Reset |
+| `DUTY:<float>\n` | DUTY | Motor_SetDir + Motor_SetDuty |
+| `SP_W:<float>\n` | SP_W | SpeedPI_SetSetpoint |
+| `STOP / RESET / PING` | her ikisi | Mod-bağımsız |
+
+**Geriye uyumlu:** Mevcut testler (handshake_test.py, step_response.py) varsayılan DUTY modda çalışmaya devam eder.
+
+#### USB CDC TX formatı genişletildi
+
+```
+T_US:<us>,P:..,R:..,GX:..,GY:..,FP:..,FR:..,EC:..,OMEGA:..,SP:..,U:..
+                                                            ↑      ↑
+                                                  SP_W setpoint   son u_sat
+```
+
+**Stall event'inde** `SpeedPI_Reset` çağrılır → lockout süresince integrator boşaltılır → lockout sonrası ani patlama yok.
+
+### 11.7. Aşama 2 Akademik Kavramlar (Detay)
+
+#### Gain scheduling
+Eğer K ve τ çalışma noktasına göre değişiyorsa (bizde τ 43→134 ms değişiyor), tek (Kp, Ki) ile her noktada **az ya da çok optimal** olur. Gain scheduling = bir tablo ile farklı çalışma noktalarında farklı kazanç. Şimdilik tek kazançla ilerliyoruz, Aşama 2.3 testi sonrası gerekirse eklenir.
+
+#### Pole placement vs pidtune
+| Kriter | Pole placement | pidtune |
+|---|---|---|
+| Yaklaşım | Analitik, formülle | Frekans bölgesi otomatik |
+| Şeffaflık | Tam (formül görünür) | Düşük (kara kutu) |
+| Akademik | Tahtaya yazılabilir | "MATLAB böyle dedi" |
+| Robustluk | Garantisi yok | Margin'lara otomatik optimize |
+| Bizim seçim | ⭐ Akademik vurgu | Karşılaştırma için tabloda |
+
+#### Mirror senaryosu (Aşama 2.7'de implement edilecek)
+Klasik gimbal: IMU motor şaftında, kullanıcı sallarsa motor **ters yöne** çevirip kamerayı sabit tutar.
+
+**Bizim mirror:** IMU breadboard'da sabit, motor şaftı IMU pitch açısını **aynı yönde** taklit eder. Mekanik mount yok, akademik kompleksite (sistem ID + PI + cascade + IMU füzyonu) korunur. Klasik gimbal Aşama 5'e ertelendi.
+
+İmplementasyon:
+```
+setpoint_position = +fused_pitch    (complementary filter çıktısı)
+   ↓
+Pozisyon dış döngü P (Aşama 2.5)
+   ↓
+Hız iç döngü PI (Aşama 2.2 — şu an hazır)
+   ↓
+Motor sürücü
+```
+
+### 11.8. Görsel Kanıtlar — Aşama 2.1
+
+`matlab/asama_2_kontrol/results/a2_1_20260518_071843/` altında:
+
+| Dosya | Açıklama |
+|---|---|
+| `01_bode_comparison.png` | 5 kontrolcü açık döngü Bode (magnitude + phase) |
+| `02_step_response.png` | 5 kontrolcü kapalı döngü step response — Conservative en iyi görsel |
+| `03_metrics_bar.png` | Margin (GM/PM) + settling + overshoot bar chart |
+| `speed_loop_a2_1.slx` | Simulink kapalı döngü modeli (programatik) |
+| `speed_pi_design_report.md` | Detaylı 5 kontrolcü karşılaştırma raporu |
+| `speed_pi_params.json` | Aşama 2.2 firmware için kaynak |
+
+### 11.9. Test Sonuçları (Aşama 2.1) ve Bir Sonraki Test
+
+| Test | Beklenen | Ölçülen | Durum |
+|---|---|---|---|
+| 2.T1 (Conservative margin) | GM≥6 dB, PM≥45° | ∞, 80.8° | ✅ PASS |
+| 2.T2 (Hız step response, firmware) | T_set<5τ_ol=300ms, OS<%10, ss_err<%2 | bekliyor | ☐ Aşama 2.3 |
+| 2.T3 (Anti-windup recovery) | Recovery<100ms | bekliyor | ☐ Aşama 2.3 |
+| 2.T4 (Disturbance rejection) | Setpoint dönüş<200ms | bekliyor | ☐ Aşama 2.4 |
+| 2.T5 (Cascade pozisyon step) | OS<%10, ss_err<1° | bekliyor | ☐ Aşama 2.6 |
+| **2.T6 (Mirror takip)** ⭐ | **RMS<5°** | bekliyor | ☐ Aşama 2.8 |
+
+### 11.10. Build Durumu
+
+```
+RAM:    [          ]   3.6% (used 4656 bytes from 131072 bytes)
+Flash: [=         ]   7.8% (used 40712 bytes from 524288 bytes)
+```
+
+Speed PI modülü eklendikten sonra (Aşama 2.2 öncesi 3.5% / 7.6% idi). Cascade pozisyon + Kalman filter eklendiğinde bile bol margin.
+
+### 11.12. Aşama 2.3 — Gerçek Motor Tuning ve Sim-to-Real Gap ⭐⭐⭐
+
+> **Aşama 2'nin en öğretici bulgusu.** Akademik açıdan altın değerinde: simülasyonda mükemmel olan tasarım gerçekte çalışmadı, kök nedeni sistematik tanı ile bulduk, çözdük.
+
+#### 11.12.1. Ne oldu
+
+Aşama 2.1'in conservative kazancı (Kp=0.1163, Ki=4.0447) gerçek motorda **bang-bang limit cycle** verdi — motor titredi, dönmedi. Kontrol çıkışı U sürekli ±0.5 saturation arasında zıpladı.
+
+#### 11.12.2. Sistematik tanı
+
+**İzolasyon testi** (ölçüm mü kontrolcü mü?):
+
+| Durum | ω_std |
+|---|---|
+| Açık döngü (DUTY sabit, kontrolcü yok) | **~7 rad/s** (temiz) |
+| Kapalı döngü (SP_W, PI aktif) | **97-173 rad/s** (çöp) |
+
+→ Ölçüm temiz; sorun tamamen **kapalı-döngü limit cycle**.
+
+**Eleme — ad-hoc denemeler:**
+
+| Deneme | Sonuç |
+|---|---|
+| dt→DWT µs (HAL_GetTick ms jitter giderme) | Yardımcı ama çözmedi |
+| Encoder moving-average filtre (WINDOW=5) | Çözmedi |
+| 5 kazanç seti (aggressive→saf I) | Hepsi bang-bang |
+| Setpoint slew rate (0/100/200/400) | Çözmedi → ani-step değil |
+| Motor_Tick bypass (doğrudan PWM) | Çözmedi → firmware akışı değil |
+
+**Setpoint taraması — kök neden:**
+
+| Setpoint | ω_std | U_std | durum |
+|---|---|---|---|
+| 30 | 104.9 | 0.490 | 🔴 BANG |
+| 150 | 87.0 | 0.400 | 🔴 BANG |
+| 220 | 60.3 | 0.367 | 🔴 BANG |
+| **280** | **6.9** | **0.023** | **🟢 OTURDU** |
+
+Setpoint arttıkça bang-bang azalıyor, 280'de (≈saturation duty) oturuyor.
+
+**Düşük kazanç taraması — çözüm:**
+
+| Kp | Ki | ω_ss | ω_std | U_std | durum |
+|---|---|---|---|---|---|
+| 0.010 | 0.5 | +34.4 | 101.4 | 0.445 | 🔴 BANG |
+| 0.005 | 0.25 | +46.8 | 84.8 | 0.331 | 🔴 BANG |
+| **0.002** | **0.1** | **+50.1** | **8.7** | **0.003** | **🟢 OTURDU (hata %0)** |
+
+#### 11.12.3. Kök Neden — Sim-to-Real Gap
+
+Aşama 2.1 Simulink modeli **ideal, gürültüsüz, gecikmesiz** hız ölçümü + ideal plant varsaydı → conservative Kp=0.1163 mükemmel görünüyordu. Gerçek sistem:
+- **Serbest mil (yüksüz)** çok hızlı/hafif → 0.5 duty ≈ 280 rad/s no-load
+- **Encoder kuantize** (1 count ≈ 18.7 rad/s @ 7 ms)
+- **Yüksek Kp:** error=50 → P-term = 0.1163×50 = **5.8 >> saturation 0.5** → motor full power → devasa overshoot → limit cycle
+
+**Doğru kazanç ~58× daha düşük (Kp=0.002).** Bu, P-term'in error=50'de 0.1 kalmasını (saturation'ı aşmamasını) sağlıyor.
+
+#### 11.12.4. Çok-setpoint doğrulama (Kp=0.002, Ki=0.1)
+
+| Setpoint | ω_steady | U_steady | Durum |
+|---|---|---|---|
+| 50 rad/s | ~50 | 0.10 | 🟢 |
+| 120 rad/s | ~120 | 0.22 | 🟢 |
+| 30 rad/s | ~30 | 0.07 | 🟢 |
+
+Bang-bang yok, setpoint takibi başarılı.
+
+#### 11.12.5. Firmware değişiklikleri
+
+| Dosya | Değişiklik |
+|---|---|
+| `main.c` | Default kazanç Kp=0.002, Ki=0.1 (conservative'den ~58× düşük) |
+| `main.c` | dt→DWT mikrosaniye (`HAL_GetTick` ms jitter giderildi) |
+| `main.c` | SP_W modunda `Motor_Tick` bypass, `Motor_SetDutySigned` doğrudan PWM |
+| `encoder.c` | `Encoder_FilterSpeed` moving-average (WINDOW=5) |
+| `speed_pi.c` | `SpeedPI_SetGains` + setpoint slew rate |
+| `cmd_parser.c` | `KP:` / `KI:` / `SLEW:` runtime tuning komutları (flash'sız) |
+| `motor.c` | `Motor_SetDutySigned` (rampasız kapalı döngü PWM) |
+
+#### 11.12.6. Akademik değer
+
+Bu, **iteratif kontrol tasarımının** (`[Franklin2010]`, `[Ljung1999] §16`) canlı örneği:
+1. Modelle (Aşama 2.1) — simülasyonda mükemmel
+2. Test et (Aşama 2.3) — gerçekte bang-bang
+3. Kök nedeni sistematik bul (izolasyon + eleme + tarama)
+4. Çöz (kazanç ~58× düşür)
+5. **Sırada:** modeli gerçekçi yap, çözümü teorik temellendir (2b)
+
+**Hocaya:** *"Simülasyon mükemmeldi ama ideal varsayımlar gerçeği yansıtmadı. Sim-to-real gap'i sistematik tanıyla kapattık. Bu, gerçek mühendislik."*
+
+Artifact: `artifacts/2/T2_3_speed_pi_tuning/` (+ `speed_gain_sweep/`, `slew_sweep/`).
+
+#### 11.12.7. 2b — Sim-to-Real Gap Teorik Olarak Kapatıldı ✅
+
+Ampirik Kp=0.002'yi **teorik temellendirmek** için Aşama 2.1 Simulink modeline gerçek sistemin efektleri eklendi (`matlab/asama_2_kontrol/verify_realistic_sim.m`):
+1. Encoder kuantizasyonu (1 count ≈ 18.7 rad/s)
+2. Moving-average ölçüm filtresi (WINDOW=5)
+3. Duty saturation (±0.50)
+4. Setpoint slew rate
+5. V_sat sürücü kaybı
+
+**Gerçekçi model her iki kazancı simüle etti:**
+
+| Kazanç | ω_std | u_std | Sonuç | Gerçek motorla |
+|---|---|---|---|---|
+| conservative (Kp=0.1163) | 46.3 | 0.486 | 🔴 BANG-BANG | ✅ aynı |
+| ampirik (Kp=0.002) | 3.2 | 0.018 | 🟢 STABİL | ✅ aynı |
+
+**Sonuç:** İdeal model (Aşama 2.1) conservative'i önerdi — yanıltıcıydı. Gerçekçi model (kuantizasyon + gecikme + saturation) ampirik düşük kazancı **doğruluyor**. Sim-to-real gap'in kaynağı **ideal ölçüm varsayımı** olarak teorik kanıtlandı.
+
+Görsel: `matlab/asama_2_kontrol/results/realistic_sim_verification.png` (sol: conservative bang-bang, sağ: ampirik stabil).
+
+**Akademik kapanış:** *"Modelle → test et → gerçekte çalışmadı → kök nedeni bul → çöz (ampirik) → modeli gerçekçi yap → teorik temellendirir."* — `[Ljung1999] §16` iteratif model validation'ın tam döngüsü.
+
+### 11.13. Aşama 2.5 — Pozisyon Cascade Kontrol (Test 2.5 PASS ✅) ⭐⭐⭐
+
+#### 11.13.1. Ne — Cascade Pozisyon Kontrolü
+
+İç hız döngüsünün (Aşama 2.3) etrafına **pozisyon dış döngüsü** sarıldı:
+
+```
+θ_ref → (+) → [Kp_pos] → ω_ref → [hız PI iç döngü] → motor → θ
+         ↑                                                   │
+         └──────────────── pozisyon geri besleme ───────────┘
+```
+
+Dış döngü çıkış mili açısını (θ) kontrol eder, çıkışı iç döngünün hız referansıdır. Çıkış mili açısı encoder'dan: `θ_out = EC × 360/466` (0.773°/count çözünürlük).
+
+#### 11.13.2. Neden — Cascade + P + Çıkış Mili (3 Sokratik Karar)
+
+1. **Cascade vs doğrudan pozisyon PID** → **cascade**. İç hız döngüsü Aşama 2.4'te disturbance rejection'ı kanıtlanmış; cascade bu yeteneği korur. Doğrudan PID'in tek integrali hem dead-band'i yenmeli hem pozisyonu getirmeli — gerçekçi simde `pidtune` konservatif kalıp ss_err %34.8 verdi (`design_position_direct_pid.m`). Cascade'de iç döngünün integrali dead-band'i halleder, dış P pozisyonu sıfır ss-error'a getirir. `[Franklin2010] §6.4`.
+2. **P vs PI dış döngü** → **P**. Plant tip-1 (hız→pozisyon entegratörü) → P kontrolcü ile ss_error=0; PI gereksiz wind-up riski getirir. `[Franklin2010] §4.3`.
+3. **Çıkış mili vs motor şaftı açısı** → **çıkış mili** (gimbal eksen açısı fiziksel anlamlı).
+
+**Kazanç:** `Kp_pos = 2.0 [1/s]` (`design_position_p.m`). Dış döngü ω_c≈1.93 rad/s = iç döngü ω_n (9.4) / 5 — cascade kuralı `[Franklin2010] §6.4` (iç döngü 5× hızlı). PM 69.7°, GM 23 dB.
+
+#### 11.13.3. Sokratik Süreç — Gerçekçi Sim, 5V Hatası, Sürtünme
+
+Bu aşama, **dürüst mühendislik sürecinin** örneğidir:
+
+1. **İdeal sim** (`design_position_p.m`): cascade mükemmel — OS %0.6, monotonik.
+2. **Gerçekçi sim** (`verify_realistic_cascade.m`, kuantizasyon + filtre + dead-band): ilk çalıştırmada θ büyük salınım (OS %31). **Kök neden araştırılırken bir parametre hatası yakalandı** — sim besleme gerilimi `5.0V` kullanıyordu, ama Aşama 1 `motor_params.json` `V_supply = 12.15V`. Hata düzeltilince (sadece bu oturumdaki 3 yeni sim scriptinde; firmware/doküman/geçmiş testler **etkilenmemişti**) salınım çöktü: ss_err %1.75, OS %12.5.
+3. **Ama** gerçekçi sim hâlâ küçük genlikli **limit-cycle** gösterdi (θ 24–33° gezinme). Kök neden: iç hız döngüsü, hedefe yakın gereken küçük hızı (~1 rad/s) encoder kuantizasyonuyla (18.7 rad/s) **göremiyor** → "0 hız" ölçüp ya durur ya zıplar.
+4. **Kritik belirsizlik:** simde **statik sürtünme yok** — motor en küçük duty'de bile sürünüyor. Gerçek motorda sürtünme bu gezinmeyi söndürebilir. Sim **kötümser** olabilir.
+5. **Karar (Sokratik):** firmware'e koy, **gerçek motorda test et** — `[Ljung1999] §16` iteratif validation (sim öngörür, gerçek doğrular).
+
+#### 11.13.4. Nasıl — Firmware (cascade + watchdog güvenlik)
+
+- `src/position_p.c` / `include/position_p.h` — pozisyon P kontrolcü. Birim dönüşümü: `ω_ref_motor = Kp_pos · (θ_ref − θ_out) · 9.7` (çıkış mili açı hatası → motor şaftı hız referansı, redüktör ölçeği).
+- `MODE:POS` cascade modu (`src/main.c`): her döngü `PositionP_Step(enc_count)` → ω_ref → `SpeedPI_SetSetpoint` → mevcut hız PI → `Motor_SetDutySigned`. Mod geçişinde encoder 0° referans + slew=0 (dış P zaten yumuşak ref üretir).
+- Komutlar: `POS_DEG:<açı>` (hedef çıkış mili açısı), `KPP:<kazanç>` (runtime).
+- **⚠ Watchdog güvenlik düzeltmesi:** Eski kodda watchdog `Motor_Stop()` yapsa da hemen ardından mod sürüşü motoru tekrar çalıştırıyordu → SP_W/POS gibi kapalı-döngü modlarında watchdog **etkisizdi** (komut akışı kesilse de motor dönerdi). Artık watchdog aktifken mod sürüşü atlanıp `SpeedPI_Reset` ile setpoint sıfırlanıyor. `STOP`/`RESET` POS modunda hedefi mevcut konuma çekiyor (motor kaçmaz).
+
+#### 11.13.5. Nerede — Dosya Referansları
+
+| Bileşen | Dosya |
+|---|---|
+| Pozisyon P tasarımı (Kp_pos=2.0) | `matlab/asama_2_kontrol/design_position_p.m` |
+| Gerçekçi cascade sim | `matlab/asama_2_kontrol/verify_realistic_cascade.m` |
+| Cascade vs PID karşılaştırma | `matlab/asama_2_kontrol/{sweep_position_strategy,design_position_direct_pid}.m` |
+| Firmware pozisyon P | `src/position_p.c`, `include/position_p.h` |
+| Cascade entegrasyonu + watchdog fix | `src/main.c` (mod sürüşü), `src/cmd_parser.c` (MODE:POS) |
+| Test scripti | `scripts/position_step_test.py` |
+| Test sonucu | `artifacts/2/position_step/20260524_212456/` |
+
+#### 11.13.6. Ne Sonuç Çıktı — Test 2.5 (gerçek motor, serbest mil)
+
+Hedefler: 30°→90°→45°→0°→-45°→0° (mutlak çıkış mili açısı).
+
+| Hedef | ss_error | overshoot | settling | θ_std (limit-cycle) | Durum |
+|---|---|---|---|---|---|
+| +90° | 0.25° | 0.39° | 1.62 s | 0.30° | 🟢 OK |
+| +45° | 0.48° | 0.97° | 1.68 s | 0.69° | 🟢 OK |
+| 0° | 0.77° | 0.77° | 1.80 s | 0.00° | 🟢 OK |
+| −45° | 0.19° | 0.00° | 1.36 s | 0.00° | 🟢 OK |
+| 0° | 0.23° | 0.00° | 1.51 s | 0.36° | 🟢 OK |
+
+**Durum: PASS (6/6 segment temiz).** ss_error her segmentte **<0.8°** (hedef <2°), overshoot **<1°**, θ_std **<0.7°** (limit-cycle eşiği 2°).
+
+**ASIL SORU cevaplandı — limit-cycle YOK.** Gerçek motorun statik sürtünmesi, simdeki düşük-hız kuantizasyon gezinmesini **söndürdü**. Görsel kanıt (`position_plot.png`): u sinyali kararlı halde çok küçük (±0.05, dead-band civarı) → motor küçük hamlelerle hedefe oturup duruyor, sürünmüyor. **Sim kötümserdi (sürtünmesiz varsayım) — hipotez gerçek testle doğrulandı.**
+
+![Pozisyon cascade step](../artifacts/2/position_step/20260524_212456/position_plot.png)
+
+**Akademik değer:** *İdeal sim (mükemmel) → gerçekçi sim sürtünmesiz (limit-cycle uyarısı, kötümser) → gerçek motor (sürtünme söndürdü, ss<0.8°).* Sim hem iyimser (Aşama 2.3 ideal model) hem kötümser (Aşama 2.5 sürtünmesiz) olabilir — her ikisi de gerçek testle düzeltildi. `[Ljung1999] §16`.
+
+> **Not (ROADMAP §5 kritik):** Kazançlar **serbest mil** (yüksüz) içindir. Gerçek gimbalda kamera yükü + statik denge ile iç ve dış döngü kazançları yeniden ayarlanacak.
+
+### 11.14. Bir Sonraki Aşama
+
+**Aşama 2.1→2.5 ✅ tamamlandı** (hız PI tasarım + ampirik tuning + teorik doğrulama + disturbance rejection + pozisyon cascade).
+
+**Sıradaki:**
+- **Aşama 2.7:** IMU mirror — setpoint = +fused_pitch (motor IMU pitch'ini takip eder)
+- **Aşama 2.8:** Mirror tracking testi
+- **Aşama 2.9:** Aşama 2 akademik rapor
+- **Aşama 3+:** MIMO model → LQG/Kalman → gerçek 3D-baskı gimbal
+
+ROADMAP §2'de detaylı plan.
+
+---
+

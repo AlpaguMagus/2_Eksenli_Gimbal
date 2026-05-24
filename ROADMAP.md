@@ -2,8 +2,9 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
-> - **Son güncelleme:** 2026-05-18 (Aşama 1 KAPALI — tek motor sistem tanımlama tamamlandı, K=53.89 rad/s/V, τ=60.5 ms, validation NRMSE ort %11.11)
-> - **Aktif aşama:** Aşama 1 ✅ KAPALI → Aşama 2 (tek motor kontrol) açılışı
+> - **Son güncelleme:** 2026-05-24 (Aşama 2.5+2.6 — pozisyon cascade gerçek motorda PASS, ss<0.8°, limit-cycle yok)
+> - **Aktif aşama:** Aşama 2 🟡 DEVAM (2.1→2.6 tamam: hız PI + sim-to-real + disturbance + cascade) → sırada 2.7 IMU mirror
+> - **Dokümantasyon:** Aşama-bazlı `docs/` ekosistemi (README vitrin + `docs/asama_<N>_*.md` derin içerik)
 > - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
 
 ---
@@ -26,14 +27,16 @@
 
 | Doküman | İçerik | Güncelleme tetiği |
 |---|---|---|
+| `README.md` | **Vitrin:** proje tanıtımı, mimari şema, hızlı başlangıç, repo + doküman haritası, "şu an neredeyiz" | Davranış/yapı değişikliği |
+| `docs/00_genel_bakis.md` | Vizyon, sistem mimarisi, aşamalar-arası ortak teori | Mimari değişikliği |
+| `docs/asama_<N>_*.md` | **Derin akademik içerik:** teori, türetme, tasarım gerekçesi, alternatifler, deney sonucu (ne/neden/nasıl/nerede/sonuç) | İlgili aşama ilerleyince |
 | `ROADMAP.md` (bu dosya) | Yol haritası, aşamalar, adımlar, testler, tamamlanma kanıtı | Her adım/aşama bitiminde |
 | `PROJE_DURUMU.md` | "Şu an neredeyiz?" 5-10 satır özet + ROADMAP linki | Aşama geçişlerinde |
-| `README.md` | Kalıcı teknik bilgi (mimari, pin tablosu, tamamlanmış altyapı) | Davranış değiştiren teknik karar |
 | `CLAUDE.md` | AI etkileşim kuralları + proje standartları | Yeni kural eklendiğinde |
 | `KAYNAKCA.md` | Etiketli akademik referanslar + datasheet'ler | Her yeni teknik karar |
 | `matlab/<aşama>/README.md` | Aşama-spesifik MATLAB workflow | Aşama açılışında |
 
-**README'ye yol haritası veya TODO girmez.** Sadece "şu sistem nasıl çalışıyor" tarzı kalıcı doküman.
+**README'ye yol haritası/TODO veya derin türetme girmez** — vitrin kalır; teknik derinlik `docs/asama_<N>_*.md`'ye, plan ROADMAP'e gider.
 
 ---
 
@@ -93,7 +96,7 @@ Sigorta temin edildiğinde:
 > **MATLAB:** `matlab/asama_1_model/`
 > **Veri:** `artifacts/1/step_response/20260518_011926/`
 > **Sonuçlar:** `matlab/asama_1_model/results/20260518_011926/`
-> **README §10** — el kitapçığı disipliniyle akademik kapanış
+> **docs/asama_1_model.md** — el kitapçığı disipliniyle akademik kapanış
 
 ### Vizyon
 
@@ -153,9 +156,9 @@ V_eff = V_supply · duty − V_sat,   V_supply=12.15 V,  V_sat=0.5 V
 - **Motor parametreleri:** `K_cw=54.22`, `K_ccw=53.56`, `τ_median=60.5 ms`, `V_dead≈0`, `R²>0.9997`
 - **Test artifact:** `artifacts/1/step_response/20260518_011926/` (summary.md + meta.json + raw/data.csv.gz)
 - **Akademik çıktı:** `matlab/asama_1_model/results/20260518_011926/` (10 PNG + .slx + JSON + MD)
-- **README §10** — el kitapçığı disipliniyle akademik kapanış
+- **docs/asama_1_model.md** — el kitapçığı disipliniyle akademik kapanış
 
-### Akademik Bulgular (özet — detay README §10.7)
+### Akademik Bulgular (özet — detay docs/asama_1_model.md §10.7)
 
 1. **Dinamik dead-band yok** (V_dead ≈ 0). İlk hipotez "stiction" 2026-05-18 deneysel testi ile reddedildi. R6 anomalisi T7 dönemindeki firmware'in OMEGA alanı eksikliğinden kaynaklanan **analiz/parsing artefaktı** — motor T7'de gerçekten dönmüş, biz yanlış ölçmüşüz.
 2. **V_sat etkisi modelle uyumlu** — K_apparent profil 60 → 50 rad/s/V (TB6612 datasheet `V_sat=0.5 V`).
@@ -256,7 +259,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
   - motor.c: Motor_SetDutySigned (rampasız kapalı döngü PWM)
 
   Artifact: `artifacts/2/T2_3_speed_pi_tuning/` + `speed_gain_sweep/` + `slew_sweep/`
-  Detay: README §11.12
+  Detay: docs/asama_2_kontrol.md §11.12
 
   Kalan: ampirik kazancı 2b Simulink'te teorik doğrula. Sonra programatik
   `scripts/speed_step_test.py` ile resmi step response metrikleri (settling/OS/ss).
@@ -285,7 +288,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
   - Takip hatası RMS < 5° hedef
 
 - **2.9 — Akademik rapor + Simulink karşılaştırma**
-  - README §11 — el kitapçığı disipliniyle Aşama 2 sonuç bölümü
+  - docs/asama_2_kontrol.md — el kitapçığı disipliniyle Aşama 2 sonuç bölümü
   - 4 yöntem karşılaştırma tablosu (pole placement / pidtune robust / balanced / fast)
 
 ### Test ve Doğrulama (iskelet)
