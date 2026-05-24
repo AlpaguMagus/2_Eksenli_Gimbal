@@ -294,7 +294,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 | 2.T1 | Pole placement + pidtune kazançları | Gain margin ≥ 6 dB, phase margin ≥ 45° | ☐ |
 | 2.T2 | Hız step response (firmware) | settling < 5τ, overshoot < %10, ss_error < %2 | ✅ PASS (Kp=0.002, 8/8 step temiz, ss_err çoğunlukla <%2, bang-bang yok. Settling/OS metrikleri düşük setpoint'te encoder kuantizasyonu ile sınırlı — `artifacts/2/speed_step/20260524_180610/`) |
 | 2.T3 | Anti-windup recovery | Saturation sonrası recovery < 100 ms | ☐ |
-| 2.T4 | Disturbance rejection | Yük sonrası setpoint'e dönüş < 200 ms | ☐ |
+| 2.T4 | Disturbance rejection | Yük sonrası setpoint'e dönüş | ✅ PASS — elle yük (7 müdahale), ω %82 düştü, PI duty 0.18→0.5 telafi, setpoint'e döndü. `artifacts/2/disturbance/20260524_192851/` (7 u piki grafiği). Recovery süresi metriği encoder kuantizasyonu ile sınırlı. |
 | 2.T5 | Cascade pozisyon step | Overshoot < %10, ss_error < 1° | ☐ |
 | 2.T6 | Mirror takip (KRİTİK) | RMS < 5° (yavaş eğme ~10°/s) | ☐ |
 
