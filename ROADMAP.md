@@ -233,10 +233,33 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
   Build: PASS, RAM 3.6%, Flash 7.8% (Aşama 2.1 öncesi 3.5% / 7.6%).
 
-- **2.3 — Hız step response testi** (`scripts/speed_step_test.py`)
-  - 6 setpoint × 2 yön = 12 step (10, 20, 50, 100, 150, 200 rad/s)
-  - Settling time, overshoot, ss_error ölçüm
-  - artifacts/2/speed_step/ yapısı (logging disiplini)
+- **2.3 — Hız PI gerçek motor tuning** *(BÜYÜK BULGU — sim-to-real gap)*
+
+  Aşama 2.1 conservative kazancı (Kp=0.1163) gerçek motorda **BANG-BANG limit
+  cycle** verdi (motor titredi, dönmedi). Sistematik tanı:
+  - İzolasyon: açık döngü ω_std=7 (temiz), kapalı döngü ω_std=105 (çöp) → limit cycle
+  - Ad-hoc denemeler (dt→DWT, filtre, 5 kazanç, slew, Motor_Tick bypass) → hepsi çözmedi
+  - **Setpoint taraması:** SP=280'de oturuyor, düşük SP'de bang → setpoint-saturation uyumsuzluğu
+  - **Düşük kazanç taraması:** **Kp=0.002, Ki=0.1 → motor temiz oturdu** (50/120/30 rad/s, hata %0)
+
+  **Kök neden:** Simulink ideal ölçüm + farklı plant varsaydı; gerçekte serbest
+  mil çok hızlı (0.5 duty≈280 rad/s) + encoder kuantize + yüksek Kp her error'da
+  saturation'a fırlatıp limit cycle yaratıyordu. Doğru kazanç ~58× düşük.
+
+  Firmware değişiklikleri (commit `<bu seans>`):
+  - main.c: default kazanç Kp=0.002, Ki=0.1 (ampirik)
+  - main.c: dt→DWT µs (ms jitter giderme)
+  - main.c: SP_W'de Motor_Tick bypass, Motor_SetDutySigned doğrudan PWM
+  - encoder.c: Encoder_FilterSpeed moving-avg (WINDOW=5)
+  - speed_pi.c: SpeedPI_SetGains + setpoint slew rate
+  - cmd_parser.c: KP:/KI:/SLEW: runtime tuning komutları
+  - motor.c: Motor_SetDutySigned (rampasız kapalı döngü PWM)
+
+  Artifact: `artifacts/2/T2_3_speed_pi_tuning/` + `speed_gain_sweep/` + `slew_sweep/`
+  Detay: README §11.12
+
+  Kalan: ampirik kazancı 2b Simulink'te teorik doğrula. Sonra programatik
+  `scripts/speed_step_test.py` ile resmi step response metrikleri (settling/OS/ss).
 
 - **2.4 — Disturbance rejection testi**
   - Sabit setpoint (50 rad/s), elle motor şaftını yavaşla

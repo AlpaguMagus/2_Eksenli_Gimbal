@@ -1304,13 +1304,104 @@ Flash: [=         ]   7.8% (used 40712 bytes from 524288 bytes)
 
 Speed PI modülü eklendikten sonra (Aşama 2.2 öncesi 3.5% / 7.6% idi). Cascade pozisyon + Kalman filter eklendiğinde bile bol margin.
 
-### 11.11. Bir Sonraki Aşama — Aşama 2.3 ve Sonrası
+### 11.12. Aşama 2.3 — Gerçek Motor Tuning ve Sim-to-Real Gap ⭐⭐⭐
 
-**Aşama 2.3 (sıradaki):**
-- `scripts/speed_step_test.py` (PC tarafı) — `MODE:SP_W` + `SP_W:<float>` ile programatik step test
-- 12 setpoint × 2 yön = 24 step (±10, ±20, ±50, ±100, ±150, ±200 rad/s)
-- Settling time, overshoot, ss_error ölçüm
-- artifacts/2/speed_step/ yapısı (logging disiplini)
+> **Aşama 2'nin en öğretici bulgusu.** Akademik açıdan altın değerinde: simülasyonda mükemmel olan tasarım gerçekte çalışmadı, kök nedeni sistematik tanı ile bulduk, çözdük.
+
+#### 11.12.1. Ne oldu
+
+Aşama 2.1'in conservative kazancı (Kp=0.1163, Ki=4.0447) gerçek motorda **bang-bang limit cycle** verdi — motor titredi, dönmedi. Kontrol çıkışı U sürekli ±0.5 saturation arasında zıpladı.
+
+#### 11.12.2. Sistematik tanı
+
+**İzolasyon testi** (ölçüm mü kontrolcü mü?):
+
+| Durum | ω_std |
+|---|---|
+| Açık döngü (DUTY sabit, kontrolcü yok) | **~7 rad/s** (temiz) |
+| Kapalı döngü (SP_W, PI aktif) | **97-173 rad/s** (çöp) |
+
+→ Ölçüm temiz; sorun tamamen **kapalı-döngü limit cycle**.
+
+**Eleme — ad-hoc denemeler:**
+
+| Deneme | Sonuç |
+|---|---|
+| dt→DWT µs (HAL_GetTick ms jitter giderme) | Yardımcı ama çözmedi |
+| Encoder moving-average filtre (WINDOW=5) | Çözmedi |
+| 5 kazanç seti (aggressive→saf I) | Hepsi bang-bang |
+| Setpoint slew rate (0/100/200/400) | Çözmedi → ani-step değil |
+| Motor_Tick bypass (doğrudan PWM) | Çözmedi → firmware akışı değil |
+
+**Setpoint taraması — kök neden:**
+
+| Setpoint | ω_std | U_std | durum |
+|---|---|---|---|
+| 30 | 104.9 | 0.490 | 🔴 BANG |
+| 150 | 87.0 | 0.400 | 🔴 BANG |
+| 220 | 60.3 | 0.367 | 🔴 BANG |
+| **280** | **6.9** | **0.023** | **🟢 OTURDU** |
+
+Setpoint arttıkça bang-bang azalıyor, 280'de (≈saturation duty) oturuyor.
+
+**Düşük kazanç taraması — çözüm:**
+
+| Kp | Ki | ω_ss | ω_std | U_std | durum |
+|---|---|---|---|---|---|
+| 0.010 | 0.5 | +34.4 | 101.4 | 0.445 | 🔴 BANG |
+| 0.005 | 0.25 | +46.8 | 84.8 | 0.331 | 🔴 BANG |
+| **0.002** | **0.1** | **+50.1** | **8.7** | **0.003** | **🟢 OTURDU (hata %0)** |
+
+#### 11.12.3. Kök Neden — Sim-to-Real Gap
+
+Aşama 2.1 Simulink modeli **ideal, gürültüsüz, gecikmesiz** hız ölçümü + ideal plant varsaydı → conservative Kp=0.1163 mükemmel görünüyordu. Gerçek sistem:
+- **Serbest mil (yüksüz)** çok hızlı/hafif → 0.5 duty ≈ 280 rad/s no-load
+- **Encoder kuantize** (1 count ≈ 18.7 rad/s @ 7 ms)
+- **Yüksek Kp:** error=50 → P-term = 0.1163×50 = **5.8 >> saturation 0.5** → motor full power → devasa overshoot → limit cycle
+
+**Doğru kazanç ~58× daha düşük (Kp=0.002).** Bu, P-term'in error=50'de 0.1 kalmasını (saturation'ı aşmamasını) sağlıyor.
+
+#### 11.12.4. Çok-setpoint doğrulama (Kp=0.002, Ki=0.1)
+
+| Setpoint | ω_steady | U_steady | Durum |
+|---|---|---|---|
+| 50 rad/s | ~50 | 0.10 | 🟢 |
+| 120 rad/s | ~120 | 0.22 | 🟢 |
+| 30 rad/s | ~30 | 0.07 | 🟢 |
+
+Bang-bang yok, setpoint takibi başarılı.
+
+#### 11.12.5. Firmware değişiklikleri
+
+| Dosya | Değişiklik |
+|---|---|
+| `main.c` | Default kazanç Kp=0.002, Ki=0.1 (conservative'den ~58× düşük) |
+| `main.c` | dt→DWT mikrosaniye (`HAL_GetTick` ms jitter giderildi) |
+| `main.c` | SP_W modunda `Motor_Tick` bypass, `Motor_SetDutySigned` doğrudan PWM |
+| `encoder.c` | `Encoder_FilterSpeed` moving-average (WINDOW=5) |
+| `speed_pi.c` | `SpeedPI_SetGains` + setpoint slew rate |
+| `cmd_parser.c` | `KP:` / `KI:` / `SLEW:` runtime tuning komutları (flash'sız) |
+| `motor.c` | `Motor_SetDutySigned` (rampasız kapalı döngü PWM) |
+
+#### 11.12.6. Akademik değer
+
+Bu, **iteratif kontrol tasarımının** (`[Franklin2010]`, `[Ljung1999] §16`) canlı örneği:
+1. Modelle (Aşama 2.1) — simülasyonda mükemmel
+2. Test et (Aşama 2.3) — gerçekte bang-bang
+3. Kök nedeni sistematik bul (izolasyon + eleme + tarama)
+4. Çöz (kazanç ~58× düşür)
+5. **Sırada:** modeli gerçekçi yap, çözümü teorik temellendir (2b)
+
+**Hocaya:** *"Simülasyon mükemmeldi ama ideal varsayımlar gerçeği yansıtmadı. Sim-to-real gap'i sistematik tanıyla kapattık. Bu, gerçek mühendislik."*
+
+Artifact: `artifacts/2/T2_3_speed_pi_tuning/` (+ `speed_gain_sweep/`, `slew_sweep/`).
+
+### 11.13. Bir Sonraki Aşama
+
+**Aşama 2.3 → 2b (Simulink doğrulama, sıradaki):**
+- Simulink modeline **kuantizasyon + ölçüm gecikmesi + serbest mil + saturation** ekle
+- Ampirik Kp=0.002'yi teorik doğrula
+- Sonra programatik `scripts/speed_step_test.py` ile resmi step response metrikleri (settling/OS/ss)
 
 **Aşama 2.4-2.9:** Disturbance rejection → pozisyon cascade → IMU mirror → akademik rapor.
 

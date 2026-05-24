@@ -41,9 +41,20 @@ typedef struct {
 void  SpeedPI_Init(const SpeedPI_Config *cfg);
 void  SpeedPI_Reset(void);                  /* integrator = 0, prev_error = 0 */
 
-void  SpeedPI_SetSetpoint(float omega_ref); /* rad/s, signed */
-float SpeedPI_GetSetpoint(void);            /* USB TX SP: alanı için */
+/* Runtime kazanç ayarı (Aşama 2.3 — 5 kazanç setini yeniden flash'sız dene).
+ * T_t = Kp/Ki otomatik güncellenir (Kp=0 ise T_t değişmez). Integrator resetlenir. */
+void  SpeedPI_SetGains(float Kp, float Ki);
+float SpeedPI_GetKp(void);
+float SpeedPI_GetKi(void);
+
+void  SpeedPI_SetSetpoint(float omega_ref); /* rad/s, signed — hedef setpoint */
+float SpeedPI_GetSetpoint(void);            /* USB TX SP: — slew sonrası gerçek uygulanan */
 float SpeedPI_GetControl(void);             /* USB TX U: alanı için (son u_sat) */
+
+/* Setpoint slew rate (Aşama 2.3 — ani step limit cycle'a sokuyordu).
+ * rad/s/s; 0 = slew kapalı (ani step). Runtime SLEW: komutu ile ayarlanır. */
+void  SpeedPI_SetSlewRate(float rate_radps_per_s);
+float SpeedPI_GetSlewRate(void);
 
 /* Tek adım: error hesabı + P + I (Tustin) + anti-windup back-calculation.
  * omega_measured: motor şaftı hızı (rad/s, signed — encoder'dan).

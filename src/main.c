@@ -79,19 +79,27 @@ int main(void)
     Encoder_Init();           /* TIM2, PA15+PB3 */
     Motor_Init();              /* TIM3, PB0 PWM, PB12-14 GPIO, STBY=LOW */
 
-    /* Hız iç döngü PI — Aşama 2.1 MATLAB tasarımı (conservative pole placement):
-     *   matlab/asama_2_kontrol/results/a2_1_20260518_071843/speed_pi_params.json
-     *   ζ = 1.0 (critically damped), ω_n = 60 rad/s, τ_cl = 16.7 ms
-     *   Kp = (2·ζ·ω_n·τ − 1) / K
-     *   Ki = ω_n²·τ / K
-     * Kaynaklar: [Franklin2010] §6.4 (pole placement), §3.6 (critical damping)
-     *            [AstromMurray2008] §10.2 (Tustin), §10.4 (back-calculation) */
+    /* Hız iç döngü PI kazançları.
+     *
+     * ⚠ Aşama 2.3 BULGUSU: Aşama 2.1 Simulink tasarımı (conservative pole
+     * placement Kp=0.1163, Ki=4.0447) gerçek sistemde BANG-BANG limit cycle
+     * verdi. Kök neden: Simulink ideal ölçüm + farklı plant varsaydı; gerçekte
+     * serbest mil çok hızlı (0.5 duty → ~280 rad/s no-load) + encoder kuantize
+     * + yüksek Kp her error'da saturation'a fırlatıyordu → limit cycle.
+     *
+     * AMPIRIK ÇÖZÜM (artifacts/2/, düşük-kazanç taraması): Kp=0.002, Ki=0.1
+     * → motor tüm setpoint'lere temiz oturuyor (50/120/30 rad/s, bang-bang yok).
+     * Conservative'den ~58× düşük. Bu kazançlar 2b'de Simulink'e gerçekçi
+     * efektler (kuantizasyon + gecikme + serbest mil) eklenerek teorik doğrulanacak.
+     *
+     * Runtime KP:/KI:/SLEW: komutlarıyla flash'sız ayarlanabilir (test için).
+     * Kaynaklar: [AstromMurray2008] §10.2 (Tustin), §10.4 (back-calculation) */
     static const SpeedPI_Config SPEED_PI_CFG = {
-        .Kp       = 0.1163f,
-        .Ki       = 4.0447f,
+        .Kp       = 0.002f,           /* ampirik (2.3); 2.1 conservative çok yüksekti */
+        .Ki       = 0.1f,
         .Ts       = 0.005f,           /* 200 Hz fixed sample */
         .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı */
-        .T_t      = 0.02875f          /* Kp/Ki — Aström-Murray T_t = T_i */
+        .T_t      = 0.02f             /* Kp/Ki — Aström-Murray T_t = T_i */
     };
     SpeedPI_Init(&SPEED_PI_CFG);
 
@@ -112,7 +120,7 @@ int main(void)
     float fused_pitch = 0.0f;
     float fused_roll  = 0.0f;
     const float alpha = 0.98f;
-    uint32_t last_tick = HAL_GetTick();
+    uint32_t last_cyccnt = DWT->CYCCNT;   /* dt için DWT (µs hassas) */
 
     uint32_t last_tx          = 0;
     uint32_t last_led         = 0;
@@ -122,14 +130,21 @@ int main(void)
     {
         MPU6050_Read(&ax, &ay, &az, &gx, &gy, &gz);
 
-        /* dt hesabı */
-        uint32_t now = HAL_GetTick();
-        float dt = (now - last_tick) / 1000.0f;
-        if (dt <= 0.0f || dt > 0.5f) dt = 0.005f;  /* ilk döngü / overflow koruması */
-        last_tick = now;
+        uint32_t now = HAL_GetTick();   /* ms — watchdog / TX throttle / LED için */
+
+        /* dt: DWT cycle counter ile µs hassas (Aşama 2.3).
+         * HAL_GetTick ms çözünürlüğü loop ~7 ms'te ±14% jitter veriyordu →
+         * ω = Δcount/dt ölçümünü bozup hız PI'yi bang-bang'e sokuyordu.
+         * DWT 96 MHz → dt çözünürlüğü ~10 ns. Unsigned fark wrap-safe. */
+        uint32_t cyc_now  = DWT->CYCCNT;
+        uint32_t cyc_diff = cyc_now - last_cyccnt;   /* wrap-safe (unsigned) */
+        last_cyccnt = cyc_now;
+        float dt = (float)cyc_diff / 96000000.0f;     /* SYSCLK 96 MHz */
+        if (dt <= 0.0f || dt > 0.5f) dt = 0.005f;     /* ilk döngü / overflow koruması */
 
         int32_t enc_count = Encoder_GetCount();
-        float   enc_speed = Encoder_GetSpeed(dt);   /* motor şaftı rad/s */
+        float   enc_speed = Encoder_GetSpeed(dt);            /* ham motor şaftı rad/s */
+        float   enc_speed_filt = Encoder_FilterSpeed(enc_speed);  /* moving avg — PI girişi */
 
         /* PA0 KEY butonu (active-low) → fake stall injection */
         bool key_pressed = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET);
@@ -151,23 +166,17 @@ int main(void)
             watchdog_tripped = false;
         }
 
-        /* Motor rampa step'i (non-blocking, target_duty'ye yaklaşır) */
-        Motor_Tick();
-
-        /* ── Hız PI kontrolcü — Aşama 2.2 ──────────────────────────────
-         * SP_W modda her ana döngü iterasyonunda (200 Hz, Ts=5 ms) PI step alınır.
-         * Signed çıktıyı işaret + |duty|'ye böl → Motor_SetDir + Motor_SetDuty.
-         * DUTY modda speed PI çalıştırılmaz; cmd_parser direkt Motor API'lerini
-         * çağırır. Mod geçişinde cmd_parser Motor_Stop + SpeedPI_Reset yapar. */
+        /* ── Mod-bağımlı motor sürüş ───────────────────────────────────
+         * DUTY modu: Motor_Tick rampa (Aşama 0 açık döngü soft-start).
+         * SP_W modu:  hız PI doğrudan PWM yazar (Motor_SetDutySigned) —
+         *   rampa BYPASS. Aşama 2.3 ara testi: Motor_Tick rampası kapalı
+         *   döngü PI ile çakışıyordu (PI ±0.5 zıplayınca rampa kontrolü ezer). */
         if (CmdParser_GetMode() == CMD_MODE_SP_W) {
-            float u = SpeedPI_Step(enc_speed);
-            if (u >= 0.0f) {
-                Motor_SetDir(MOTOR_CW);
-                Motor_SetDuty(u);
-            } else {
-                Motor_SetDir(MOTOR_CCW);
-                Motor_SetDuty(-u);
-            }
+            /* PI girişi FİLTRELENMİŞ hız (moving average — ham kuantize ölçüm). */
+            float u = SpeedPI_Step(enc_speed_filt);
+            Motor_SetDutySigned(u);   /* doğrudan, rampasız */
+        } else {
+            Motor_Tick();             /* DUTY modu rampa */
         }
 
         float fax = (float)ax, fay = (float)ay, faz = (float)az;

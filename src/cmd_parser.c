@@ -1,6 +1,7 @@
 #include "cmd_parser.h"
 #include "motor.h"
 #include "speed_pi.h"
+#include "encoder.h"
 #include "usbd_cdc_if.h"
 #include "stm32f4xx_hal.h"
 #include <string.h>
@@ -24,6 +25,7 @@ static void parse_line(const char *line)
         if (current_mode != CMD_MODE_DUTY) {
             Motor_Stop();
             SpeedPI_Reset();
+            Encoder_FilterReset();
         }
         current_mode = CMD_MODE_DUTY;
         last_cmd_tick_ms = HAL_GetTick();
@@ -34,6 +36,7 @@ static void parse_line(const char *line)
             /* DUTY → SP_W geçiş: motoru durdur, PI'yi sıfırla (eski state varsa) */
             Motor_Stop();
             SpeedPI_Reset();
+            Encoder_FilterReset();
         }
         current_mode = CMD_MODE_SP_W;
         last_cmd_tick_ms = HAL_GetTick();
@@ -67,16 +70,37 @@ static void parse_line(const char *line)
         return;
     }
 
+    /* ── Runtime kazanç ayarı (Aşama 2.3 — 5 kazanç setini flash'sız dene) ── */
+    if (strncmp(line, "KP:", 3) == 0) {
+        float kp = strtof(line + 3, NULL);
+        SpeedPI_SetGains(kp, SpeedPI_GetKi());   /* Ki korunur */
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if (strncmp(line, "KI:", 3) == 0) {
+        float ki = strtof(line + 3, NULL);
+        SpeedPI_SetGains(SpeedPI_GetKp(), ki);   /* Kp korunur */
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if (strncmp(line, "SLEW:", 5) == 0) {
+        SpeedPI_SetSlewRate(strtof(line + 5, NULL));  /* rad/s/s, 0=ani step */
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
     /* ── Mod-bağımsız komutlar ──────────────────────────────────── */
     if (strcmp(line, "STOP") == 0) {
         Motor_Stop();
         SpeedPI_Reset();
+        Encoder_FilterReset();
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }
     if (strcmp(line, "RESET") == 0) {
         Motor_ResetLockout();
         SpeedPI_Reset();
+        Encoder_FilterReset();
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }

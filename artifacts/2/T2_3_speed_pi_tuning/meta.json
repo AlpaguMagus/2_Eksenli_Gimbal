@@ -1,0 +1,46 @@
+{
+  "test_id": "T2_3_speed_pi_tuning",
+  "title": "Aşama 2.3 — hız PI gerçek motor tuning + sim-to-real gap",
+  "timestamp": "2026-05-24T17:15:00",
+  "status": "RESOLVED",
+  "problem": "Aşama 2.1 conservative kazancı (Kp=0.1163, Ki=4.0447) gerçek motorda bang-bang limit cycle verdi",
+  "root_cause": "Sim-to-real gap: Simulink ideal ölçüm + farklı plant varsaydı. Gerçekte serbest mil çok hızlı (0.5 duty≈280 rad/s no-load) + encoder kuantize + yüksek Kp her error'da saturation'a fırlatıp limit cycle yaratıyordu.",
+  "solution": "Kazanç ~58× düşürüldü: Kp=0.002, Ki=0.1 (ampirik). Motor tüm setpoint'lere temiz oturuyor.",
+  "diagnostics": {
+    "open_loop_omega_std": 7,
+    "closed_loop_omega_std_conservative": 105,
+    "setpoint_sweep_conservative": {
+      "30": {"omega_std": 104.9, "bang": true},
+      "80": {"omega_std": 98.6, "bang": true},
+      "150": {"omega_std": 87.0, "bang": true},
+      "220": {"omega_std": 60.3, "bang": true},
+      "280": {"omega_std": 6.9, "bang": false}
+    },
+    "gain_sweep_sp50": {
+      "0.050/2.0": {"omega_std": 97.7, "bang": true},
+      "0.010/0.5": {"omega_std": 101.4, "bang": true},
+      "0.005/0.25": {"omega_std": 84.8, "bang": true},
+      "0.002/0.1": {"omega_ss": 50.1, "omega_std": 8.7, "u_std": 0.003, "bang": false},
+      "0.001/0.05": {"omega_ss": 51.2, "omega_std": 8.2, "bang": false}
+    }
+  },
+  "validation_multi_setpoint": {
+    "50": {"omega_ss": 50, "u_steady": 0.10},
+    "120": {"omega_ss": 120, "u_steady": 0.22},
+    "30": {"omega_ss": 30, "u_steady": 0.07}
+  },
+  "firmware_changes": [
+    "main.c: default SPEED_PI_CFG Kp=0.002 Ki=0.1 (conservative'den ~58x düşük)",
+    "main.c: dt DWT mikrosaniye (HAL_GetTick ms jitter giderildi)",
+    "main.c: SP_W modunda Motor_Tick bypass, Motor_SetDutySigned doğrudan PWM",
+    "encoder.c: Encoder_FilterSpeed moving-average (WINDOW=5)",
+    "speed_pi.c: SpeedPI_SetGains + setpoint slew rate",
+    "cmd_parser.c: KP:/KI:/SLEW: runtime komutları",
+    "motor.c: Motor_SetDutySigned (rampasız kapalı döngü PWM)"
+  ],
+  "next_step": "2b — Simulink'e kuantizasyon + gecikme + serbest mil + saturation ekle, Kp=0.002'yi teorik doğrula",
+  "artifacts": [
+    "../speed_gain_sweep/20260524_165718/",
+    "../slew_sweep/20260524_170748/"
+  ]
+}

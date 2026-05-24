@@ -1,0 +1,57 @@
+{
+  "test_id": "20260524_170748",
+  "title": "Aşama 2.3 — setpoint slew rate taraması (conservative)",
+  "timestamp": "2026-05-24T17:08:08",
+  "commit": "a065ec2",
+  "Kp": 0.1163,
+  "Ki": 4.0447,
+  "setpoint_rad_s": 50.0,
+  "dt_source": "DWT",
+  "encoder_filter": "moving_avg_5",
+  "results": [
+    {
+      "slew": 0,
+      "omega_ss": 32.46,
+      "omega_std": 105.54,
+      "u_abs": 0.469,
+      "u_std": 0.473,
+      "bang_bang": true,
+      "settled": false,
+      "settling_s": null,
+      "n": 142
+    },
+    {
+      "slew": 100,
+      "omega_ss": 34.58,
+      "omega_std": 104.68,
+      "u_abs": 0.466,
+      "u_std": 0.473,
+      "bang_bang": true,
+      "settled": false,
+      "settling_s": null,
+      "n": 142
+    },
+    {
+      "slew": 200,
+      "omega_ss": 29.99,
+      "omega_std": 105.05,
+      "u_abs": 0.487,
+      "u_std": 0.486,
+      "bang_bang": true,
+      "settled": false,
+      "settling_s": null,
+      "n": 142
+    },
+    {
+      "slew": 400,
+      "omega_ss": 26.11,
+      "omega_std": 106.3,
+      "u_abs": 0.485,
+      "u_std": 0.486,
+      "bang_bang": true,
+      "settled": false,
+      "settling_s": null,
+      "n": 142
+    }
+  ]
+}

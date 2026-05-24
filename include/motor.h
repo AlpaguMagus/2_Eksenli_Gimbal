@@ -44,8 +44,9 @@ void  Motor_Enable(void);                     /* STBY=HIGH */
 void  Motor_Disable(void);                    /* STBY=LOW */
 
 void  Motor_SetDir(MotorDir_t dir);
-void  Motor_SetDuty(float duty01);            /* clamp [0, MOTOR_MAX_DUTY] */
-void  Motor_Tick(void);                       /* main loop'tan 200 Hz çağrılır */
+void  Motor_SetDuty(float duty01);            /* clamp [0, MOTOR_MAX_DUTY], rampa+dead-band (açık döngü) */
+void  Motor_SetDutySigned(float duty);        /* signed, RAMPA YOK — kapalı döngü PI için (Aşama 2.3) */
+void  Motor_Tick(void);                       /* main loop'tan 200 Hz çağrılır (açık döngü rampa) */
 
 void  Motor_SoftStart(float target_duty01);   /* bloklayan ~200 ms rampa, init için */
 void  Motor_Stop(void);                       /* PWM=0, dir=STOP */

@@ -82,7 +82,33 @@ float Encoder_GetSpeed(float dt_sec)
     int32_t delta = now - last_count;
     last_count    = now;
 
-    /* (2π × Δcount) / (192 × Δt) = motor şaftı rad/s
+    /* (2π × Δcount) / (48 × Δt) = motor şaftı rad/s
      * Çıkış mili (gear-out) için çağıran taraf 9.7'ye bölmeli. */
     return ((float)delta * TWO_PI) / ((float)EVENTS_PER_REV * dt_sec);
+}
+
+/* ── Filtrelenmiş hız (N-örnek moving average) ─────────────────────────────
+ * Detay → include/encoder.h. dt sabit varsayımıyla hem pencere (B) hem
+ * filtre (A) etkisi. Ham hız Encoder_GetSpeed'ten alınıp buraya verilir
+ * (tek count okuma — çift okuma last_count'u bozmaz). */
+static float speed_hist[ENCODER_SPEED_WINDOW] = {0};
+static int   speed_idx   = 0;
+static int   speed_fill  = 0;
+
+float Encoder_FilterSpeed(float raw_speed_radps)
+{
+    speed_hist[speed_idx] = raw_speed_radps;
+    speed_idx = (speed_idx + 1) % ENCODER_SPEED_WINDOW;
+    if (speed_fill < ENCODER_SPEED_WINDOW) speed_fill++;
+
+    float sum = 0.0f;
+    for (int i = 0; i < speed_fill; i++) sum += speed_hist[i];
+    return sum / (float)speed_fill;
+}
+
+void Encoder_FilterReset(void)
+{
+    for (int i = 0; i < ENCODER_SPEED_WINDOW; i++) speed_hist[i] = 0.0f;
+    speed_idx  = 0;
+    speed_fill = 0;
 }
