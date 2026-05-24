@@ -76,10 +76,20 @@ Gerçek sistem:
 - Encoder moving-average filtre + dt→DWT korundu (her durumda doğru iyileştirme)
 - Motor_SetDutySigned eklendi (kapalı döngü için rampasız doğrudan PWM)
 
-## Sıradaki (2b)
-Bu ampirik kazancı (Kp=0.002) Simulink'e gerçekçi efektler (kuantizasyon +
-ölçüm gecikmesi + serbest mil + saturation) ekleyerek **teorik doğrula**.
-Akademik kapanış: "ampirik bulundu, sonra model gerçekçi yapılıp temellendirildi."
+## 2b — Teorik Doğrulama ✅ (TAMAMLANDI)
+
+`matlab/asama_2_kontrol/verify_realistic_sim.m` — Aşama 2.1 modeline gerçek
+efektler (kuantizasyon + moving-avg filtre + saturation + slew + V_sat) eklendi.
+Gerçekçi model her iki kazancı simüle etti:
+
+| Kazanç | ω_std | u_std | Sonuç | Gerçek motor |
+|---|---|---|---|---|
+| conservative (Kp=0.1163) | 46.3 | 0.486 | BANG-BANG | ✅ aynı |
+| ampirik (Kp=0.002) | 3.2 | 0.018 | STABİL | ✅ aynı |
+
+**Sim-to-real gap teorik kapandı:** İdeal model conservative'i önerdi (yanlış);
+gerçekçi model ampirik Kp=0.002'yi doğruluyor. Görsel:
+`matlab/asama_2_kontrol/results/realistic_sim_verification.png`.
 
 ## Artifacts
 - `../speed_gain_sweep/20260524_165718/` — 5 kazanç taraması (raw + meta)

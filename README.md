@@ -1396,14 +1396,35 @@ Bu, **iteratif kontrol tasarımının** (`[Franklin2010]`, `[Ljung1999] §16`) c
 
 Artifact: `artifacts/2/T2_3_speed_pi_tuning/` (+ `speed_gain_sweep/`, `slew_sweep/`).
 
+#### 11.12.7. 2b — Sim-to-Real Gap Teorik Olarak Kapatıldı ✅
+
+Ampirik Kp=0.002'yi **teorik temellendirmek** için Aşama 2.1 Simulink modeline gerçek sistemin efektleri eklendi (`matlab/asama_2_kontrol/verify_realistic_sim.m`):
+1. Encoder kuantizasyonu (1 count ≈ 18.7 rad/s)
+2. Moving-average ölçüm filtresi (WINDOW=5)
+3. Duty saturation (±0.50)
+4. Setpoint slew rate
+5. V_sat sürücü kaybı
+
+**Gerçekçi model her iki kazancı simüle etti:**
+
+| Kazanç | ω_std | u_std | Sonuç | Gerçek motorla |
+|---|---|---|---|---|
+| conservative (Kp=0.1163) | 46.3 | 0.486 | 🔴 BANG-BANG | ✅ aynı |
+| ampirik (Kp=0.002) | 3.2 | 0.018 | 🟢 STABİL | ✅ aynı |
+
+**Sonuç:** İdeal model (Aşama 2.1) conservative'i önerdi — yanıltıcıydı. Gerçekçi model (kuantizasyon + gecikme + saturation) ampirik düşük kazancı **doğruluyor**. Sim-to-real gap'in kaynağı **ideal ölçüm varsayımı** olarak teorik kanıtlandı.
+
+Görsel: `matlab/asama_2_kontrol/results/realistic_sim_verification.png` (sol: conservative bang-bang, sağ: ampirik stabil).
+
+**Akademik kapanış:** *"Modelle → test et → gerçekte çalışmadı → kök nedeni bul → çöz (ampirik) → modeli gerçekçi yap → teorik temellendirir."* — `[Ljung1999] §16` iteratif model validation'ın tam döngüsü.
+
 ### 11.13. Bir Sonraki Aşama
 
-**Aşama 2.3 → 2b (Simulink doğrulama, sıradaki):**
-- Simulink modeline **kuantizasyon + ölçüm gecikmesi + serbest mil + saturation** ekle
-- Ampirik Kp=0.002'yi teorik doğrula
-- Sonra programatik `scripts/speed_step_test.py` ile resmi step response metrikleri (settling/OS/ss)
+**Aşama 2.3 + 2b ✅ tamamlandı** (ampirik tuning + teorik doğrulama).
 
-**Aşama 2.4-2.9:** Disturbance rejection → pozisyon cascade → IMU mirror → akademik rapor.
+**Sıradaki:**
+- `scripts/speed_step_test.py` — programatik step response, resmi metrikler (settling/OS/ss_error), artifact disipliniyle
+- **Aşama 2.4-2.9:** Disturbance rejection → pozisyon cascade → IMU mirror → akademik rapor.
 
 ROADMAP §2'de detaylı plan.
 
