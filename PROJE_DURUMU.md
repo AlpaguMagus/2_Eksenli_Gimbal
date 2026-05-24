@@ -1,6 +1,6 @@
 # 2 Eksenli Gimbal — Proje Durum Özeti
 
-> 5-10 satır özet. Detay → [`ROADMAP.md`](ROADMAP.md). Teknik el kitabı → [`README.md`](README.md). Hocaya sunum kılavuzu → [`SUNUM.md`](SUNUM.md). Akademik kaynaklar → [`KAYNAKCA.md`](KAYNAKCA.md). MATLAB workflow → [`matlab/README.md`](matlab/README.md).
+> 5-10 satır özet. Detay → [`ROADMAP.md`](ROADMAP.md). Teknik el kitabı → [`README.md`](README.md). Akademik kaynaklar → [`KAYNAKCA.md`](KAYNAKCA.md). MATLAB workflow → [`matlab/README.md`](matlab/README.md).
 
 **Vizyon:** Tek motor model ✅ → tek motor kontrol 🟡 → iki motor MIMO → iki motor LQG/Kalman → gerçek 3D-print gimbal. MATLAB paralel araç, firmware C/STM32Cube HAL bare-metal. Her teknik karar **kaynaklı** (`KAYNAKCA.md` etiketli).
 
@@ -30,4 +30,3 @@
 - Aşama 2.1: `matlab/asama_2_kontrol/results/a2_1_20260518_071843/` — 3 PNG + `speed_loop_a2_1.slx` + `speed_pi_params.json` + `speed_pi_design_report.md`
 - Aşama 2.5: `matlab/asama_2_kontrol/results/` — `position_p_design.png` + `realistic_cascade.png` + `position_strategy_sweep.png` + `position_p_params.json`; test `artifacts/2/position_step/20260524_212456/`
 - README §10 (Aşama 1, 9 alt başlık) + §11 (Aşama 2, §11.13 pozisyon cascade dahil)
-- SUNUM.md — hocaya sunum kılavuzu (sıra + vurgu + Q&A)
