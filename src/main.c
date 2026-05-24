@@ -7,6 +7,7 @@
 #include "motor.h"
 #include "cmd_parser.h"
 #include "speed_pi.h"
+#include "position_p.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -103,6 +104,21 @@ int main(void)
     };
     SpeedPI_Init(&SPEED_PI_CFG);
 
+    /* Pozisyon dış döngü P kontrolcü (Aşama 2.5 — cascade).
+     * Kp_pos=2.0 [1/s]: matlab/asama_2_kontrol/design_position_p.m
+     *   dış döngü ω_c≈1.93 rad/s = iç döngü ω_n 9.4'ten 5× yavaş [Franklin2010 §6.4]
+     *   PM 69.7°, tip-1 → P ile ss_error=0 [Franklin2010 §4.3]
+     * Gerçekçi sim (verify_realistic_cascade.m): ss_err %1.75, OS %12.5.
+     *   ⚠ simde küçük limit-cycle (iç hız döngüsü düşük hızda kuant. kör) —
+     *   gerçek motorda sürtünme söndürebilir, Test 2.5 ile doğrulanacak. */
+    static const PositionP_Config POS_P_CFG = {
+        .Kp_pos         = 2.0f,
+        .gear_ratio     = 9.7f,
+        .counts_per_rev = 466.0f,   /* 48 × 9.7 (çıkış mili event/rev) */
+        .omega_ref_max  = 300.0f    /* rad/s motor şaftı güvenlik limiti */
+    };
+    PositionP_Init(&POS_P_CFG);
+
     /* USB CDC başlat */
     USBD_Init(&hUsbDeviceFS, &CDC_Desc, DEVICE_FS);
     USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC);
@@ -154,9 +170,14 @@ int main(void)
         Motor_StallCheck(enc_speed);
 
         /* Watchdog — 1 sn boyunca komut yoksa Motor_Stop. Edge'de USB CDC'ye
-         * 'WATCHDOG_TIMEOUT\r\n' bir kerelik mesaj (sürekli flood yok). */
-        if (now - CmdParser_LastCmdTick() > 1000U) {
+         * 'WATCHDOG_TIMEOUT\r\n' bir kerelik mesaj (sürekli flood yok).
+         * ⚠ Aşama 2.5: watchdog aktifken mod sürüşü ATLANMALI — yoksa kapalı
+         * döngü (SP_W/POS) Motor_Stop'u hemen ezer, motor dönmeye devam eder.
+         * SpeedPI_Reset setpoint'i de 0'lar → komut akışı kesilince motor durur. */
+        bool wd_active = (now - CmdParser_LastCmdTick() > 1000U);
+        if (wd_active) {
             Motor_Stop();
+            SpeedPI_Reset();
             if (!watchdog_tripped) {
                 static const char ev[] = "WATCHDOG_TIMEOUT\r\n";
                 CDC_Transmit_FS((uint8_t *)ev, (uint16_t)(sizeof(ev) - 1U));
@@ -166,17 +187,26 @@ int main(void)
             watchdog_tripped = false;
         }
 
-        /* ── Mod-bağımlı motor sürüş ───────────────────────────────────
+        /* ── Mod-bağımlı motor sürüş (watchdog aktifken atlanır) ────────
          * DUTY modu: Motor_Tick rampa (Aşama 0 açık döngü soft-start).
-         * SP_W modu:  hız PI doğrudan PWM yazar (Motor_SetDutySigned) —
-         *   rampa BYPASS. Aşama 2.3 ara testi: Motor_Tick rampası kapalı
-         *   döngü PI ile çakışıyordu (PI ±0.5 zıplayınca rampa kontrolü ezer). */
-        if (CmdParser_GetMode() == CMD_MODE_SP_W) {
-            /* PI girişi FİLTRELENMİŞ hız (moving average — ham kuantize ölçüm). */
-            float u = SpeedPI_Step(enc_speed_filt);
-            Motor_SetDutySigned(u);   /* doğrudan, rampasız */
-        } else {
-            Motor_Tick();             /* DUTY modu rampa */
+         * SP_W modu:  hız PI doğrudan PWM yazar (Motor_SetDutySigned, rampasız).
+         * POS modu:   cascade — pozisyon P → ω_ref → hız PI → motor (Aşama 2.5).
+         *   PositionP_Step ω_ref'i SpeedPI setpoint'ine yazar (slew=0, mod
+         *   geçişinde ayarlandı — dış P zaten yumuşak ref üretir). */
+        if (!wd_active) {
+            if (CmdParser_GetMode() == CMD_MODE_SP_W) {
+                /* PI girişi FİLTRELENMİŞ hız (moving average — ham kuantize ölçüm). */
+                float u = SpeedPI_Step(enc_speed_filt);
+                Motor_SetDutySigned(u);   /* doğrudan, rampasız */
+            } else if (CmdParser_GetMode() == CMD_MODE_POS) {
+                float theta_out_deg;
+                float omega_ref = PositionP_Step(enc_count, &theta_out_deg);
+                SpeedPI_SetSetpoint(omega_ref);          /* dış döngü → iç döngü setpoint */
+                float u = SpeedPI_Step(enc_speed_filt);
+                Motor_SetDutySigned(u);
+            } else {
+                Motor_Tick();             /* DUTY modu rampa */
+            }
         }
 
         float fax = (float)ax, fay = (float)ay, faz = (float)az;

@@ -265,15 +265,16 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
   - Sabit setpoint (50 rad/s), elle motor şaftını yavaşla
   - Kontrolcü recovery'i ölçülür
 
-- **2.5 — Pozisyon P/PI tasarımı + cascade**
-  - Pozisyon ω_n = 17 rad/s (5× yavaş, S3 onaylı)
-  - P veya PI? — sokratik tartışma alt-açılışta
-  - Simulink cascade simülasyonu
+- **2.5 — Pozisyon P tasarımı + cascade** ✅ (2026-05-24)
+  - Cascade + P dış döngü + çıkış mili açısı (3 sokratik karar onaylandı)
+  - `Kp_pos=2.0`, dış ω_c≈1.93 rad/s = iç ω_n/5 (`design_position_p.m`)
+  - Gerçekçi sim limit-cycle uyarısı verdi (sürtünmesiz, kötümser) + 5V sim hatası yakalandı/düzeltildi
 
-- **2.6 — Firmware cascade implementasyonu**
-  - `src/position_p.c` (dış döngü)
-  - Encoder count → derece dönüşümü (0.77° / count)
-  - Setpoint: USB `SP_POS:<float>` veya `MODE:MIRROR`
+- **2.6 — Firmware cascade implementasyonu** ✅ (2026-05-24)
+  - `src/position_p.c` (dış döngü P), `MODE:POS` + `POS_DEG:`/`KPP:` komutları
+  - Encoder count → derece dönüşümü (θ_out = EC × 360/466)
+  - ⚠ Watchdog güvenlik düzeltmesi: kapalı-döngü modlarında artık etkili (eskiden mod sürüşü Motor_Stop'u eziyordu)
+  - **Test 2.5 gerçek motorda PASS — limit-cycle YOK (sürtünme söndürdü, sim kötümserdi)**
 
 - **2.7 — IMU mirror bağlantısı**
   - Setpoint = +fused_pitch (taklit, ters değil)
@@ -295,7 +296,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 | 2.T2 | Hız step response (firmware) | settling < 5τ, overshoot < %10, ss_error < %2 | ✅ PASS (Kp=0.002, 8/8 step temiz, ss_err çoğunlukla <%2, bang-bang yok. Settling/OS metrikleri düşük setpoint'te encoder kuantizasyonu ile sınırlı — `artifacts/2/speed_step/20260524_180610/`) |
 | 2.T3 | Anti-windup recovery | Saturation sonrası recovery < 100 ms | ☐ |
 | 2.T4 | Disturbance rejection | Yük sonrası setpoint'e dönüş | ✅ PASS — elle yük (7 müdahale), ω %82 düştü, PI duty 0.18→0.5 telafi, setpoint'e döndü. `artifacts/2/disturbance/20260524_192851/` (7 u piki grafiği). Recovery süresi metriği encoder kuantizasyonu ile sınırlı. |
-| 2.T5 | Cascade pozisyon step | Overshoot < %10, ss_error < 1° | ☐ |
+| 2.T5 | Cascade pozisyon step | Overshoot < %10, ss_error < 1° | ✅ PASS — 6/6 segment (30/90/45/0/-45/0°), ss_err <0.8°, OS <1°, **limit-cycle yok** (θ_std <0.7°). Gerçekçi sim limit-cycle öngördü ama gerçek motor sürtünmesi söndürdü (sim kötümserdi). `artifacts/2/position_step/20260524_212456/` |
 | 2.T6 | Mirror takip (KRİTİK) | RMS < 5° (yavaş eğme ~10°/s) | ☐ |
 
 ### Açık Sorular (alt-aşama açılışlarında)

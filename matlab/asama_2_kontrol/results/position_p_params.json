@@ -1,0 +1,18 @@
+{
+  "Kp_pos": 2,
+  "unit": "1/s (SI: theta rad, omega rad/s)",
+  "wc_outer_rad_s": 1.9299429359398463,
+  "wn_inner_rad_s": 9.4379224496331418,
+  "PM_deg": 69.719021648328038,
+  "GM_dB": 23.195392848597489,
+  "settling_s": 1.1544212131951903,
+  "overshoot_pct": 0.60492207916782448,
+  "inner_Kp": 0.002,
+  "inner_Ki": 0.1,
+  "gear_ratio": 9.7,
+  "note": "cascade outer P; tip-1 sistem ss_error=0; firmware birim donusumu gerekli",
+  "kaynak": [
+    "Franklin2010 §6.4",
+    "Franklin2010 §4.3"
+  ]
+}

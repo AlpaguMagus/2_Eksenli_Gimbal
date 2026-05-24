@@ -1,6 +1,7 @@
 #include "cmd_parser.h"
 #include "motor.h"
 #include "speed_pi.h"
+#include "position_p.h"
 #include "encoder.h"
 #include "usbd_cdc_if.h"
 #include "stm32f4xx_hal.h"
@@ -42,6 +43,23 @@ static void parse_line(const char *line)
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }
+    if (strcmp(line, "MODE:POS") == 0) {
+        if (current_mode != CMD_MODE_POS) {
+            /* → POS cascade geçiş: motoru durdur, iç PI + filtre + dış P sıfırla.
+             * Encoder_Reset: mevcut konum 0° referans olur (göreceli pozisyon).
+             * Slew=0: dış P zaten yumuşak ω_ref üretir, iç döngü slew'i ekstra
+             *   faz kaybı katıp cascade'i bozar (sim'de slew yoktu). */
+            Motor_Stop();
+            SpeedPI_Reset();
+            Encoder_FilterReset();
+            PositionP_Reset();
+            Encoder_Reset();
+            SpeedPI_SetSlewRate(0.0f);
+        }
+        current_mode = CMD_MODE_POS;
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
 
     /* ── DUTY komutu — sadece DUTY modda motor sürer ────────────── */
     if (strncmp(line, "DUTY:", 5) == 0) {
@@ -70,6 +88,22 @@ static void parse_line(const char *line)
         return;
     }
 
+    /* ── POS_DEG komutu — POS modda hedef çıkış mili açısı (derece) ── */
+    if (strncmp(line, "POS_DEG:", 8) == 0) {
+        float deg = strtof(line + 8, NULL);
+        /* Dış döngü setpoint; main loop POS modda PositionP_Step → ω_ref →
+         * SpeedPI → Motor_SetDutySigned zincirini sürer. */
+        PositionP_SetSetpoint(deg);
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    /* ── KPP komutu — pozisyon P kazancı runtime ayarı (flash'sız) ── */
+    if (strncmp(line, "KPP:", 4) == 0) {
+        PositionP_SetGain(strtof(line + 4, NULL));
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
     /* ── Runtime kazanç ayarı (Aşama 2.3 — 5 kazanç setini flash'sız dene) ── */
     if (strncmp(line, "KP:", 3) == 0) {
         float kp = strtof(line + 3, NULL);
@@ -94,6 +128,9 @@ static void parse_line(const char *line)
         Motor_Stop();
         SpeedPI_Reset();
         Encoder_FilterReset();
+        /* POS modda main loop PositionP'den setpoint alır → hedefi mevcut konuma
+         * çek (e=0 → ω_ref=0) ki STOP sonrası motor eski hedefe gitmesin (pozisyon tut). */
+        if (current_mode == CMD_MODE_POS) PositionP_SetSetpoint(PositionP_GetThetaOut());
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }
@@ -101,6 +138,7 @@ static void parse_line(const char *line)
         Motor_ResetLockout();
         SpeedPI_Reset();
         Encoder_FilterReset();
+        if (current_mode == CMD_MODE_POS) PositionP_SetSetpoint(PositionP_GetThetaOut());
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }

@@ -1,0 +1,20 @@
+{
+  "strategy": "direct_position_PID",
+  "Kp": 0.044913313437520384,
+  "Ki": 0.0243398823558967,
+  "Kd": 0.0012045709755930984,
+  "Tf": 0.0029167411047102219,
+  "wc_rad_s": 3,
+  "PM_deg": 73.995440744380744,
+  "GM_dB": null,
+  "sim_OS_pct": 0,
+  "sim_ss_err_pct": 34.841956130759819,
+  "sim_settle_s": null,
+  "sim_ustd": 0.00067327107522346756,
+  "unit": "u=duty, theta=cikis mili rad",
+  "note": "dogrudan pozisyon PID; integral dead-band yener; pozisyon kuant 0.773deg ince",
+  "kaynak": [
+    "Franklin2010 §4.3",
+    "Franklin2010 §8"
+  ]
+}

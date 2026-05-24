@@ -1418,13 +1418,88 @@ Görsel: `matlab/asama_2_kontrol/results/realistic_sim_verification.png` (sol: c
 
 **Akademik kapanış:** *"Modelle → test et → gerçekte çalışmadı → kök nedeni bul → çöz (ampirik) → modeli gerçekçi yap → teorik temellendirir."* — `[Ljung1999] §16` iteratif model validation'ın tam döngüsü.
 
-### 11.13. Bir Sonraki Aşama
+### 11.13. Aşama 2.5 — Pozisyon Cascade Kontrol (Test 2.5 PASS ✅) ⭐⭐⭐
 
-**Aşama 2.3 + 2b ✅ tamamlandı** (ampirik tuning + teorik doğrulama).
+#### 11.13.1. Ne — Cascade Pozisyon Kontrolü
+
+İç hız döngüsünün (Aşama 2.3) etrafına **pozisyon dış döngüsü** sarıldı:
+
+```
+θ_ref → (+) → [Kp_pos] → ω_ref → [hız PI iç döngü] → motor → θ
+         ↑                                                   │
+         └──────────────── pozisyon geri besleme ───────────┘
+```
+
+Dış döngü çıkış mili açısını (θ) kontrol eder, çıkışı iç döngünün hız referansıdır. Çıkış mili açısı encoder'dan: `θ_out = EC × 360/466` (0.773°/count çözünürlük).
+
+#### 11.13.2. Neden — Cascade + P + Çıkış Mili (3 Sokratik Karar)
+
+1. **Cascade vs doğrudan pozisyon PID** → **cascade**. İç hız döngüsü Aşama 2.4'te disturbance rejection'ı kanıtlanmış; cascade bu yeteneği korur. Doğrudan PID'in tek integrali hem dead-band'i yenmeli hem pozisyonu getirmeli — gerçekçi simde `pidtune` konservatif kalıp ss_err %34.8 verdi (`design_position_direct_pid.m`). Cascade'de iç döngünün integrali dead-band'i halleder, dış P pozisyonu sıfır ss-error'a getirir. `[Franklin2010] §6.4`.
+2. **P vs PI dış döngü** → **P**. Plant tip-1 (hız→pozisyon entegratörü) → P kontrolcü ile ss_error=0; PI gereksiz wind-up riski getirir. `[Franklin2010] §4.3`.
+3. **Çıkış mili vs motor şaftı açısı** → **çıkış mili** (gimbal eksen açısı fiziksel anlamlı).
+
+**Kazanç:** `Kp_pos = 2.0 [1/s]` (`design_position_p.m`). Dış döngü ω_c≈1.93 rad/s = iç döngü ω_n (9.4) / 5 — cascade kuralı `[Franklin2010] §6.4` (iç döngü 5× hızlı). PM 69.7°, GM 23 dB.
+
+#### 11.13.3. Sokratik Süreç — Gerçekçi Sim, 5V Hatası, Sürtünme
+
+Bu aşama, **dürüst mühendislik sürecinin** örneğidir:
+
+1. **İdeal sim** (`design_position_p.m`): cascade mükemmel — OS %0.6, monotonik.
+2. **Gerçekçi sim** (`verify_realistic_cascade.m`, kuantizasyon + filtre + dead-band): ilk çalıştırmada θ büyük salınım (OS %31). **Kök neden araştırılırken bir parametre hatası yakalandı** — sim besleme gerilimi `5.0V` kullanıyordu, ama Aşama 1 `motor_params.json` `V_supply = 12.15V`. Hata düzeltilince (sadece bu oturumdaki 3 yeni sim scriptinde; firmware/doküman/geçmiş testler **etkilenmemişti**) salınım çöktü: ss_err %1.75, OS %12.5.
+3. **Ama** gerçekçi sim hâlâ küçük genlikli **limit-cycle** gösterdi (θ 24–33° gezinme). Kök neden: iç hız döngüsü, hedefe yakın gereken küçük hızı (~1 rad/s) encoder kuantizasyonuyla (18.7 rad/s) **göremiyor** → "0 hız" ölçüp ya durur ya zıplar.
+4. **Kritik belirsizlik:** simde **statik sürtünme yok** — motor en küçük duty'de bile sürünüyor. Gerçek motorda sürtünme bu gezinmeyi söndürebilir. Sim **kötümser** olabilir.
+5. **Karar (Sokratik):** firmware'e koy, **gerçek motorda test et** — `[Ljung1999] §16` iteratif validation (sim öngörür, gerçek doğrular).
+
+#### 11.13.4. Nasıl — Firmware (cascade + watchdog güvenlik)
+
+- `src/position_p.c` / `include/position_p.h` — pozisyon P kontrolcü. Birim dönüşümü: `ω_ref_motor = Kp_pos · (θ_ref − θ_out) · 9.7` (çıkış mili açı hatası → motor şaftı hız referansı, redüktör ölçeği).
+- `MODE:POS` cascade modu (`src/main.c`): her döngü `PositionP_Step(enc_count)` → ω_ref → `SpeedPI_SetSetpoint` → mevcut hız PI → `Motor_SetDutySigned`. Mod geçişinde encoder 0° referans + slew=0 (dış P zaten yumuşak ref üretir).
+- Komutlar: `POS_DEG:<açı>` (hedef çıkış mili açısı), `KPP:<kazanç>` (runtime).
+- **⚠ Watchdog güvenlik düzeltmesi:** Eski kodda watchdog `Motor_Stop()` yapsa da hemen ardından mod sürüşü motoru tekrar çalıştırıyordu → SP_W/POS gibi kapalı-döngü modlarında watchdog **etkisizdi** (komut akışı kesilse de motor dönerdi). Artık watchdog aktifken mod sürüşü atlanıp `SpeedPI_Reset` ile setpoint sıfırlanıyor. `STOP`/`RESET` POS modunda hedefi mevcut konuma çekiyor (motor kaçmaz).
+
+#### 11.13.5. Nerede — Dosya Referansları
+
+| Bileşen | Dosya |
+|---|---|
+| Pozisyon P tasarımı (Kp_pos=2.0) | `matlab/asama_2_kontrol/design_position_p.m` |
+| Gerçekçi cascade sim | `matlab/asama_2_kontrol/verify_realistic_cascade.m` |
+| Cascade vs PID karşılaştırma | `matlab/asama_2_kontrol/{sweep_position_strategy,design_position_direct_pid}.m` |
+| Firmware pozisyon P | `src/position_p.c`, `include/position_p.h` |
+| Cascade entegrasyonu + watchdog fix | `src/main.c` (mod sürüşü), `src/cmd_parser.c` (MODE:POS) |
+| Test scripti | `scripts/position_step_test.py` |
+| Test sonucu | `artifacts/2/position_step/20260524_212456/` |
+
+#### 11.13.6. Ne Sonuç Çıktı — Test 2.5 (gerçek motor, serbest mil)
+
+Hedefler: 30°→90°→45°→0°→-45°→0° (mutlak çıkış mili açısı).
+
+| Hedef | ss_error | overshoot | settling | θ_std (limit-cycle) | Durum |
+|---|---|---|---|---|---|
+| +90° | 0.25° | 0.39° | 1.62 s | 0.30° | 🟢 OK |
+| +45° | 0.48° | 0.97° | 1.68 s | 0.69° | 🟢 OK |
+| 0° | 0.77° | 0.77° | 1.80 s | 0.00° | 🟢 OK |
+| −45° | 0.19° | 0.00° | 1.36 s | 0.00° | 🟢 OK |
+| 0° | 0.23° | 0.00° | 1.51 s | 0.36° | 🟢 OK |
+
+**Durum: PASS (6/6 segment temiz).** ss_error her segmentte **<0.8°** (hedef <2°), overshoot **<1°**, θ_std **<0.7°** (limit-cycle eşiği 2°).
+
+**ASIL SORU cevaplandı — limit-cycle YOK.** Gerçek motorun statik sürtünmesi, simdeki düşük-hız kuantizasyon gezinmesini **söndürdü**. Görsel kanıt (`position_plot.png`): u sinyali kararlı halde çok küçük (±0.05, dead-band civarı) → motor küçük hamlelerle hedefe oturup duruyor, sürünmüyor. **Sim kötümserdi (sürtünmesiz varsayım) — hipotez gerçek testle doğrulandı.**
+
+![Pozisyon cascade step](artifacts/2/position_step/20260524_212456/position_plot.png)
+
+**Akademik değer:** *İdeal sim (mükemmel) → gerçekçi sim sürtünmesiz (limit-cycle uyarısı, kötümser) → gerçek motor (sürtünme söndürdü, ss<0.8°).* Sim hem iyimser (Aşama 2.3 ideal model) hem kötümser (Aşama 2.5 sürtünmesiz) olabilir — her ikisi de gerçek testle düzeltildi. `[Ljung1999] §16`.
+
+> **Not (ROADMAP §5 kritik):** Kazançlar **serbest mil** (yüksüz) içindir. Gerçek gimbalda kamera yükü + statik denge ile iç ve dış döngü kazançları yeniden ayarlanacak.
+
+### 11.14. Bir Sonraki Aşama
+
+**Aşama 2.1→2.5 ✅ tamamlandı** (hız PI tasarım + ampirik tuning + teorik doğrulama + disturbance rejection + pozisyon cascade).
 
 **Sıradaki:**
-- `scripts/speed_step_test.py` — programatik step response, resmi metrikler (settling/OS/ss_error), artifact disipliniyle
-- **Aşama 2.4-2.9:** Disturbance rejection → pozisyon cascade → IMU mirror → akademik rapor.
+- **Aşama 2.7:** IMU mirror — setpoint = +fused_pitch (motor IMU pitch'ini takip eder)
+- **Aşama 2.8:** Mirror tracking testi
+- **Aşama 2.9:** Aşama 2 akademik rapor
+- **Aşama 3+:** MIMO model → LQG/Kalman → gerçek 3D-baskı gimbal
 
 ROADMAP §2'de detaylı plan.
 
