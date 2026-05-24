@@ -292,7 +292,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 | # | Test | Beklenen | Durum |
 |---|---|---|---|
 | 2.T1 | Pole placement + pidtune kazançları | Gain margin ≥ 6 dB, phase margin ≥ 45° | ☐ |
-| 2.T2 | Hız step response (firmware) | settling < 5τ, overshoot < %10, ss_error < %2 | ☐ |
+| 2.T2 | Hız step response (firmware) | settling < 5τ, overshoot < %10, ss_error < %2 | ✅ PASS (Kp=0.002, 8/8 step temiz, ss_err çoğunlukla <%2, bang-bang yok. Settling/OS metrikleri düşük setpoint'te encoder kuantizasyonu ile sınırlı — `artifacts/2/speed_step/20260524_180610/`) |
 | 2.T3 | Anti-windup recovery | Saturation sonrası recovery < 100 ms | ☐ |
 | 2.T4 | Disturbance rejection | Yük sonrası setpoint'e dönüş < 200 ms | ☐ |
 | 2.T5 | Cascade pozisyon step | Overshoot < %10, ss_error < 1° | ☐ |
@@ -384,6 +384,24 @@ Tüm yazılım altyapısı hazır → 3D-print gimbal şasisi + iki motor + IMU.
 - 3D-print şasi tasarımı (Fusion 360 / FreeCAD)
 - Motor mount + IMU mount
 - Slip-ring veya esnek kablo (kabloların kopmaması)
+
+### ⚠ KRİTİK NOT — Kazanç Yeniden Ayarı (Aşama 2.3 bulgusundan)
+
+**Aşama 2-4 kontrolcü kazançları SERBEST MİL (yüksüz motor) için ayarlandı.** Aşama
+2.3'te keşfedildi ki serbest mil **worst-case**: yüksüz motor çok hafif/hızlı (0.5
+duty ≈ 280 rad/s no-load), bu yüzden kazançlar çok düşük tutulmak zorunda kaldı
+(Kp=0.002, conservative tasarımdan 58× düşük) — aksi halde limit cycle.
+
+**Aşama 5'te gerçek gimbalda kamera + şasi yükü eklenince:**
+- Efektif atalet (J) artar → plant yavaşlar → τ_m büyür
+- No-load hızı düşer → saturation-setpoint uyumsuzluğu azalır
+- **Kontrolcü kazançları YENİDEN AYARLANMALI** — yük ile sistem tanımlama (Aşama 1
+  tekrarı, yük dahil) → yeni K, τ → yeni kazançlar
+- Muhtemelen daha yüksek kazançlar mümkün olacak (yük plant'i kontrol edilebilir kılar)
+
+Bu, "serbest milde çalışan kazanç gimbalda da çalışır" varsayımının **yanlış**
+olduğu anlamına gelir. Aşama 5.2 (mekanik montaj) sonrası **5.x — yük ile yeniden
+sistem tanımlama + kazanç ayarı** alt-adımı eklenmeli.
 
 ### Senaryo Değişimi
 
