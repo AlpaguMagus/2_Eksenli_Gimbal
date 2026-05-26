@@ -244,4 +244,25 @@ MATLAB dosyaları:
 - `.m` script ve `.slx` Simulink modelleri git'te
 - `.mat` (workspace), `.fig` (figure binary), `.asv` (autosave) git dışı (`.gitignore`)
 - Üretilen PNG'ler git'te (görsel kanıt için)
+- Üretilen çıktılar konu-bazlı: `results/<konu>/` (ör. `2_5_cascade/`); Aşama 1 `results/<test_id>/`
 - Ham veri `artifacts/<aşama>/<test_id>/raw/`'tan okunur
+
+## Git Branch & Aşama Disiplini
+
+Proje **aşama-bazlı branch** modeliyle ilerler — her ana aşamanın izole, izlenebilir bir geçmişi olur ve `main` kümülatif stabil daldır.
+
+### Kurallar
+
+1. **Her ana aşama (0, 1, 2, 3, 4, 5) kendi feature branch'inde:** `feature/asama-<N>-<konu>` (ör. `feature/asama-2-tek-motor-kontrol`, `feature/asama-3-mimo-model`).
+2. **Alt-aşamalar (2.1, 2.5, 2.6.5 …) aynı aşama branch'inde** kalır — ayrı branch açılmaz.
+3. **Aşama tamamlanınca:** `main`'e `--no-ff` merge (aşama bütünlüğü history'de görünür) + `asama-<N>-kapali` **tag**'i + push. Tag'ler tezin kilometre taşlarıdır.
+4. **Sonraki aşama:** `main`'den yeni `feature/asama-<N+1>-<konu>` branch'i açılır.
+5. **`main` = kümülatif stabil:** sadece tamamlanmış aşamalar merge edilir; yarım aşama main'e gitmez.
+6. **Geri-dönüşü-zor işlemler** (force push, history rewrite, branch silme): önce **local yedek** (`archive-*` branch/tag) + kullanıcı onayı (Sokratik §). main force push asla onaysız yapılmaz.
+
+### Mevcut yapı (2026-05-24 reorganizasyonu)
+
+- `main` → `asama-1-kapali` (Aşama 0+1, temiz soy)
+- `asama-0-kapali`, `asama-1-kapali` tag'leri = kilometre taşları
+- `feature/asama-2-tek-motor-kontrol` = aktif (Aşama 2; bitince main'e merge → `asama-2-kapali`)
+- Eski/unrelated geçmiş (`0eddd5f`) `archive-eski-main` local yedeğinde
