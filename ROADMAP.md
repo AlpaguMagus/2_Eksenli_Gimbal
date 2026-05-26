@@ -279,6 +279,11 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
   - ⚠ Watchdog güvenlik düzeltmesi: kapalı-döngü modlarında artık etkili (eskiden mod sürüşü Motor_Stop'u eziyordu)
   - **Test 2.5 gerçek motorda PASS — limit-cycle YOK (sürtünme söndürdü, sim kötümserdi)**
 
+- **2.6.5 — Cascade Simulink + sürtünme modeli** ✅ (2026-05-24)
+  - `create_cascade_simulink.m` → resmi cascade blok diyagramı (`cascade_pos_a2_5.slx`); firmware-uyumlu model analitik Vsupply sadeleştirmesini ortaya çıkardı (iç ω_n~33 → Kp_pos=2.0 ~16× ayrımla daha güvenli)
+  - `verify_realistic_cascade.m` Coulomb/stiction sürtünme (eşik Aşama 1 V_dead'den) → sürtünmeli sim θ_std=0° = gerçek Test 2.5 ile uyumlu → **sim-to-real gap kapandı**
+  - Detay: docs/asama_2_kontrol.md §11.13.7
+
 - **2.7 — IMU mirror bağlantısı**
   - Setpoint = +fused_pitch (taklit, ters değil)
   - Aşama 0 IMU pipeline zaten çalışıyor

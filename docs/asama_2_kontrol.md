@@ -430,6 +430,27 @@ Hedefler: 30°→90°→45°→0°→-45°→0° (mutlak çıkış mili açısı
 
 > **Not (ROADMAP §5 kritik):** Kazançlar **serbest mil** (yüksüz) içindir. Gerçek gimbalda kamera yükü + statik denge ile iç ve dış döngü kazançları yeniden ayarlanacak.
 
+#### 11.13.7. Cascade Simulink Modeli + Sürtünme Doğrulaması (Aşama 2.6.5)
+
+Test 2.5 sonrası iki eksik kapatıldı: (a) cascade'in resmi Simulink blok diyagramı, (b) sim-to-real gap'i kapatan sürtünme modeli.
+
+**Simulink blok diyagramı** (`create_cascade_simulink.m` → `cascade_pos_a2_5.slx`) — iki iç içe döngü, firmware ile uyumlu (`PI → sat±0.5 → ×Vsupply → −Vsat → Plant K/(τs+1) → ∫`):
+
+![Cascade blok diyagramı](../matlab/asama_2_kontrol/results/cascade_block_diagram.png)
+
+**Bulgu — Simulink, analitik tasarımdaki bir basitleştirmeyi ortaya çıkardı:** Firmware-uyumlu Simulink modeli (Vsupply×duty−Vsat dahil) ideal step'te settling ~2.2 s verdi; analitik `design_position_p.m` (Vsupply/Vsat sadeleştirilmiş) 1.15 s demişti. Fark, iç hız döngüsünün gerçek bant genişliğinden: PI çıkışı *duty* olduğundan plant kazancı `K·Vsupply = 654.8` (duty→ω), yani iç döngü ω_n gerçekte **~33 rad/s** (analitik 9.4 dedi — Vsupply'ı atlamıştı). Sonuç dış döngü lehine: ω_c_dış≈2 rad/s ile iç/dış ayrım 5× değil **~16×** — yani Kp_pos=2.0 cascade kuralından (`[Franklin2010] §6.4`) **daha da konservatif ve güvenli**. Üç settling değeri (analitik 1.15 s, Simulink 2.2 s, gerçek 1.3–1.8 s) aynı mertebede; Kp_pos=2.0 gerçek motorda PASS olduğundan tasarım sağlamdır.
+
+**Sürtünme modeli — sim-to-real gap kapatıldı** (`verify_realistic_cascade.m`). Gerçekçi sime Coulomb/stiction sürtünme eklendi (Karnopp benzeri, minimal): düşük hızda (|ω|<18.7 rad/s) sürücü statik sürtünmeyi yenemezse (|K·V_eff| < K·V_dead, eşik **12.9 rad/s**, Aşama 1 `V_dead≈0.24V`'den) motor *yapışır* (stick). Sonuç:
+
+| Senaryo | ss_err | OS | θ_std | Sonuç |
+|---|---|---|---|---|
+| Sürtünmesiz (Aşama 2.5) | %1.75 | %12.5 | **4.55°** | ⚠ limit-cycle |
+| Sürtünmeli (2.6.5) | %0.60 | %0 | **0.00°** | 🟢 stabil |
+
+![Sürtünme karşılaştırması](../matlab/asama_2_kontrol/results/realistic_cascade.png)
+
+Sürtünmeli sim θ_std=0° (gerçek Test 2.5: <0.7°) — **sim artık gerçeği öngörüyor.** Bu, `[Ljung1999] §16` model-iyileştirme döngüsünün kapanışı: modele eksik fizik (sürtünme) eklenince tahmin gücü kanıtlandı. Önemli içgörü: Aşama 1'de "ihmal edilebilir" denen `V_dead≈0.24V`, sürekli dönüşte ihmal edilebilir **ama mikro-düzeltme rejiminde (pozisyon tutma) belirleyici** — aynı parametre rejime göre kritiklik değiştirdi.
+
 ### 11.14. Tartışma / Öğrenilen Dersler
 
 Aşama 2 boyunca iki kez **simülasyon ile gerçek sistem ayrıştı** — ve bu ayrışma projenin en öğretici mühendislik dersini verdi. Bu bölüm, başarıyı ve onun *koşullu* doğasını dürüstçe tartışır.
@@ -458,9 +479,9 @@ Gerçekçi cascade simi ilk çalıştırmada büyük salınım gösterdi. Kök n
 
 #### Açık konular ve gelecek iyileştirmeler
 
-1. **Cascade'in Simulink blok diyagramı eksik.** Aşama 1 motor (`motor_model_asama1.slx`) ve Aşama 2.1 hız döngüsü (`speed_loop_a2_1.slx`) Simulink'te modellendi; cascade pozisyon döngüsü ise yalnızca analitik (`design_position_p.m`, `tf`/`feedback`) ve ayrık-zaman script (`verify_realistic_cascade.m`) ile çözüldü. Tez tutarlılığı için resmi cascade Simulink modeli (`create_cascade_simulink.m`) önerilir.
+1. ~~**Cascade'in Simulink blok diyagramı eksik.**~~ ✅ **ÇÖZÜLDÜ (2.6.5):** `create_cascade_simulink.m` → `cascade_pos_a2_5.slx` (§11.13.7). Ayrıca firmware-uyumlu modelin, analitik tasarımdaki Vsupply sadeleştirmesini ortaya çıkardığı bulundu (iç döngü gerçekte ω_n~33 rad/s → Kp_pos=2.0 daha da güvenli).
 
-2. **Sürtünme modellemesi — sim-to-real gap'i kapatır.** Gerçekçi sime Coulomb + viskoz sürtünme bloğu eklenirse, limit-cycle'ın gerçekte neden söndüğü *sim'de öngörülebilir* hale gelir — modelin tahmin gücünün kanıtı. Minimal versiyon (parametre Aşama 1 verisinden) düşük maliyetli; tam sürtünme tanımlama (LuGre/Stribeck) ayrı bir alt-aşamadır.
+2. ~~**Sürtünme modellemesi — sim-to-real gap'i kapatır.**~~ ✅ **ÇÖZÜLDÜ (2.6.5):** `verify_realistic_cascade.m` Coulomb/stiction sürtünme eklendi (eşik Aşama 1 `V_dead`'den). Sürtünmeli sim θ_std=0° → gerçek Test 2.5 ile uyumlu, gap kapandı (§11.13.7). **Tam** sürtünme tanımlama (LuGre/Stribeck, ayrı deney) hâlâ gelecek iştir.
 
 3. **İç hız döngüsünün düşük-hız körlüğü.** Cascade'in temel zaafı: hedefe yakın gereken küçük hız (~1 rad/s), encoder kuantizasyonu (18.7 rad/s) altında ölçülemez. Serbest milde sürtünme bunu maskeledi; **yük altında (Aşama 5, kameralı gimbal) tekrar problem olabilir.** Çözüm referansı: T-metodu (event-arası süre) hız ölçümü veya hız penceresi büyütme (`[Franklin2010] §8`).
 
