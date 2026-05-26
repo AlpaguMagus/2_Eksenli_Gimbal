@@ -138,6 +138,17 @@ int main(void)
     const float alpha = 0.98f;
     uint32_t last_cyccnt = DWT->CYCCNT;   /* dt için DWT (µs hassas) */
 
+    /* Aşama 2.7 — IMU mirror durumu (MODE:MIRROR).
+     * θ_ref = clamp(fused_pitch − pitch0, ±60°), slew 90°/s ile yumuşatılır.
+     *   pitch0: MIRROR'a geçiş anındaki pitch (göreli referans, ani sıçrama yok)
+     *   clamp ±60°: ±90° complementary singülaritesinden (atan2) uzak + motor güvenli
+     *   slew: ani breadboard sarsıntısında hedef sıçramasın (cascade ωc 1.9 rad/s) */
+    const float MIRROR_CLAMP_DEG = 60.0f;
+    const float MIRROR_SLEW_DPS  = 90.0f;
+    static float mirror_pitch0   = 0.0f;   /* göreli referans (geçiş anı pitch) */
+    static float mirror_ref      = 0.0f;   /* slew sonrası uygulanan θ_ref (derece) */
+    static bool  mirror_prev     = false;  /* MIRROR'a yeni giriş edge-detect */
+
     uint32_t last_tx          = 0;
     uint32_t last_led         = 0;
     bool     watchdog_tripped = false;   /* edge-detect — WATCHDOG_TIMEOUT mesajı */
@@ -187,21 +198,51 @@ int main(void)
             watchdog_tripped = false;
         }
 
+        /* ── Sensör füzyonu (mod sürüşünden ÖNCE — MIRROR modu fused_pitch kullanır) ── */
+        float fax = (float)ax, fay = (float)ay, faz = (float)az;
+        float pitch = atan2f(fax, sqrtf(fay*fay + faz*faz)) * RAD2DEG;   /* ivmeölçer açısı */
+        float roll  = atan2f(fay, sqrtf(fax*fax + faz*faz)) * RAD2DEG;
+        float gx_dps = (float)gx / 131.0f;   /* gyro ±250°/s → 131 LSB/(°/s) */
+        float gy_dps = (float)gy / 131.0f;
+        /* Complementary filter: pitch→Y ekseni (gy), roll→X ekseni (gx) */
+        fused_pitch = alpha * (fused_pitch - gy_dps * dt) + (1.0f - alpha) * pitch;
+        fused_roll  = alpha * (fused_roll  + gx_dps * dt) + (1.0f - alpha) * roll;
+
+        /* MIRROR'a yeni giriş (edge): göreli referans pitch0 + slew durumu sıfırla */
+        bool is_mirror = (CmdParser_GetMode() == CMD_MODE_MIRROR);
+        if (is_mirror && !mirror_prev) { mirror_pitch0 = fused_pitch; mirror_ref = 0.0f; }
+        mirror_prev = is_mirror;
+        if (wd_active) mirror_ref = 0.0f;   /* watchdog: hedef sıfırla (komut kesilince güvenli) */
+
         /* ── Mod-bağımlı motor sürüş (watchdog aktifken atlanır) ────────
-         * DUTY modu: Motor_Tick rampa (Aşama 0 açık döngü soft-start).
-         * SP_W modu:  hız PI doğrudan PWM yazar (Motor_SetDutySigned, rampasız).
-         * POS modu:   cascade — pozisyon P → ω_ref → hız PI → motor (Aşama 2.5).
-         *   PositionP_Step ω_ref'i SpeedPI setpoint'ine yazar (slew=0, mod
-         *   geçişinde ayarlandı — dış P zaten yumuşak ref üretir). */
+         * DUTY: Motor_Tick rampa. SP_W: hız PI. POS: cascade (poz P → hız PI).
+         * MIRROR (Aşama 2.7): θ_ref = clamp(fused_pitch−pitch0, ±60°), slew 90°/s
+         *   → POS cascade ile motor IMU pitch'ini takip eder (ayna/taklit). */
         if (!wd_active) {
             if (CmdParser_GetMode() == CMD_MODE_SP_W) {
                 /* PI girişi FİLTRELENMİŞ hız (moving average — ham kuantize ölçüm). */
                 float u = SpeedPI_Step(enc_speed_filt);
                 Motor_SetDutySigned(u);   /* doğrudan, rampasız */
             } else if (CmdParser_GetMode() == CMD_MODE_POS) {
-                float theta_out_deg;
-                float omega_ref = PositionP_Step(enc_count, &theta_out_deg);
+                float omega_ref = PositionP_Step(enc_count, NULL);
                 SpeedPI_SetSetpoint(omega_ref);          /* dış döngü → iç döngü setpoint */
+                float u = SpeedPI_Step(enc_speed_filt);
+                Motor_SetDutySigned(u);
+            } else if (is_mirror) {
+                /* Hedef: göreli pitch, ±60° clamp (singülarite + güvenlik) */
+                float target = fused_pitch - mirror_pitch0;
+                if (target >  MIRROR_CLAMP_DEG) target =  MIRROR_CLAMP_DEG;
+                if (target < -MIRROR_CLAMP_DEG) target = -MIRROR_CLAMP_DEG;
+                /* Slew limit (90°/s): ani IMU sıçramasını yumuşat (dt — DWT µs) */
+                float max_step = MIRROR_SLEW_DPS * dt;
+                float d = target - mirror_ref;
+                if      (d >  max_step) mirror_ref += max_step;
+                else if (d < -max_step) mirror_ref -= max_step;
+                else                    mirror_ref  = target;
+                /* Cascade: θ_ref → poz P → ω_ref → hız PI → motor */
+                PositionP_SetSetpoint(mirror_ref);
+                float omega_ref = PositionP_Step(enc_count, NULL);
+                SpeedPI_SetSetpoint(omega_ref);
                 float u = SpeedPI_Step(enc_speed_filt);
                 Motor_SetDutySigned(u);
             } else {
@@ -209,37 +250,24 @@ int main(void)
             }
         }
 
-        float fax = (float)ax, fay = (float)ay, faz = (float)az;
-
-        /* İvmeölçer açısı */
-        float pitch = atan2f(fax, sqrtf(fay*fay + faz*faz)) * RAD2DEG;
-        float roll  = atan2f(fay, sqrtf(fax*fax + faz*faz)) * RAD2DEG;
-
-        /* Gyro hızı — varsayılan ±250°/s → 131 LSB/(°/s) */
-        float gx_dps = (float)gx / 131.0f;
-        float gy_dps = (float)gy / 131.0f;
-
-        /* Complementary filter:
-           pitch → Y ekseni dönüşü → gy_dps    
-           roll  → X ekseni dönüşü → gx_dps   */   
-        fused_pitch = alpha * (fused_pitch - gy_dps * dt) + (1.0f - alpha) * pitch;
-        fused_roll  = alpha * (fused_roll  + gx_dps * dt) + (1.0f - alpha) * roll;
-
         /* USB CDC transmit — 40 Hz throttle (her 25 ms'de bir).
          * T_US: DWT.CYCCNT / 96 → mikrosaniye timestamp ([ARM_DWT]).
          * OMEGA: firmware'in hesapladığı motor şaftı hızı (rad/s, signed).
          * EC: ham encoder count (long, signed).
          * SP: hız PI setpoint (rad/s) — sadece SP_W modda anlamlı, DUTY modda 0.
-         * U:  hız PI kontrol çıkışı (signed duty) — son SpeedPI_Step sonucu. */
+         * U:  hız PI kontrol çıkışı (signed duty) — son SpeedPI_Step sonucu.
+         * TR: pozisyon hedefi (çıkış mili derece) — POS/MIRROR modda anlamlı (takip hatası
+         *     analizi: TR vs EC×360/466). MIRROR'da slew'li göreli pitch hedefi. */
         if (now - last_tx >= 25U) {
             uint32_t t_us = DWT->CYCCNT / 96U;
             float sp = SpeedPI_GetSetpoint();
             float u  = SpeedPI_GetControl();
+            float tr = PositionP_GetSetpoint();   /* θ_ref derece (POS/MIRROR) */
             int len = snprintf(buf, sizeof(buf),
-                "T_US:%lu,P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,OMEGA:%.1f,SP:%.1f,U:%.3f\r\n",
+                "T_US:%lu,P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,OMEGA:%.1f,SP:%.1f,U:%.3f,TR:%.1f\r\n",
                 (unsigned long)t_us,
                 pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll,
-                (long)enc_count, enc_speed, sp, u);
+                (long)enc_count, enc_speed, sp, u, tr);
             CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
             last_tx = now;
         }

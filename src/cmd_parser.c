@@ -55,8 +55,31 @@ static void parse_line(const char *line)
             PositionP_Reset();
             Encoder_Reset();
             SpeedPI_SetSlewRate(0.0f);
+            PositionP_SetGain(2.0f);   /* step: konservatif/overshootsuz (Aşama 2.5) */
         }
         current_mode = CMD_MODE_POS;
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if (strcmp(line, "MODE:MIRROR") == 0) {
+        if (current_mode != CMD_MODE_MIRROR) {
+            /* → MIRROR (Aşama 2.7): POS cascade ile aynı reset; ek olarak main loop
+             * geçiş edge'inde pitch0 (göreli referans) kaydeder. Encoder_Reset →
+             * motor 0° = geçiş anı; θ_ref başlangıçta 0 → ani sıçrama yok.
+             * Dış döngü hedefi (θ_ref) main loop'ta fused_pitch'ten slew'li üretilir. */
+            Motor_Stop();
+            SpeedPI_Reset();
+            Encoder_FilterReset();
+            PositionP_Reset();
+            Encoder_Reset();
+            SpeedPI_SetSlewRate(0.0f);
+            PositionP_SetGain(6.0f);   /* takip kazancı — ANALİTİK ([Franklin2010] §4.2,
+                                        * design_mirror_tracking.m): tip-1 sistem, Kv=Kp_pos.
+                                        * Ramp e_ss=ω_in/Kv; ω_in=30°/s, hedef<5° → Kp_pos≥6.
+                                        * Sinüs (30°,0.2Hz) RMS 4.63°<5° doğrular. Cascade ayrımı
+                                        * 33/6≈5.5×>5× [§6.4]. Test 2.T6 deneysel 4.68° tutarlı. */
+        }
+        current_mode = CMD_MODE_MIRROR;
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }
@@ -131,6 +154,9 @@ static void parse_line(const char *line)
         /* POS modda main loop PositionP'den setpoint alır → hedefi mevcut konuma
          * çek (e=0 → ω_ref=0) ki STOP sonrası motor eski hedefe gitmesin (pozisyon tut). */
         if (current_mode == CMD_MODE_POS) PositionP_SetSetpoint(PositionP_GetThetaOut());
+        /* MIRROR sürekli takip modu: STOP = takipten çık (yoksa main loop fused_pitch'ten
+         * setpoint üretip Motor_Stop'u ezer). DUTY'ye dön → motor güvenli durur. */
+        if (current_mode == CMD_MODE_MIRROR) current_mode = CMD_MODE_DUTY;
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }
@@ -139,6 +165,7 @@ static void parse_line(const char *line)
         SpeedPI_Reset();
         Encoder_FilterReset();
         if (current_mode == CMD_MODE_POS) PositionP_SetSetpoint(PositionP_GetThetaOut());
+        if (current_mode == CMD_MODE_MIRROR) current_mode = CMD_MODE_DUTY;
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }

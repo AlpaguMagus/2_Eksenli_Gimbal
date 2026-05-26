@@ -3,7 +3,7 @@
 > **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
 > - **Son güncelleme:** 2026-05-24 (Aşama 2.5+2.6 — pozisyon cascade gerçek motorda PASS, ss<0.8°, limit-cycle yok)
-> - **Aktif aşama:** Aşama 2 🟡 DEVAM (2.1→2.6 tamam: hız PI + sim-to-real + disturbance + cascade) → sırada 2.7 IMU mirror
+> - **Aktif aşama:** Aşama 2 🟡 DEVAM (2.1→2.8 tamam: hız PI + sim-to-real + disturbance + cascade + IMU mirror Test 2.T6 PASS) → sırada 2.9 akademik rapor + main'e merge (asama-2-kapali)
 > - **Dokümantasyon:** Aşama-bazlı `docs/` ekosistemi (README vitrin + `docs/asama_<N>_*.md` derin içerik)
 > - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
 
@@ -284,13 +284,15 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
   - `verify_realistic_cascade.m` Coulomb/stiction sürtünme (eşik Aşama 1 V_dead'den) → sürtünmeli sim θ_std=0° = gerçek Test 2.5 ile uyumlu → **sim-to-real gap kapandı**
   - Detay: docs/asama_2_kontrol.md §11.13.7
 
-- **2.7 — IMU mirror bağlantısı**
-  - Setpoint = +fused_pitch (taklit, ters değil)
-  - Aşama 0 IMU pipeline zaten çalışıyor
+- **2.7 — IMU mirror bağlantısı** ✅ (2026-05-26)
+  - `MODE:MIRROR`: θ_ref = clamp(fused_pitch−pitch₀, ±60°), slew 90°/s → cascade
+  - Kp_pos=6 **ANALİTİK** (deneme-yanılma değil): tip-1 Kv=Kp_pos, e_ss=ω_in/Kv, ω_in=30°/s, <5° → Kp_pos≥6 (`[Franklin2010] §4.2`, `design_mirror_tracking.m`)
+  - Güvenlik: STOP/RESET→DUTY, watchdog hedef sıfırla; complementary filter mod sürüşü öncesine taşındı
 
-- **2.8 — Mirror takip testi**
-  - Breadboard ±30° eğme → motor şaftı takip
-  - Takip hatası RMS < 5° hedef
+- **2.8 — Mirror takip testi** ✅ (Test 2.T6, 2026-05-26)
+  - Gimbal-hızı (~25-30°/s): RMS 4.68° (Kp=5) PASS; Kp_pos=6 analitik 4.63°
+  - Hızlı el (~80°/s): bant genişliği limiti (~10° RMS, beklenen — cascade ~0.3 Hz)
+  - Detay: docs/asama_2_kontrol.md §11.13.8
 
 - **2.9 — Akademik rapor + Simulink karşılaştırma**
   - docs/asama_2_kontrol.md — el kitapçığı disipliniyle Aşama 2 sonuç bölümü
@@ -305,7 +307,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 | 2.T3 | Anti-windup recovery | Saturation sonrası recovery < 100 ms | ☐ |
 | 2.T4 | Disturbance rejection | Yük sonrası setpoint'e dönüş | ✅ PASS — elle yük (7 müdahale), ω %82 düştü, PI duty 0.18→0.5 telafi, setpoint'e döndü. `artifacts/2/disturbance/20260524_192851/` (7 u piki grafiği). Recovery süresi metriği encoder kuantizasyonu ile sınırlı. |
 | 2.T5 | Cascade pozisyon step | Overshoot < %10, ss_error < 1° | ✅ PASS — 6/6 segment (30/90/45/0/-45/0°), ss_err <0.8°, OS <1°, **limit-cycle yok** (θ_std <0.7°). Gerçekçi sim limit-cycle öngördü ama gerçek motor sürtünmesi söndürdü (sim kötümserdi). `artifacts/2/position_step/20260524_212456/` |
-| 2.T6 | Mirror takip (KRİTİK) | RMS < 5° (yavaş eğme ~10°/s) | ☐ |
+| 2.T6 | Mirror takip (KRİTİK) | RMS < 5° | ✅ PASS — gimbal-hızı (~25-30°/s) RMS **4.68°** (Kp_pos=5), analitik Kv tasarımı Kp_pos=6→4.63° doğruladı. Hızlı el (~80°/s) bant-genişliği limiti (~10°, beklenen). `artifacts/2/mirror/20260526_204240/` |
 
 ### Açık Sorular (alt-aşama açılışlarında)
 

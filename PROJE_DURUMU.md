@@ -4,7 +4,7 @@
 
 **Vizyon:** Tek motor model ✅ → tek motor kontrol 🟡 → iki motor MIMO → iki motor LQG/Kalman → gerçek 3D-print gimbal. MATLAB paralel araç, firmware C/STM32Cube HAL bare-metal. Her teknik karar **kaynaklı** (`KAYNAKCA.md` etiketli).
 
-**Şu an:** ✅ **Aşama 1 KAPALI**, 🟡 **Aşama 2 DEVAM** (2.1→2.6 tamam, kalan 2.7 IMU mirror). Aşama 1: `K=53.89 rad/s/V, τ_median=60.5 ms, V_dead≈0, V_supply=12.15V`. Aşama 2.1: 5 kontrolcü tasarım. Aşama 2.2: firmware Tustin PI + anti-windup + MODE/SP_W komutları.
+**Şu an:** ✅ **Aşama 1 KAPALI**, 🟡 **Aşama 2 DEVAM** (2.1→2.8 tamam: hız PI + cascade + IMU mirror; kalan 2.9 rapor + main merge). Aşama 1: `K=53.89 rad/s/V, τ_median=60.5 ms, V_dead≈0, V_supply=12.15V`. Aşama 2.1: 5 kontrolcü tasarım. Aşama 2.2: firmware Tustin PI + anti-windup + MODE/SP_W komutları.
 
 **Aşama 2.3 BÜYÜK BULGU (sim-to-real gap):** Conservative kazanç (Kp=0.1163) gerçek motorda **bang-bang limit cycle** verdi. Sistematik tanı → kök neden: ideal ölçüm varsayımı + serbest mil hızlı + encoder kuantize. **Ampirik çözüm: Kp=0.002, Ki=0.1.** 2b: gerçekçi Simulink teorik doğruladı. Test 2.T2 PASS (8/8 step).
 
@@ -23,7 +23,9 @@
 - Encoder hız ölçümü kuantizasyon (18.7 rad/s) — cascade'de sürtünme söndürdüğü için sorun olmadı; gerekirse T-metodu/pencere büyütme kenarda referans.
 - İzleme: 2.4'te motor tam durunca u=0.026 anomalisi (edge-case).
 
-**Sıradaki:** Aşama 2.7 — IMU mirror (setpoint = +fused_pitch, motor IMU pitch'ini takip eder) → 2.8 mirror tracking testi → 2.9 akademik rapor.
+**Aşama 2.7/2.8 (IMU mirror) ✅ 2026-05-26:** MODE:MIRROR — motor fused_pitch'i takip eder (cascade). Kp_pos=6 **ANALİTİK** (deneme-yanılma değil): tip-1 hız hata sabiti Kv=Kp_pos, e_ss=ω_in/Kv, ω_in=30°/s, <5° → Kp_pos≥6 ([Franklin2010] §4.2). **Test 2.T6 PASS** — gimbal-hızı RMS 4.68° (Kp=5, analitik doğruladı); hızlı el (~80°/s) bant-genişliği limiti (~10°, beklenen). Detay: docs §11.13.8.
+
+**Sıradaki:** Aşama 2.9 — akademik rapor (Aşama 2 toplu sonuç) → `feature/asama-2-tek-motor-kontrol` main'e `--no-ff` merge + `asama-2-kapali` tag → Aşama 3 (MIMO) yeni branch.
 
 **Açık emniyet uyarısı:** 12V hattında donanım sigortası yok. Yazılım koruma katmanları (stall + lockout + duty cap %50 + soft-start + watchdog + LED + SpeedPI_Reset stall'da) aktif. Sigorta temin edilince duty cap gevşetilir.
 

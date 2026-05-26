@@ -451,6 +451,47 @@ Test 2.5 sonrası iki eksik kapatıldı: (a) cascade'in resmi Simulink blok diya
 
 Sürtünmeli sim θ_std=0° (gerçek Test 2.5: <0.7°) — **sim artık gerçeği öngörüyor.** Bu, `[Ljung1999] §16` model-iyileştirme döngüsünün kapanışı: modele eksik fizik (sürtünme) eklenince tahmin gücü kanıtlandı. Önemli içgörü: Aşama 1'de "ihmal edilebilir" denen `V_dead≈0.24V`, sürekli dönüşte ihmal edilebilir **ama mikro-düzeltme rejiminde (pozisyon tutma) belirleyici** — aynı parametre rejime göre kritiklik değiştirdi.
 
+#### 11.13.8. IMU Mirror Takip — Analitik Kazanç Tasarımı (Aşama 2.7)
+
+**Ne:** `MODE:MIRROR` — motor, IMU pitch açısını **canlı takip eder** (breadboard'u eğince motor şaftı aynı açıya gider). Cascade altyapısı (§11.13) değişmez; setpoint `POS_DEG` komutu yerine **canlı fused_pitch**'ten beslenir: `θ_ref = clamp(fused_pitch − pitch₀, ±60°)`, 90°/s slew. Mirror = **takip/taklit** (`+pitch`, aynı yön); gerçek gimbal stabilizasyonu (`−pitch`, kamerayı sabit tutma) Aşama 5'e aittir.
+
+**Firmware:** `src/cmd_parser.c` (`MODE:MIRROR`), `src/main.c` (göreli pitch₀ referansı + ±60° clamp + slew + cascade). Güvenlik: STOP/RESET takipten çıkıp DUTY'ye döner; watchdog hedefi sıfırlar.
+
+**Neden Kp_pos farklı — ANALİTİK tasarım (deneme-yanılma değil):** Pozisyon **step** (§11.13, Kp_pos=2) ile canlı **takip** farklı görevlerdir. Takip görevinde kazanç, **hız hata sabiti** ile hesaplanır (`[Franklin2010] §4.2`):
+
+```
+Cascade açık döngü:  L(s) = Kp_pos · T_inner(s) · (1/s)   → TİP-1 sistem
+Hız hata sabiti:     Kv = lim_{s→0} s·L(s) = Kp_pos·T_inner(0) = Kp_pos   (T_inner DC=1)
+Ramp takip hatası:   e_ss = ω_in / Kv = ω_in / Kp_pos
+⇒ Tasarım:           Kp_pos ≥ ω_in / e_ss_hedef
+```
+
+Gimbal-hızı hareket ω_in≈30°/s, hedef e_ss<5° → **Kp_pos ≥ 6**. Sinüs analizi (`design_mirror_tracking.m`, sensitivite `S=1/(1+L)`) doğruluyor:
+
+| Kp_pos | Sinüs takip RMS (analitik, 30°/0.2Hz) |
+|---|---|
+| 2 | 12.8° |
+| 5 | 5.56° (sınırda) |
+| **6** | **4.63° ✓** |
+
+![Mirror takip Kp_pos analitik tasarım](../matlab/asama_2_kontrol/results/2_7_mirror/mirror_tracking_design.png)
+
+*Şekil 11.x — Sol: takip hatası sensitivitesi |S(jω)|, Kp arttıkça düşük-frekans takip iyileşir. Sağ: sinüs takip RMS vs Kp_pos; deney noktası (4.68°@Kp=5) analitik eğriyle tutarlı. Kp_pos=6 → 4.63° < 5° garantili. Cascade ayrımı 33/6≈5.5× > 5× kuralı korunur (`[Franklin2010] §6.4`, 2.6.5 iç ω_n~33 bulgusu).*
+
+**Ne sonuç çıktı — Test 2.T6:** Gerçek motorda mirror takip ölçüldü:
+
+| Hareket | Kp_pos | Takip RMS | Durum |
+|---|---|---|---|
+| Hızlı el (~80-100°/s) | 2 / 4 | ~10.6° | bant genişliği limiti |
+| Gimbal-hızı (~25-30°/s) | 5 | 4.68° | 🟢 PASS (analitik 5.56° ile tutarlı) |
+| Gimbal-hızı | **6 (analitik)** | 4.63° (analitik) | firmware default |
+
+![Mirror takip — gerçek motor (Kp_pos=5)](../artifacts/2/mirror/20260526_204240/mirror_plot.png)
+
+*Şekil 11.y — θ_out (mavi) θ_ref'i (kırmızı) faz gecikmesiyle izliyor. Hata düz bölümlerde küçük, dönüş noktalarında büyür (lag ≈ ω_in × cascade_zaman_sabiti). RMS 4.68° < 5° PASS.*
+
+**Öğrenilen ders (kullanıcı eleştirisiyle düzeltildi):** Kp_pos önce deneme-yanılma ile (2→4→5) arandı — bu bir kontrol mühendisinin yöntemi **değil** ve projenin "kaynaklı ilerleme" disiplinine aykırı. Doğrusu: **takip görevi → tip-1 hız hata sabiti Kv → Kp_pos = ω_in/e_ss = 6** (`[Franklin2010] §4.2`). Deney (4.68°) analizi **doğrular, üretmez**. İki ders: (1) step (Kp_pos=2, overshootsuz) ve takip (Kp_pos=6, düşük-lag) farklı görevlerdir, farklı kazanç gerektirir; (2) **bant genişliği limiti** — hızlı el (~80°/s, ~0.5 Hz) cascade'in ~0.3 Hz bandını aşar, bu beklenen (gimbal yavaş-orta hareket için).
+
 ### 11.14. Tartışma / Öğrenilen Dersler
 
 Aşama 2 boyunca iki kez **simülasyon ile gerçek sistem ayrıştı** — ve bu ayrışma projenin en öğretici mühendislik dersini verdi. Bu bölüm, başarıyı ve onun *koşullu* doğasını dürüstçe tartışır.
