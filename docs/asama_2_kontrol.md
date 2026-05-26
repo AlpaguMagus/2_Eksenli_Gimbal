@@ -430,9 +430,45 @@ Hedefler: 30°→90°→45°→0°→-45°→0° (mutlak çıkış mili açısı
 
 > **Not (ROADMAP §5 kritik):** Kazançlar **serbest mil** (yüksüz) içindir. Gerçek gimbalda kamera yükü + statik denge ile iç ve dış döngü kazançları yeniden ayarlanacak.
 
-### 11.14. Bir Sonraki Aşama
+### 11.14. Tartışma / Öğrenilen Dersler
 
-**Aşama 2.1→2.5 ✅ tamamlandı** (hız PI tasarım + ampirik tuning + teorik doğrulama + disturbance rejection + pozisyon cascade).
+Aşama 2 boyunca iki kez **simülasyon ile gerçek sistem ayrıştı** — ve bu ayrışma projenin en öğretici mühendislik dersini verdi. Bu bölüm, başarıyı ve onun *koşullu* doğasını dürüstçe tartışır.
+
+#### Cascade'i başardık mı? — Evet, ama *sürtünmeye bağımlı* bir başarı
+
+Pozisyon cascade (Test 2.5) tüm hedeflerde ss_error <0.8°, overshoot <1°, limit-cycle yok ile **PASS**. Tip-1 plant sayesinde P kontrolcü sıfır kalıcı-hal hatası verdi (`[Franklin2010] §4.3`). Ancak bu başarı, gerçekçi simde öngörülen limit-cycle'ın **gerçek motorun statik sürtünmesi tarafından söndürülmesine** dayanıyor. Yani başarı, modellenmemiş bir fiziğin (sürtünme) lehimize çalışmasından geliyor — bu, mühendislik olarak fark edilmesi ve not edilmesi gereken bir bağımlılıktır.
+
+#### Sim-to-real gap'in iki yönlü simetrisi
+
+Aşama 2'nin merkezi bulgusu: **model, dahil etmediği fiziğe göre her iki yönde de yanılabilir.**
+
+| | Aşama 2.3 (hız PI) | Aşama 2.5 (cascade) |
+|---|---|---|
+| Hatalı sim türü | İdeal sim — **iyimser** | Gerçekçi sim — **kötümser** |
+| Modelde eksik fizik | Encoder kuantizasyonu | Statik sürtünme |
+| Sim ne dedi? | "Conservative kazanç mükemmel" | "Cascade limit-cycle yapar" |
+| Gerçek ne çıktı? | Bang-bang (kötü) | Temiz oturma (iyi) |
+| Çözüm | Sim'e kuantizasyon eklendi → gerçeği yakaladı | Gerçek test gap'i ortaya koydu (sürtünme henüz simde yok) |
+
+İki durumda da eksik olan, **ölçüm/aktüasyon tarafındaki nonlinearite**ydi (kuantizasyon → ölçüm; sürtünme → aktüasyon). Bu, `[Ljung1999] §16`'daki iteratif model-doğrulama döngüsünün — *modelle → test et → ayrışmayı anla → modeli iyileştir* — somut iki örneğidir. Pratik sonuç: simülasyona ne körü körüne güvenilir, ne de güvensizlik duyulur; **gerçek test vazgeçilmezdir.**
+
+#### Metodolojik dürüstlük — 5V parametre hatası
+
+Gerçekçi cascade simi ilk çalıştırmada büyük salınım gösterdi. Kök neden araştırılırken, sim besleme geriliminin yanlışlıkla `5.0V` (Aşama 1 modeli `12.15V`) alındığı **fark edildi ve düzeltildi**. Bu hata yalnızca o oturumun simülasyon scriptlerindeydi; firmware, dokümanlar ve geçmiş gerçek-donanım testleri (hep 12V hattı) etkilenmemişti. Hata gizlenmedi — sürecin parçası olarak belgelendi (`[Ljung1999] §16` model doğrulamada parametre tutarlılığının önemi).
+
+#### Açık konular ve gelecek iyileştirmeler
+
+1. **Cascade'in Simulink blok diyagramı eksik.** Aşama 1 motor (`motor_model_asama1.slx`) ve Aşama 2.1 hız döngüsü (`speed_loop_a2_1.slx`) Simulink'te modellendi; cascade pozisyon döngüsü ise yalnızca analitik (`design_position_p.m`, `tf`/`feedback`) ve ayrık-zaman script (`verify_realistic_cascade.m`) ile çözüldü. Tez tutarlılığı için resmi cascade Simulink modeli (`create_cascade_simulink.m`) önerilir.
+
+2. **Sürtünme modellemesi — sim-to-real gap'i kapatır.** Gerçekçi sime Coulomb + viskoz sürtünme bloğu eklenirse, limit-cycle'ın gerçekte neden söndüğü *sim'de öngörülebilir* hale gelir — modelin tahmin gücünün kanıtı. Minimal versiyon (parametre Aşama 1 verisinden) düşük maliyetli; tam sürtünme tanımlama (LuGre/Stribeck) ayrı bir alt-aşamadır.
+
+3. **İç hız döngüsünün düşük-hız körlüğü.** Cascade'in temel zaafı: hedefe yakın gereken küçük hız (~1 rad/s), encoder kuantizasyonu (18.7 rad/s) altında ölçülemez. Serbest milde sürtünme bunu maskeledi; **yük altında (Aşama 5, kameralı gimbal) tekrar problem olabilir.** Çözüm referansı: T-metodu (event-arası süre) hız ölçümü veya hız penceresi büyütme (`[Franklin2010] §8`).
+
+4. **Kazançlar serbest mil içindir** (ROADMAP §5 kritik notu). Gerçek gimbalda yük + denge ile iç ve dış döngü kazançları yeniden ayarlanacak; bu, sürtünme/atalet dengesini değiştireceğinden yukarıdaki (3) maddesi yeniden değerlendirilmeli.
+
+### 11.15. Bir Sonraki Aşama
+
+**Aşama 2.1→2.6 ✅ tamamlandı** (hız PI tasarım + ampirik tuning + teorik doğrulama + disturbance rejection + pozisyon cascade firmware + gerçek motor doğrulama).
 
 **Sıradaki:**
 - **Aşama 2.7:** IMU mirror — setpoint = +fused_pitch (motor IMU pitch'ini takip eder)
