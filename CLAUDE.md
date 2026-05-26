@@ -1,39 +1,56 @@
 Buddy ile tüm etkileşimler Türkçe olsun.
 
-## README.md — jüri/hoca el kitapçığı disiplini
+## Dokümantasyon Ekosistemi Disiplini
 
-`README.md` projenin **el kitapçığıdır**. Hoca veya jüri açtığında *"ne, neden, nasıl, nerede, ne sonuç çıktı"* sorularına eksiksiz cevap veren tek dokümandır. Aklında soru kalmamalı.
+Proje çok-belgeli bir ekosistemle ilerler. **Her belge tek bir soruyu, tek bir okuyucu kitlesine cevaplar.** Aşağıdaki belgeler **her zaman güncel tutulur** — güncelleme commit ile birlikte yapılır, kullanıcı söylemeden de.
 
-### Her bileşen için (donanım, algoritma, peripheral, kontrolcü, filter):
+### Güncel tutulacak belgeler (liste + rol + güncelleme tetiği)
+
+| Belge | Rol / cevapladığı soru | Güncelleme tetiği |
+|---|---|---|
+| `README.md` | **Vitrin** — proje tanıtımı, mimari şema, hızlı başlangıç, repo + doküman haritası, "şu an neredeyiz" | Davranış/yapı/aşama-durum değişikliği |
+| `docs/00_genel_bakis.md` | Vizyon, sistem mimarisi, aşamalar-arası ortak teori | Mimari/vizyon değişikliği |
+| `docs/asama_<N>_*.md` | **Derin akademik içerik** (ders-kitabı): kavram + neden + nasıl + nerede + sonuç | İlgili aşama ilerleyince |
+| `ROADMAP.md` | Plan, aşamalar, test iskeleti, açık sorular, tamamlanma kanıtı | Her adım/aşama bitiminde |
+| `PROJE_DURUMU.md` | "Şu an neredeyiz" 5-10 satır özet | Aşama/alt-aşama geçişinde |
+| `KAYNAKCA.md` | Etiketli akademik referanslar + datasheet'ler | Her yeni teknik karar/kaynak |
+| `matlab/<asama>/README.md` | Aşama MATLAB workflow + klasör yapısı | Aşama MATLAB işi değişince |
+| `CLAUDE.md` (bu dosya) | Etkileşim kuralları + proje standartları | Yeni kural/disiplin değişikliği |
+
+> Bu tablo `ROADMAP.md` "Doküman Sözleşmesi" tablosuyla tutarlı tutulur — biri değişirse diğeri de güncellenir.
+
+### README = vitrin (derin içerik DEĞİL)
+
+README artık projenin "el kitapçığı / tez gövdesi" **değil** — **vitrindir.** İlk gelen (jüri/geliştirici/GitHub) için: ne, nasıl çalıştırılır, nereye bakılır. Derin teknik/akademik içerik (türetme, tasarım gerekçesi, deney sonucu) `docs/asama_<N>_*.md`'dedir. **README'ye yol haritası/TODO veya derin türetme girmez.**
+
+### docs/asama_<N>_*.md — ders-kitabı disiplini
+
+Her aşama belgesi, her bileşen (donanım, algoritma, kontrolcü, filter) için:
 
 1. **Ne:** Kavram/bileşen tanımı — *"Complementary filter, iki sensörün tamamlayıcı frekans karakteristiğini birleştiren …"*
 2. **Neden:** Tasarım gerekçesi + kaynak — *"`[Franklin2010] §6.4` cascade'de iç döngü 5× daha hızlı olmalı"*
 3. **Nasıl:** İmplementasyon detayı — formül, register değeri, kod parçası, pin atama
 4. **Nerede:** Dosya/satır referansı veya datasheet sayfa — *"`src/motor.c:42`, `[TB6612_DS] sf 4 Tablo 1`"*
-5. **Ne sonuç çıktı:** Test sonucu, sayısal kanıt, görsel — *"Test 1.T2 NRMSE %3.2, fit grafiği: `matlab/asama_1_model/results/<id>/step_fit_cw.png`"*
+5. **Ne sonuç çıktı:** Test sonucu, sayısal kanıt, **görsel embed** — *"Test 1.T5 NRMSE %11, `![...](../matlab/asama_1_model/results/<id>/10_validation_summary.png)`"*
 
-### Aşama kapanışlarında
+Ek olarak: kaynaklı **tartışma / öğrenilen dersler** bölümü ve **açık konular**. Her teknik karar `KAYNAKCA.md` etiketli.
 
-Her aşama (1, 2, 3, …) tamamlandığında `README.md`'ye **kalıcı sonuç bölümü** eklenir:
-- Aşama özeti (2-3 paragraf, ne yapıldı + neden)
-- Sayısal sonuçlar (tablo): K, τ, V_dead, NRMSE, settling time vb.
-- Görsel kanıt (PNG embed): `![Step fit CW](matlab/asama_1_model/results/<id>/step_fit_cw.png)`
-- Kaynaklı tartışma (`KAYNAKCA.md` etiketleri ile)
-- Sonraki aşamaya kalan açık konular
+### Aşama kapanışında (her aşama: 1, 2, 3, …)
 
-### README'ye girmeyen şeyler
+İlgili `docs/asama_<N>_*.md` **kalıcı sonuç bölümüyle** güncellenir (özet + sayısal tablo + görsel embed + kaynaklı tartışma + açık konular). Ayrıca senkronize edilir:
+- `README.md` — "şu an neredeyiz" durumu
+- `ROADMAP.md` — test tablosu (PASS/FAIL kanıtı) + aşama durumu
+- `PROJE_DURUMU.md` — anlık özet
+- `KAYNAKCA.md` — yeni kaynak varsa
 
-- Yol haritası, TODO, planlanan işler → `ROADMAP.md`
-- Anlık durum özeti (5-10 satır) → `PROJE_DURUMU.md`
-- Etkileşim kuralları, AI standartları → `CLAUDE.md`
-- Akademik referans listesi → `KAYNAKCA.md` (README sadece etiketle referans verir)
+> Aşama kapanış kontrol listesi `/asama-kapat` skill'i ile yürütülür — tüm belgelerin senkron + link/path tutarlı olduğunu garanti eder. (Skill: `~/.claude/skills/asama-kapat/`, global.)
 
-### Güncelleme tetikleri
+### Güncelleme tetikleri (genel)
 
-- Yeni davranış, yeni özellik, donanım/pin değişikliği, kütüphane eklemesi, build adımı değişimi, dosya yapısı güncellemesi → README güncellenir
-- Yalnızca kod düzeltmesi / küçük refactor / yorum değişikliği gibi davranışı etkilemeyen değişiklikler için README'ye dokunulmaz
-- Kullanıcı söylemeden de yap; commit'le birlikte güncellensin
-- README dışında `PROJE_DURUMU.md` durumu yansıtmıyorsa onu da güncelle
+- Yeni davranış/özellik, donanım/pin değişikliği, kütüphane, build adımı, dosya yapısı → ilgili belge(ler) güncellenir
+- Yalnızca kod düzeltmesi / refactor / yorum değişikliği → belge dokunulmaz
+- Görsel/dosya **taşınırsa** belgelerdeki linkler de güncellenir (path tutarlılığı — kırık link bırakma)
+- Kullanıcı söylemeden de yap; **commit ile birlikte** güncellensin
 
 ## Donanım çalışmalarında datasheet'i incele
 
