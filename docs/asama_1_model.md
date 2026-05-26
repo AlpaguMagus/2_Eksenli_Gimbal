@@ -112,6 +112,10 @@ G(s) = K / (τs + 1)    (birinci derece TF, dead-band çıkarılmış)
 
 Pololu 25D motor %12 duty (V_eff=0.96 V) iken zaten 57 rad/s dönüyor. Aşama 1.3 lineer regresyon V_dead = **−0.24 V (negatif)** verdi — dönen motorda dead-band yok demektir.
 
+![Dead-band tespiti — ω_ss vs V_eff, x-intercept ≈ ±0.24 V](../matlab/asama_1_model/results/20260518_011926/04_omega_vs_Veff.png)
+
+*Şekil 10.1 — ω_ss vs V_eff lineer regresyonu (`compute_dead_band.m`). x-eksenini kestiği nokta (V_dead) ≈ ±0.24 V, neredeyse orijinde → dinamik dead-band ihmal edilebilir.*
+
 ##### İlk hipotezimiz (Aşama 1.3 yorumu)
 
 Önceki Test 2A.T2'de motor %20 duty'de döndü (+107 rad/s), Test 2A.T7'de aynı duty'de motor "+0.00 rad/s" gösterdi (R6 anomalisi). Bunu **statik sürtünme (stiction)** ile açıkladık (`[Franklin2010] §3.2 Coulomb + viscous friction`): T2'de motor önceden sürülmüş sıcak, T7'de coast'tan başladı soğuk, stiction eşiği aşılamadı.
@@ -157,6 +161,10 @@ Stiction reddedildikten sonra T7 ham CSV log'u (`artifacts/2A/T7_integration/raw
 
 K_apparent (= ω_ss / V_eff) profili **60 → 50 rad/s/V kademeli düşüş** (Grafik 05). Eğer V_sat sabit olsaydı (0.5 V varsayımımız gibi), K_apparent her duty'de aynı olurdu.
 
+![K_apparent vs duty — V_sat'ın akım bağımlılığının görsel kanıtı](../matlab/asama_1_model/results/20260518_011926/05_K_apparent_vs_duty.png)
+
+*Şekil 10.2 — K_apparent = ω_ss/V_eff profili. Sabit V_sat varsayımı altında düz olması beklenirdi; kademeli düşüş, V_sat'ın akıma bağlı (MOSFET R_DS_on×I) olduğunu görsel olarak doğrular (`[TB6612_DS]`).*
+
 **Niçin düşüyor?** V_sat aslında **akıma bağlı** (MOSFET R_DS_on × akım):
 - **Düşük duty** → düşük akım → gerçek V_sat ~0.3 V → modelimiz V_eff'i altta tahmin → K_apparent şişer
 - **Yüksek duty** → yüksek akım → gerçek V_sat ~0.7 V → modelimiz V_eff'i üstte tahmin → K_apparent düşer
@@ -171,6 +179,10 @@ Bu, datasheet V_sat=0.5V varsayımımızın **görsel olarak doğrulanmasıdır*
 #### Bulgu 3 — τ Duty Bağımlılığı: 1. Derece Varsayımının Sınırı
 
 τ değerleri 43 ms (düşük duty) ile 134 ms (yüksek duty) arasında değişiyor (Grafik 07). Bu **1. derece varsayımının sınırını** gösterir.
+
+![τ özeti — histogram + duty bağımlılığı](../matlab/asama_1_model/results/20260518_011926/07_tau_summary.png)
+
+*Şekil 10.3 — τ dağılımı (median 60.5 ms) ve duty bağımlılığı. Saçılım, tek-τ 1. derece modelin ortalama bir yaklaşım olduğunu gösterir (`[Franklin2010] §3.5`).*
 
 **Gerçek DC motor 2. derece:**
 ```
@@ -202,7 +214,19 @@ Tek (K, τ) ile validation NRMSE |duty|≈0.18'de minimum (%5.7), uçlarda yüks
 
 ### 10.8. Görsel Kanıtlar
 
-`matlab/asama_1_model/results/20260518_011926/` altında:
+**Step fit kalitesi** (Test 1.T2) — ölçüm vs model (lsqcurve + tfest), 9 duty:
+
+![CW step fitleri](../matlab/asama_1_model/results/20260518_011926/01_step_fits_cw.png)
+
+*Şekil 10.4 — CW yönü step fitleri (`fit_first_order.m`). Yüksek duty'de NRMSE %3-5 (mükemmel), düşük duty'de %9-12 (transient hızlı, 40 Hz örnekleme sınırı).*
+
+**Model doğrulama** (Test 1.T5) — tek (K_avg, τ_median) ile tüm step'lerin yeniden simülasyonu:
+
+![Validation NRMSE özeti — U-eğrisi](../matlab/asama_1_model/results/20260518_011926/10_validation_summary.png)
+
+*Şekil 10.5 — Validation NRMSE U-eğrisi (`validate_model.m`). |duty|≈0.18'de minimum (%5.7), uçlarda %12-14. Ortalama %11.11, max %14.77 → Test 1.T5 PASS. U şekli, K(duty)/τ(duty) varyasyonunun (Bulgu 2-3) doğal sonucu — gain scheduling adayı (Bulgu 4).*
+
+**Tüm grafikler** — `matlab/asama_1_model/results/20260518_011926/` altında:
 
 | # | Dosya | Açıklama |
 |---|---|---|
