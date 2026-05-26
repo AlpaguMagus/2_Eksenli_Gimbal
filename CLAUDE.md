@@ -266,3 +266,34 @@ Proje **aşama-bazlı branch** modeliyle ilerler — her ana aşamanın izole, i
 - `asama-0-kapali`, `asama-1-kapali` tag'leri = kilometre taşları
 - `feature/asama-2-tek-motor-kontrol` = aktif (Aşama 2; bitince main'e merge → `asama-2-kapali`)
 - Eski/unrelated geçmiş (`0eddd5f`) `archive-eski-main` local yedeğinde
+
+## Otomasyon & Süreç İyileştirme (proaktif öneri)
+
+Tekrar eden iş, örüntü veya sürtünme fark ettiğinde — kullanıcı istemese de — uygun otomasyonu **öner** (uygulamadan önce onay al). Amaç: manuel/hataya-açık/sıkıcı tekrarları kalıcı araçlara çevirmek. **Ama spam yapma** — Sokratik denge: gerçek örüntüde öner, trivial tek-seferlik işte değil. İlk tekrarda acele etme; örüntü netleşince öner.
+
+### Ne zaman öner (tetikleyiciler)
+
+- Aynı çok-adımlı manuel iş **2-3 kez** tekrarlandı (ör. her test sonrası aynı artifact adımları)
+- Kullanıcı tekrar eden bir **tercih/düzeltme** ifade etti (ör. "her commit'i push et", "şunu hep şöyle yap")
+- Bir **unutma/hata örüntüsü** görüldü (ör. doküman güncelliği sürekli atlanıyor → bu yüzden `/asama-kapat` doğdu)
+- Manuel, deterministik, hataya açık bir adım var
+
+### Ne öner (araç seçimi)
+
+| Örüntü | Araç | Neden |
+|---|---|---|
+| Çok-adımlı manuel **prosedür** (kapanış checklist, datasheet okuma) | **Skill** (`~/.claude/skills/`, global veya proje) | Manuel tetik, gürültüsüz, çok-adım kapsar |
+| **Deterministik olay** otomasyonu (commit öncesi format/lint, test sonrası rapor) | **Hook** (`settings.json`; `update-config` skill ile kurulur) | Olay-tetiklemeli, otomatik |
+| Tekrar eden **tercih/standart/kural** | **CLAUDE.md revizyonu** | Her oturum okunur, davranışı kalıcı şekillendirir |
+| Tekrar eden **hesaplama/analiz** | Script/araç (repo `scripts/` veya skill) | Yeniden kullanılabilir |
+
+### Araç seçim kuralı (bu projede öğrenilen ders)
+
+- **Semantik / yargı** gerektiren iş (içerik güncel mi, karar doğru mu) → **hook DEĞİL** (mekanik hook yanlış-pozitif/gürültü üretir) → skill veya CLAUDE.md kuralı
+- **Deterministik / mekanik** iş (format, dosya varlığı, sabit komut) → hook uygun
+- Tekrar eden **tercih/standart** → CLAUDE.md (en hafif, her zaman etkili)
+- Kapsamlı tarama gerekiyorsa `claude-automation-recommender` skill'i kullanılabilir
+
+### Nasıl öner (Sokratik)
+
+Trade-off sun (skill mi / hook mu / CLAUDE.md mi + neden), uygulamadan **önce onay** al — özellikle hook/`settings.json` (harness davranışını değiştirir). Bu kural mevcut **Sokratik** + **Dokümantasyon Ekosistemi** ilkeleriyle uyumlu: öneri sun, dayatma; dengeyi gözet.
