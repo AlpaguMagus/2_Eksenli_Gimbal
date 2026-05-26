@@ -80,7 +80,7 @@ I2C open-drain topolojisi, hat üzerinde birden fazla slave cihazın bulunmasın
 
 ---
 
-## 3. MPU6050 Sensör Arayüzü
+## 3. MPU6050 Sensör Arayüzü ([MPU6050_DS], [MPU6050_RM])
 
 ### 3.1. Sensör Özellikleri
 
@@ -360,7 +360,7 @@ float pitch = atan2f(fax, faz) * RAD2DEG;   // Aralık: [-180°, +180°]
 - ❌ Pitch ±90° civarında roll hesabı bozulur (problemin yerini değiştirir)
 - ❌ Küçük açılarda lineerlik azalır
 
-#### Çözüm 2: Madgwick Filtresi (Quaternion Tabanlı)
+#### Çözüm 2: Madgwick Filtresi (Quaternion Tabanlı) — [Madgwick2010]
 
 ```
 Quaternion: q = [w, x, y, z]   (4 boyutlu birim vektör)
@@ -382,7 +382,7 @@ Euler'e dönüşüm:
 - ❌ Daha fazla hesaplama yükü (STM32F411 FPU ile sorun değil)
 - ❌ Implementasyonu daha karmaşık
 
-#### Çözüm 3: Mahony Filtresi (PI Kontrol Tabanlı)
+#### Çözüm 3: Mahony Filtresi (PI Kontrol Tabanlı) — [Mahony2008]
 
 Madgwick'e benzer quaternion tabanlı yaklaşım, ancak gradient descent yerine **PI kontrolcü** ile hata düzeltmesi yapar:
 
@@ -461,8 +461,8 @@ Tüm pin seçimleri STM32F411 datasheet alternate function tablosuyla doğrulanm
 | USB DP | PA12 | OTG_FS | mevcut |
 | LED | PC13 | GPIO | mevcut |
 | SWD IO / CLK | PA13 / PA14 | SWJ-DP | mevcut |
-| **Encoder A** | **PA15** | TIM2_CH1 | RM0383 §23.3: SW-DP modunda JTDI serbest |
-| **Encoder B** | **PB3** | TIM2_CH2 | RM0383 §23.3: SW-DP modunda JTDO serbest |
+| **Encoder A** | **PA15** | TIM2_CH1 | [RM0383] §23.3: SW-DP modunda JTDI serbest |
+| **Encoder B** | **PB3** | TIM2_CH2 | [RM0383] §23.3: SW-DP modunda JTDO serbest |
 | **Motor PWM** | **PB0** | TIM3_CH3 | SPI flash footprint dışı (PA6/PA7'den kaçınıldı) |
 | **AIN1 (yön)** | **PB12** | GPIO | TIM1_BKIN alternatifi kullanılmıyor |
 | **AIN2 (yön)** | **PB13** | GPIO | TIM1_CH1N alternatifi kullanılmıyor |
@@ -472,9 +472,9 @@ Tüm pin seçimleri STM32F411 datasheet alternate function tablosuyla doğrulanm
 - **PA0** — KEY butonuna bağlı (BlackPill schematic).
 - **PA4, PA5, PA6, PA7** — SPI flash footprint pinleri. Eğer flash chip lehimliyse çakışma riski var; bu pinlerden kaçınıldı.
 
-### 8.2. Encoder — Pololu 25D 48 CPR
+### 8.2. Encoder — Pololu 25D 48 CPR ([Pololu_25D])
 
-Datasheet (Pololu): kırmızı/siyah motor güç, **mavi = encoder Vcc 3.5V – 20V**, yeşil = encoder GND, sarı = A çıkışı, beyaz = B çıkışı.
+Datasheet [Pololu_25D]: kırmızı/siyah motor güç, **mavi = encoder Vcc 3.5V – 20V**, yeşil = encoder GND, sarı = A çıkışı, beyaz = B çıkışı.
 
 | Parametre | Değer |
 |---|---|
@@ -484,13 +484,13 @@ Datasheet (Pololu): kırmızı/siyah motor güç, **mavi = encoder Vcc 3.5V – 
 | Encoder çıkış seviyesi | 5 V (Vcc'ye eşit, push-pull veya open-collector) |
 | STM32 GPIO 5V toleransı | PA15 ve PB3 **FT (5V tolerant)** ✓ — direkt bağlanabilir |
 
-**TIM2 32-bit counter:** STM32F411 datasheet sf 28: TIM2 ve TIM5 32-bit auto-reload sayaçlardır. 48 CPR × 4× decoding = 192 olay/motor devri; 9.7:1 redüktör = 1862 olay/çıkış mili devri. 32-bit ile ~2.3 milyon tam çıkış devri taşma sınırı — pratikte sınırsız.
+**TIM2 32-bit counter:** STM32F411 datasheet [STM32F411_DS] sf 28: TIM2 ve TIM5 32-bit auto-reload sayaçlardır. 48 CPR × 4× decoding = 192 olay/motor devri; 9.7:1 redüktör = 1862 olay/çıkış mili devri. 32-bit ile ~2.3 milyon tam çıkış devri taşma sınırı — pratikte sınırsız.
 
 **Pull-up:** Pololu enkoder çıkış tipi (push-pull / open-collector) datasheet'te net değil. Emniyet için **STM32 internal pull-up** (`GPIO_PULLUP`) aktif edilecek. Push-pull bile olsa pull-up zarar vermez (sadece akım kayıbı ihmal edilebilir düzeyde).
 
 ### 8.3. Motor Sürücü — TB6612FNG
 
-TB6612FNG datasheet (sayfa 3, 5, 7) inceleme sonuçları:
+TB6612FNG datasheet [TB6612_DS] (sayfa 3, 5, 7) inceleme sonuçları:
 
 | Parametre | Spec | Bizim ayar | Notlar |
 |---|---|---|---|
