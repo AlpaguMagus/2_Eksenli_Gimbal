@@ -72,7 +72,7 @@ title(sprintf('(B) Doğrudan pozisyon PD — OS=%.1f%%, ss=%.1f%%, settle=%s', .
     rb.OS, rb.ss, tern(isnan(rb.settle),'—',sprintf('%.2fs',rb.settle))));
 sgtitle('Aşama 2.5 — Pozisyon stratejisi: cascade vs doğrudan PD (gerçekçi)');
 
-out=fullfile(fileparts(mfilename('fullpath')),'results');
+out=fullfile(fileparts(mfilename('fullpath')),'results','2_5_strategy');
 if ~exist(out,'dir'), mkdir(out); end
 exportgraphics(fig, fullfile(out,'position_strategy_sweep.png'),'Resolution',150);
 fprintf('\nÇıktı: %s/position_strategy_sweep.png\n', out);

@@ -128,7 +128,7 @@ for g = 1:numel(gains)
 end
 
 sgtitle('Aşama 2.3→2b: Gerçekçi model (kuantizasyon+filtre+saturation) — sim-to-real doğrulama');
-out = fullfile(fileparts(mfilename('fullpath')), 'results');
+out = fullfile(fileparts(mfilename('fullpath')), 'results', '2_3_realistic_sim');
 if ~exist(out,'dir'), mkdir(out); end
 exportgraphics(gcf, fullfile(out, 'realistic_sim_verification.png'), 'Resolution', 150);
 fprintf('\nPlot: %s\n', fullfile(out, 'realistic_sim_verification.png'));

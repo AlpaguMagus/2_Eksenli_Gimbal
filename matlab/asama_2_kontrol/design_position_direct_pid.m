@@ -57,7 +57,7 @@ ylabel('duty u'); xlabel('t (s)');
 title(sprintf('Kontrol sinyali (ss u\\_std=%.3f → %s)', r.ustd, ...
     tern(r.ustd>0.15,'LIMIT-CYCLE','STABİL')));
 sgtitle('Aşama 2.5 — Doğrudan pozisyon PID (cascade alternatifi)');
-out=fullfile(fileparts(mfilename('fullpath')),'results');
+out=fullfile(fileparts(mfilename('fullpath')),'results','2_5_strategy');
 if ~exist(out,'dir'), mkdir(out); end
 exportgraphics(fig, fullfile(out,'position_direct_pid.png'),'Resolution',150);
 

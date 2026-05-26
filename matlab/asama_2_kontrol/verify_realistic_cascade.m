@@ -73,7 +73,7 @@ legend('sürtünmesiz','sürtünmeli','Location','northeast');
 title('Kontrol sinyali');
 sgtitle('Aşama 2.6.5 — Cascade gerçekçi sim: sürtünme sim-to-real gap''i kapatıyor');
 
-out=fullfile(fileparts(mfilename('fullpath')),'results');
+out=fullfile(fileparts(mfilename('fullpath')),'results','2_5_cascade');
 if ~exist(out,'dir'), mkdir(out); end
 exportgraphics(fig, fullfile(out,'realistic_cascade.png'),'Resolution',150);
 fprintf('\nÇıktı: %s/realistic_cascade.png\n', out);

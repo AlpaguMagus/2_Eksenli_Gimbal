@@ -76,7 +76,7 @@ margin(L); grid on;
 title(sprintf('Açık döngü Bode — PM=%.0f°, ω_c=%.1f rad/s', Pm, Wcp));
 sgtitle('Aşama 2.5 — Pozisyon dış döngü P (cascade)');
 
-out = fullfile(fileparts(mfilename('fullpath')), 'results');
+out = fullfile(fileparts(mfilename('fullpath')), 'results', '2_5_cascade');
 if ~exist(out,'dir'), mkdir(out); end
 exportgraphics(fig, fullfile(out, 'position_p_design.png'), 'Resolution', 150);
 

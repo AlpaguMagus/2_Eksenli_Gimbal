@@ -81,7 +81,7 @@ Ki = ω_n² · τ / K
 | Karşılaştırma | `matlab/asama_2_kontrol/compare_speed_pi.m` |
 | Simulink üretici | `matlab/asama_2_kontrol/create_speed_loop_simulink.m` |
 | Orchestrator | `matlab/asama_2_kontrol/run_pipeline_2_1.m` |
-| **Sonuçlar** | `matlab/asama_2_kontrol/results/a2_1_20260518_071843/` |
+| **Sonuçlar** | `matlab/asama_2_kontrol/results/2_1_speed_pi/` |
 | Firmware hız PI | `src/speed_pi.c`, `include/speed_pi.h` |
 | Firmware komut parser | `src/cmd_parser.c` (MODE:DUTY, MODE:SP_W) |
 | Firmware integrasyon | `src/main.c:80-95` (SpeedPI_Init), `src/main.c:130-145` (SP_W loop) |
@@ -212,7 +212,7 @@ Motor sürücü
 
 ### 11.8. Görsel Kanıtlar — Aşama 2.1
 
-`matlab/asama_2_kontrol/results/a2_1_20260518_071843/` altında:
+`matlab/asama_2_kontrol/results/2_1_speed_pi/` altında:
 
 | Dosya | Açıklama |
 |---|---|
@@ -353,7 +353,7 @@ Ampirik Kp=0.002'yi **teorik temellendirmek** için Aşama 2.1 Simulink modeline
 
 **Sonuç:** İdeal model (Aşama 2.1) conservative'i önerdi — yanıltıcıydı. Gerçekçi model (kuantizasyon + gecikme + saturation) ampirik düşük kazancı **doğruluyor**. Sim-to-real gap'in kaynağı **ideal ölçüm varsayımı** olarak teorik kanıtlandı.
 
-Görsel: `matlab/asama_2_kontrol/results/realistic_sim_verification.png` (sol: conservative bang-bang, sağ: ampirik stabil).
+Görsel: `matlab/asama_2_kontrol/results/2_3_realistic_sim/realistic_sim_verification.png` (sol: conservative bang-bang, sağ: ampirik stabil).
 
 **Akademik kapanış:** *"Modelle → test et → gerçekte çalışmadı → kök nedeni bul → çöz (ampirik) → modeli gerçekçi yap → teorik temellendirir."* — `[Ljung1999] §16` iteratif model validation'ın tam döngüsü.
 
@@ -436,7 +436,7 @@ Test 2.5 sonrası iki eksik kapatıldı: (a) cascade'in resmi Simulink blok diya
 
 **Simulink blok diyagramı** (`create_cascade_simulink.m` → `cascade_pos_a2_5.slx`) — iki iç içe döngü, firmware ile uyumlu (`PI → sat±0.5 → ×Vsupply → −Vsat → Plant K/(τs+1) → ∫`):
 
-![Cascade blok diyagramı](../matlab/asama_2_kontrol/results/cascade_block_diagram.png)
+![Cascade blok diyagramı](../matlab/asama_2_kontrol/results/2_5_cascade/cascade_block_diagram.png)
 
 **Bulgu — Simulink, analitik tasarımdaki bir basitleştirmeyi ortaya çıkardı:** Firmware-uyumlu Simulink modeli (Vsupply×duty−Vsat dahil) ideal step'te settling ~2.2 s verdi; analitik `design_position_p.m` (Vsupply/Vsat sadeleştirilmiş) 1.15 s demişti. Fark, iç hız döngüsünün gerçek bant genişliğinden: PI çıkışı *duty* olduğundan plant kazancı `K·Vsupply = 654.8` (duty→ω), yani iç döngü ω_n gerçekte **~33 rad/s** (analitik 9.4 dedi — Vsupply'ı atlamıştı). Sonuç dış döngü lehine: ω_c_dış≈2 rad/s ile iç/dış ayrım 5× değil **~16×** — yani Kp_pos=2.0 cascade kuralından (`[Franklin2010] §6.4`) **daha da konservatif ve güvenli**. Üç settling değeri (analitik 1.15 s, Simulink 2.2 s, gerçek 1.3–1.8 s) aynı mertebede; Kp_pos=2.0 gerçek motorda PASS olduğundan tasarım sağlamdır.
 
@@ -447,7 +447,7 @@ Test 2.5 sonrası iki eksik kapatıldı: (a) cascade'in resmi Simulink blok diya
 | Sürtünmesiz (Aşama 2.5) | %1.75 | %12.5 | **4.55°** | ⚠ limit-cycle |
 | Sürtünmeli (2.6.5) | %0.60 | %0 | **0.00°** | 🟢 stabil |
 
-![Sürtünme karşılaştırması](../matlab/asama_2_kontrol/results/realistic_cascade.png)
+![Sürtünme karşılaştırması](../matlab/asama_2_kontrol/results/2_5_cascade/realistic_cascade.png)
 
 Sürtünmeli sim θ_std=0° (gerçek Test 2.5: <0.7°) — **sim artık gerçeği öngörüyor.** Bu, `[Ljung1999] §16` model-iyileştirme döngüsünün kapanışı: modele eksik fizik (sürtünme) eklenince tahmin gücü kanıtlandı. Önemli içgörü: Aşama 1'de "ihmal edilebilir" denen `V_dead≈0.24V`, sürekli dönüşte ihmal edilebilir **ama mikro-düzeltme rejiminde (pozisyon tutma) belirleyici** — aynı parametre rejime göre kritiklik değiştirdi.
 

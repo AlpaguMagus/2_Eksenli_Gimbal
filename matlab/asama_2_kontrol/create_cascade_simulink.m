@@ -26,7 +26,7 @@ Kp_i=0.002; Ki_i=0.1; Kp_pos=2.00;
 theta_ref_deg=30;
 
 mdl='cascade_pos_a2_5';
-out=fullfile(fileparts(mfilename('fullpath')),'results');
+out=fullfile(fileparts(mfilename('fullpath')),'results','2_5_cascade');
 if ~exist(out,'dir'), mkdir(out); end
 slx=fullfile(out,[mdl '.slx']);
 
