@@ -4,7 +4,7 @@
 
 **Vizyon:** Tek motor model ✅ → tek motor kontrol 🟡 → iki motor MIMO → iki motor LQG/Kalman → gerçek 3D-print gimbal. MATLAB paralel araç, firmware C/STM32Cube HAL bare-metal. Her teknik karar **kaynaklı** (`KAYNAKCA.md` etiketli).
 
-**Şu an:** ✅ **Aşama 1 KAPALI**, ✅ **Aşama 2 KAPALI** (2.1→2.9: hız PI + cascade + IMU mirror, tüm testler PASS; 2.9 akademik kapanış docs §11.15). → main'e merge + `asama-2-kapali` tag → **Aşama 3 (MIMO) açılışı**. Aşama 1: `K=53.89 rad/s/V, τ_median=60.5 ms, V_dead≈0, V_supply=12.15V`. Aşama 2.1: 5 kontrolcü tasarım. Aşama 2.2: firmware Tustin PI + anti-windup + MODE/SP_W komutları.
+**Şu an:** ✅ **Aşama 1 KAPALI**, ✅ **Aşama 2 KAPALI** (2.1→2.9: hız PI + cascade + IMU mirror, tüm testler PASS; 2.9 akademik kapanış docs §11.15). → main'e merge edildi (`fc0aefc`) + `asama-2-kapali` tag ✅. **Sıradaki: Aşama 3 (MIMO).** Aşama 1: `K=53.89 rad/s/V, τ_median=60.5 ms, V_dead≈0, V_supply=12.15V`. Aşama 2.1: 5 kontrolcü tasarım. Aşama 2.2: firmware Tustin PI + anti-windup + MODE/SP_W komutları.
 
 **Aşama 2.3 BÜYÜK BULGU (sim-to-real gap):** Conservative kazanç (Kp=0.1163) gerçek motorda **bang-bang limit cycle** verdi. Sistematik tanı → kök neden: ideal ölçüm varsayımı + serbest mil hızlı + encoder kuantize. **Ampirik çözüm: Kp=0.002, Ki=0.1.** 2b: gerçekçi Simulink teorik doğruladı. Test 2.T2 PASS (8/8 step).
 
@@ -14,7 +14,7 @@
 
 **Aşama 2.6.5 (cascade Simulink + sürtünme) ✅:** `create_cascade_simulink.m` resmi cascade blok diyagramı (firmware-uyumlu model analitik Vsupply sadeleştirmesini ortaya çıkardı → iç ω_n~33, Kp_pos=2.0 ~16× ayrımla güvenli). `verify_realistic_cascade.m`'e Coulomb/stiction sürtünme (eşik Aşama 1 V_dead) eklendi → sürtünmeli sim θ_std=0° = gerçek Test 2.5 ile uyumlu → **sim-to-real gap kapandı** ([Ljung1999] §16). Detay: docs/asama_2_kontrol.md §11.13.7.
 
-**Aktif branch:** `feature/asama-1-tek-motor-model`.
+**Aktif branch:** `main` (Aşama 2 merge edildi, tag `asama-2-kapali`; Aşama 3 branch'i başlangıçta açılacak).
 
 **Açık konular:**
 - 2A.T5-B (gerçek motor stall testi) — bağımsız donanım doğrulaması.
@@ -25,7 +25,7 @@
 
 **Aşama 2.7/2.8 (IMU mirror) ✅ 2026-05-26:** MODE:MIRROR — motor fused_pitch'i takip eder (cascade). Kp_pos=6 **ANALİTİK** (deneme-yanılma değil): tip-1 hız hata sabiti Kv=Kp_pos, e_ss=ω_in/Kv, ω_in=30°/s, <5° → Kp_pos≥6 ([Franklin2010] §4.2). **Test 2.T6 PASS** — gimbal-hızı RMS 4.68° (Kp=5, analitik doğruladı); hızlı el (~80°/s) bant-genişliği limiti (~10°, beklenen). Detay: docs §11.13.8.
 
-**Sıradaki:** Aşama 2.9 — akademik rapor (Aşama 2 toplu sonuç) → `feature/asama-2-tek-motor-kontrol` main'e `--no-ff` merge + `asama-2-kapali` tag → Aşama 3 (MIMO) yeni branch.
+**Sıradaki:** **Aşama 3 — İki Motor MIMO Model.** main'den `feature/asama-3-mimo-model` branch'i açılacak: iki motor kuplajı + decoupling (RGA / condition number, `[Skogestad2005] §10`). ⚠ Aşama 2 kazançları serbest-mil için — Aşama 5'te gerçek gimbalda yük altında yeniden ayarlanacak.
 
 **Açık emniyet uyarısı:** 12V hattında donanım sigortası yok. Yazılım koruma katmanları (stall + lockout + duty cap %50 + soft-start + watchdog + LED + SpeedPI_Reset stall'da) aktif. Sigorta temin edilince duty cap gevşetilir.
 

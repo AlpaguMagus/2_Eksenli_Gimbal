@@ -2,7 +2,7 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
-> - **Son güncelleme:** 2026-05-27 (Aşama 2 ✅ KAPALI — IMU mirror Test 2.T6 PASS + 2.9 akademik kapanış; main'e merge + asama-2-kapali tag)
+> - **Son güncelleme:** 2026-05-27 (Aşama 2 ✅ KAPALI — IMU mirror Test 2.T6 PASS + 2.9 akademik kapanış; main'e merge edildi `fc0aefc` + `asama-2-kapali` tag)
 > - **Aktif aşama:** Aşama 2 ✅ KAPALI → **Aşama 3 (İki Motor MIMO Model)** açılışı, yeni branch `feature/asama-3-mimo-model`
 > - **Dokümantasyon:** Aşama-bazlı `docs/` ekosistemi (README vitrin + `docs/asama_<N>_*.md` derin içerik)
 > - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
@@ -92,7 +92,7 @@ Sigorta temin edildiğinde:
 
 ## ✅ Aşama 1 — Tek Motor Sistem Tanımlama  *(KAPALI 2026-05-18)*
 
-> **Branch:** `feature/asama-1-tek-motor-model`
+> **Branch:** `feature/asama-1-tek-motor-model` → main (tag `asama-1-kapali`)
 > **MATLAB:** `matlab/asama_1_model/`
 > **Veri:** `artifacts/1/step_response/20260518_011926/`
 > **Sonuçlar:** `matlab/asama_1_model/results/20260518_011926/`
