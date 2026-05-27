@@ -23,7 +23,9 @@ Modellediğimiz sistem **açık çevrimdir** (henüz kontrolcü yok): duty komut
 
 ![Açık-çevrim motor modeli — kontrolcüsüz sistem blok diyagramı](../matlab/asama_1_model/results/20260518_011926/11_block_diagram_openloop.png)
 
-*Şekil 10.0 — Açık-çevrim (kontrolcüsüz) motor modeli (`create_block_diagram.m`). Sürücü bloğu duty $u\in[-1,1]$'i efektif gerilime çevirir; plant $G(s)$ birinci derece dinamiktir. Aşama 1'in görevi $K$ ve $\tau$'yu deneysel olarak bulmaktır. Bu sistem Aşama 2'de bir kontrolcü ($C(s)$) ile geri-besleme döngüsüne sokulacaktır ([`00_genel_bakis.md`](00_genel_bakis.md) Şekil 1).*
+*Şekil 10.0 — Açık-çevrim (kontrolcüsüz) motor modeli. Sürücü bloğu duty $u\in[-1,1]$'i efektif gerilime çevirir; plant $G(s)$ birinci derece dinamiktir. Aşama 1'in görevi $K$ ve $\tau$'yu deneysel olarak bulmaktır. Bu sistem Aşama 2'de bir kontrolcü ($C(s)$) ile geri-besleme döngüsüne sokulacaktır ([`00_genel_bakis.md`](00_genel_bakis.md) Şekil 1).*
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/create_block_diagram.m`
 
 Birinci derece motor transfer fonksiyonu (sürücü kazancı dahil edilmeden, saf plant):
 
@@ -134,7 +136,9 @@ Tek kutup $s = -1/\tau = -16.5$ rad/s, sol yarı düzlemde → sistem açık çe
 
 ![Birinci derece motorun kutup haritası](../matlab/asama_1_model/results/20260518_011926/12_pole_map.png)
 
-*Şekil 10.6 — Motorun kutup haritası (`create_block_diagram.m`). Tek reel kutup $s=-16.5$ sol yarı düzlemde (LHP). Karmaşık (sanal) bileşeni yok → salınım yok; negatif reel → sönerek oturur. Aşama 2'de kontrolcü bu kutbu daha hızlı/sönümlü bir yere taşıyacak (pole placement).*
+*Şekil 10.6 — Motorun kutup haritası. Tek reel kutup $s=-16.5$ sol yarı düzlemde (LHP). Karmaşık (sanal) bileşeni yok → salınım yok; negatif reel → sönerek oturur. Aşama 2'de kontrolcü bu kutbu daha hızlı/sönümlü bir yere taşıyacak (pole placement).*
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/create_block_diagram.m`
 
 ### 10.6. Test Sonuçları
 
@@ -156,7 +160,9 @@ Pololu 25D motor %12 duty (V_eff=0.96 V) iken zaten 57 rad/s dönüyor. Aşama 1
 
 ![Dead-band tespiti — ω_ss vs V_eff, x-intercept ≈ ±0.24 V](../matlab/asama_1_model/results/20260518_011926/04_omega_vs_Veff.png)
 
-*Şekil 10.1 — ω_ss vs V_eff lineer regresyonu (`compute_dead_band.m`). x-eksenini kestiği nokta (V_dead) ≈ ±0.24 V, neredeyse orijinde → dinamik dead-band ihmal edilebilir.*
+*Şekil 10.1 — ω_ss vs V_eff lineer regresyonu. x-eksenini kestiği nokta (V_dead) ≈ ±0.24 V, neredeyse orijinde → dinamik dead-band ihmal edilebilir.*
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/plot_results.m` (regresyon `compute_dead_band.m`)
 
 ##### İlk hipotezimiz (Aşama 1.3 yorumu)
 
@@ -207,6 +213,8 @@ K_apparent (= ω_ss / V_eff) profili **60 → 50 rad/s/V kademeli düşüş** (G
 
 *Şekil 10.2 — K_apparent = ω_ss/V_eff profili. Sabit V_sat varsayımı altında düz olması beklenirdi; kademeli düşüş, V_sat'ın akıma bağlı (MOSFET R_DS_on×I) olduğunu görsel olarak doğrular (`[TB6612_DS]`).*
 
+> 📊 **Üreten betik:** `matlab/asama_1_model/plot_results.m`
+
 **Niçin düşüyor?** V_sat aslında **akıma bağlı** (MOSFET R_DS_on × akım):
 - **Düşük duty** → düşük akım → gerçek V_sat ~0.3 V → modelimiz V_eff'i altta tahmin → K_apparent şişer
 - **Yüksek duty** → yüksek akım → gerçek V_sat ~0.7 V → modelimiz V_eff'i üstte tahmin → K_apparent düşer
@@ -225,6 +233,8 @@ Bu, datasheet V_sat=0.5V varsayımımızın **görsel olarak doğrulanmasıdır*
 ![τ özeti — histogram + duty bağımlılığı](../matlab/asama_1_model/results/20260518_011926/07_tau_summary.png)
 
 *Şekil 10.3 — τ dağılımı (median 60.5 ms) ve duty bağımlılığı. Saçılım, tek-τ 1. derece modelin ortalama bir yaklaşım olduğunu gösterir (`[Franklin2010] §3.5`).*
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/plot_results.m`
 
 **Gerçek DC motor aslında 2. derecedir:**
 
@@ -260,13 +270,17 @@ Tek (K, τ) ile validation NRMSE |duty|≈0.18'de minimum (%5.7), uçlarda yüks
 
 ![CW step fitleri](../matlab/asama_1_model/results/20260518_011926/01_step_fits_cw.png)
 
-*Şekil 10.4 — CW yönü step fitleri (`fit_first_order.m`). Yüksek duty'de NRMSE %3-5 (mükemmel), düşük duty'de %9-12 (transient hızlı, 40 Hz örnekleme sınırı).*
+*Şekil 10.4 — CW yönü step fitleri. Yüksek duty'de NRMSE %3-5 (mükemmel), düşük duty'de %9-12 (transient hızlı, 40 Hz örnekleme sınırı).*
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/plot_results.m` (fit `fit_first_order.m`)
 
 **Model doğrulama** (Test 1.T5) — tek (K_avg, τ_median) ile tüm step'lerin yeniden simülasyonu:
 
 ![Validation NRMSE özeti — U-eğrisi](../matlab/asama_1_model/results/20260518_011926/10_validation_summary.png)
 
-*Şekil 10.5 — Validation NRMSE U-eğrisi (`validate_model.m`). |duty|≈0.18'de minimum (%5.7), uçlarda %12-14. Ortalama %11.11, max %14.77 → Test 1.T5 PASS. U şekli, K(duty)/τ(duty) varyasyonunun (Bulgu 2-3) doğal sonucu — gain scheduling adayı (Bulgu 4).*
+*Şekil 10.5 — Validation NRMSE U-eğrisi. |duty|≈0.18'de minimum (%5.7), uçlarda %12-14. Ortalama %11.11, max %14.77 → Test 1.T5 PASS. U şekli, K(duty)/τ(duty) varyasyonunun (Bulgu 2-3) doğal sonucu — gain scheduling adayı (Bulgu 4).*
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/validate_model.m`
 
 **Tüm grafikler** — `matlab/asama_1_model/results/20260518_011926/` altında:
 

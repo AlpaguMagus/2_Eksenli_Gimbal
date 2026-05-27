@@ -53,7 +53,9 @@ Karmaşık sistemler **bloklar** ve **oklar** ile çizilir. Her blok bir transfe
 
 ![Genel kapalı-çevrim geri besleme sistemi](../matlab/00_genel_teori/results/01_closed_loop_general.png)
 
-*Şekil 1 — Genel kapalı-çevrim sistem. $R(s)$ referans (istenen değer), $\Sigma$ toplama noktası hatayı hesaplar ($E = R - $ ölçüm), $C(s)$ kontrolcü, $G(s)$ kontrol edilen sistem (plant), $H(s)$ ölçüm/geri besleme yolu, $Y(s)$ çıkış. Bu yapı projedeki **her kontrolcüde** tekrar eder: Aşama 2 hız PI'da $C(s)=K_p+K_i/s$, plant motor $G(s)=K/(\tau s+1)$.*
+*Şekil 1 — Genel kapalı-çevrim sistem. $R(s)$ referans (istenen değer), $\Sigma$ toplama noktası hatayı hesaplar ($E = R - Y$), $C(s)$ kontrolcü, $G(s)$ kontrol edilen sistem (plant), $H(s)$ ölçüm/geri besleme yolu, $Y(s)$ çıkış. Bu yapı projedeki **her kontrolcüde** tekrar eder: Aşama 2 hız PI'da $C(s)=K_p+K_i/s$, plant motor $G(s)=K/(\tau s+1)$.*
+
+> 📊 **Üreten betik:** `matlab/00_genel_teori/create_theory_diagrams.m`
 
 Üç temel blok cebri kuralı:
 
@@ -75,6 +77,8 @@ $$\omega(t) = K\,(1 - e^{-t/\tau})$$
 
 *Şekil 2 — Birinci derece step yanıtı. İki kritik kavram: **(1) Zaman sabiti $\tau$** — çıkışın son değerinin %63.2'sine ulaştığı an; sistem ne kadar "hızlı" olduğunu söyler. **(2) Oturma** — pratikte $5\tau$ sonra çıkış son değerin ~%99'una varır. $K$ (DC kazanç) ise son değeri belirler ($t\to\infty$ iken $\omega \to K$). Bu iki parametre Aşama 1'de motordan ölçüldü: $K=53.89$ rad/s/V, $\tau=60.5$ ms.*
 
+> 📊 **Üreten betik:** `matlab/00_genel_teori/create_theory_diagrams.m`
+
 **Kutup nerede, sistem nasıl?** Kutbun $s$-düzlemindeki yeri davranışı belirler — bu kavram tüm kontrol tasarımının temelidir (§2.5'te kararlılık olarak döner).
 
 ### 2.4. İkinci derece sistem — sönüm ve aşım
@@ -93,6 +97,8 @@ $$M_p = e^{-\pi\zeta/\sqrt{1-\zeta^2}} \times 100\%$$
 
 *Aşama 2.1'de hız PI tasarlanırken $\zeta=1.0$ seçildi (aşımsız hedef), bu denklemle gerekçelendirildi.*
 
+> 📊 **Üreten betik:** `matlab/00_genel_teori/create_theory_diagrams.m`
+
 ### 2.5. Kapalı çevrim, karakteristik denklem, kararlılık
 
 Geri besleme transfer fonksiyonu $\frac{G}{1+GH}$'nin paydasını sıfıra eşitlersek **karakteristik denklem** çıkar:
@@ -105,6 +111,8 @@ Bu denklemin kökleri kapalı-çevrim **kutuplarıdır**. Kutupların $s$-düzle
 
 *Şekil 4 — $s$-düzlemi (kutup haritası). **Kural: tüm kutuplar sol yarı düzlemde (LHP, $\sigma<0$) ise sistem kararlıdır** — yanıt sönerek oturur. Sağ yarı düzlemde (RHP) bir kutup → yanıt patlar (kararsız). Motorumuzun tek kutbu $s=-1/\tau=-16.5$ sol yarı düzlemde → açık çevrimde zaten kararlı. Kontrol tasarımı = kapalı-çevrim kutuplarını istenen yere (hızlı + sönümlü bölgeye) **taşımak**; buna "pole placement" denir (Aşama 2.1).*
 
+> 📊 **Üreten betik:** `matlab/asama_1_model/create_block_diagram.m` (Aşama 1 motoruna uygulanmış örnek)
+
 ### 2.6. Frekans analizi — Bode, kazanç payı, faz payı
 
 Bir sistemin farklı frekanslardaki sinüs girişlere tepkisi **Bode diyagramında** çizilir (kazanç dB + faz, log-frekans ekseninde). Bode, kapalı çevrimi açmadan **kararlılık marjını** ölçmemizi sağlar:
@@ -112,6 +120,8 @@ Bir sistemin farklı frekanslardaki sinüs girişlere tepkisi **Bode diyagramın
 ![Bode diyagramı — kazanç ve faz payı](../matlab/00_genel_teori/results/04_bode_concept.png)
 
 *Şekil 5 — Açık-çevrim Bode. **Kazanç geçiş frekansı $\omega_c$**: kazancın 0 dB'yi (birim) kestiği nokta. **Faz payı (PM)**: $\omega_c$'de fazın $-180°$'ye olan uzaklığı — ne kadar büyükse o kadar sönümlü/güvenli (genelde PM>45° istenir). **Kazanç payı (GM)**: faz $-180°$ iken kazancın 0 dB'ye uzaklığı. Bu marjlar Aşama 2.1'de 5 kontrolcüyü karşılaştırırken sağlamlık kriteriydi (seçilen kontrolcü PM=80.8°).*
+
+> 📊 **Üreten betik:** `matlab/00_genel_teori/create_theory_diagrams.m`
 
 ### 2.7. Tip sistem ve kalıcı-hal hatası
 

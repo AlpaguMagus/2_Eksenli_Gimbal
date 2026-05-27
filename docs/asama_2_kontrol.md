@@ -34,7 +34,9 @@ Bu PI kontrolcü, motor plant'ı ($G(s)=K/(\tau s+1)$) etrafında kapalı-çevri
 
 ![Hız PI kapalı-çevrim blok diyagramı](../matlab/asama_2_kontrol/results/2_1_speed_pi/04_speed_pi_blockdiagram.png)
 
-*Şekil 11.1 — Hız PI iç döngüsü (`create_control_diagrams.m`). $\omega_{ref}$ referans, $\Sigma$ hatayı hesaplar ($e=\omega_{ref}-\omega$), PI kontrol sinyali $u$ üretir, doygunluk ($\pm0.5$ duty) ve sürücü ($V_s u - V_{sat}$) gerçek gerilime çevirir, plant hızı üretir. Encoder ölçümü geri beslenir. Bu, [`00_genel_bakis.md`](00_genel_bakis.md) Şekil 1'deki genel yapının motora özelleşmiş halidir: $C(s)=K_p+K_i/s$, $G(s)=K/(\tau s+1)$.*
+*Şekil 11.1 — Hız PI iç döngüsü. $\omega_{ref}$ referans, $\Sigma$ hatayı hesaplar ($e=\omega_{ref}-\omega$), PI kontrol sinyali $u$ üretir, doygunluk ($\pm0.5$ duty) ve sürücü ($V_s u - V_{sat}$) gerçek gerilime çevirir, plant hızı üretir. Encoder ölçümü geri beslenir. Bu, [`00_genel_bakis.md`](00_genel_bakis.md) Şekil 1'deki genel yapının motora özelleşmiş halidir: $C(s)=K_p+K_i/s$, $G(s)=K/(\tau s+1)$.*
+
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/create_control_diagrams.m`
 
 ### 11.2. Neden — Niçin Pole Placement?
 
@@ -372,7 +374,9 @@ Görsel: `matlab/asama_2_kontrol/results/2_3_realistic_sim/realistic_sim_verific
 
 ![Cascade pozisyon kontrol blok diyagramı](../matlab/asama_2_kontrol/results/2_5_cascade/cascade_textbook_diagram.png)
 
-*Şekil 11.13 — Cascade kontrol (`create_control_diagrams.m`): dış pozisyon P döngüsü + iç hız PI döngüsü. $\theta_{ref}\to\Sigma_1\to K_{p,pos}\to\omega_{ref}\to\Sigma_2\to$ PI $\to$ plant $\to\omega\to\frac{1}{s}\to\theta$. **İç döngü (mavi)** hız $\omega$'yı geri besler, **dış döngü (kırmızı)** konum $\theta$'yı. Hızdan konuma geçiş bir integratördür ($\frac{1}{s}$) — bu yüzden plant tip-1, P kontrolcü step'te sıfır hata verir ([`00_genel_bakis.md`](00_genel_bakis.md) §2.7). Resmi firmware-uyumlu Simulink modeli için bkz. §11.13.7.*
+*Şekil 11.13 — Cascade kontrol: dış pozisyon P döngüsü + iç hız PI döngüsü. $\theta_{ref}\to\Sigma_1\to K_{p,pos}\to\omega_{ref}\to\Sigma_2\to$ PI $\to$ plant $\to\omega\to\frac{1}{s}\to\theta$. **İç döngü (mavi)** hız $\omega$'yı geri besler, **dış döngü (kırmızı)** konum $\theta$'yı. Hızdan konuma geçiş bir integratördür ($\frac{1}{s}$) — bu yüzden plant tip-1, P kontrolcü step'te sıfır hata verir ([`00_genel_bakis.md`](00_genel_bakis.md) §2.7). Resmi firmware-uyumlu Simulink modeli için bkz. §11.13.7.*
+
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/create_control_diagrams.m`
 
 Dış döngü çıkış mili açısını ($\theta$) kontrol eder, çıkışı iç döngünün hız referansıdır. Çıkış mili açısı encoder'dan okunur:
 
@@ -433,6 +437,8 @@ Hedefler: 30°→90°→45°→0°→-45°→0° (mutlak çıkış mili açısı
 
 ![Pozisyon cascade step](../artifacts/2/position_step/20260524_212456/position_plot.png)
 
+> 📊 **Üreten betik:** `scripts/position_step_test.py` (gerçek motor testi 2.5)
+
 **Akademik değer:** *İdeal sim (mükemmel) → gerçekçi sim sürtünmesiz (limit-cycle uyarısı, kötümser) → gerçek motor (sürtünme söndürdü, ss<0.8°).* Sim hem iyimser (Aşama 2.3 ideal model) hem kötümser (Aşama 2.5 sürtünmesiz) olabilir — her ikisi de gerçek testle düzeltildi. `[Ljung1999] §16`.
 
 > **Not (ROADMAP §5 kritik):** Kazançlar **serbest mil** (yüksüz) içindir. Gerçek gimbalda kamera yükü + statik denge ile iç ve dış döngü kazançları yeniden ayarlanacak.
@@ -445,6 +451,8 @@ Test 2.5 sonrası iki eksik kapatıldı: (a) cascade'in resmi Simulink blok diya
 
 ![Cascade blok diyagramı](../matlab/asama_2_kontrol/results/2_5_cascade/cascade_block_diagram.png)
 
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/create_cascade_simulink.m` (Simulink → `cascade_pos_a2_5.slx`)
+
 **Bulgu — Simulink, analitik tasarımdaki bir basitleştirmeyi ortaya çıkardı:** Firmware-uyumlu Simulink modeli (Vsupply×duty−Vsat dahil) ideal step'te settling ~2.2 s verdi; analitik `design_position_p.m` (Vsupply/Vsat sadeleştirilmiş) 1.15 s demişti. Fark, iç hız döngüsünün gerçek bant genişliğinden: PI çıkışı *duty* olduğundan plant kazancı `K·Vsupply = 654.8` (duty→ω), yani iç döngü ω_n gerçekte **~33 rad/s** (analitik 9.4 dedi — Vsupply'ı atlamıştı). Sonuç dış döngü lehine: ω_c_dış≈2 rad/s ile iç/dış ayrım 5× değil **~16×** — yani Kp_pos=2.0 cascade kuralından (`[Franklin2010] §6.4`) **daha da konservatif ve güvenli**. Üç settling değeri (analitik 1.15 s, Simulink 2.2 s, gerçek 1.3–1.8 s) aynı mertebede; Kp_pos=2.0 gerçek motorda PASS olduğundan tasarım sağlamdır.
 
 **Sürtünme modeli — sim-to-real gap kapatıldı** (`verify_realistic_cascade.m`). Gerçekçi sime Coulomb/stiction sürtünme eklendi (Karnopp benzeri, minimal): düşük hızda (|ω|<18.7 rad/s) sürücü statik sürtünmeyi yenemezse (|K·V_eff| < K·V_dead, eşik **12.9 rad/s**, Aşama 1 `V_dead≈0.24V`'den) motor *yapışır* (stick). Sonuç:
@@ -456,6 +464,8 @@ Test 2.5 sonrası iki eksik kapatıldı: (a) cascade'in resmi Simulink blok diya
 
 ![Sürtünme karşılaştırması](../matlab/asama_2_kontrol/results/2_5_cascade/realistic_cascade.png)
 
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/verify_realistic_cascade.m`
+
 Sürtünmeli sim θ_std=0° (gerçek Test 2.5: <0.7°) — **sim artık gerçeği öngörüyor.** Bu, `[Ljung1999] §16` model-iyileştirme döngüsünün kapanışı: modele eksik fizik (sürtünme) eklenince tahmin gücü kanıtlandı. Önemli içgörü: Aşama 1'de "ihmal edilebilir" denen `V_dead≈0.24V`, sürekli dönüşte ihmal edilebilir **ama mikro-düzeltme rejiminde (pozisyon tutma) belirleyici** — aynı parametre rejime göre kritiklik değiştirdi.
 
 #### 11.13.8. IMU Mirror Takip — Analitik Kazanç Tasarımı (Aşama 2.7)
@@ -464,7 +474,9 @@ Sürtünmeli sim θ_std=0° (gerçek Test 2.5: <0.7°) — **sim artık gerçeğ
 
 ![IMU mirror takip blok diyagramı](../matlab/asama_2_kontrol/results/2_7_mirror/mirror_blockdiagram.png)
 
-*Şekil 11.17 — IMU mirror zinciri (`create_control_diagrams.m`): IMU + complementary filter (Aşama 0) → fused pitch → referans üretimi (offset $-p_0$, $\pm60°$ clamp, slew) → cascade (§11.13) → motor. Referans artık sabit bir `POS_DEG` değil, **canlı IMU sinyalidir** — bu yüzden tasarım kriteri step değil, hareketli hedef (ramp) takibidir.*
+*Şekil 11.17 — IMU mirror zinciri: IMU + complementary filter (Aşama 0) → fused pitch → referans üretimi (offset $-p_0$, $\pm60°$ clamp, slew) → cascade (§11.13) → motor. Referans artık sabit bir `POS_DEG` değil, **canlı IMU sinyalidir** — bu yüzden tasarım kriteri step değil, hareketli hedef (ramp) takibidir.*
+
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/create_control_diagrams.m`
 
 **Firmware:** `src/cmd_parser.c` (`MODE:MIRROR`), `src/main.c` (göreli pitch₀ referansı + ±60° clamp + slew + cascade). Güvenlik: STOP/RESET takipten çıkıp DUTY'ye döner; watchdog hedefi sıfırlar.
 
@@ -488,7 +500,9 @@ Gimbal-hızı hareket $\omega_{in}\approx30°$/s, hedef $e_{ss}<5°$ → $K_{p,p
 
 ![Mirror takip Kp_pos analitik tasarım](../matlab/asama_2_kontrol/results/2_7_mirror/mirror_tracking_design.png)
 
-*Şekil 11.x — Sol: takip hatası sensitivitesi |S(jω)|, Kp arttıkça düşük-frekans takip iyileşir. Sağ: sinüs takip RMS vs Kp_pos; deney noktası (4.68°@Kp=5) analitik eğriyle tutarlı. Kp_pos=6 → 4.63° < 5° garantili. Cascade ayrımı 33/6≈5.5× > 5× kuralı korunur (`[Franklin2010] §6.4`, 2.6.5 iç ω_n~33 bulgusu).*
+*Şekil 11.18 — Sol: takip hatası sensitivitesi |S(jω)|, Kp arttıkça düşük-frekans takip iyileşir. Sağ: sinüs takip RMS vs Kp_pos; deney noktası (4.68°@Kp=5) analitik eğriyle tutarlı. Kp_pos=6 → 4.63° < 5° garantili. Cascade ayrımı 33/6≈5.5× > 5× kuralı korunur (`[Franklin2010] §6.4`, 2.6.5 iç ω_n~33 bulgusu).*
+
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/design_mirror_tracking.m`
 
 **Ne sonuç çıktı — Test 2.T6:** Gerçek motorda mirror takip ölçüldü:
 
@@ -500,7 +514,9 @@ Gimbal-hızı hareket $\omega_{in}\approx30°$/s, hedef $e_{ss}<5°$ → $K_{p,p
 
 ![Mirror takip — gerçek motor (Kp_pos=5)](../artifacts/2/mirror/20260526_204240/mirror_plot.png)
 
-*Şekil 11.y — θ_out (mavi) θ_ref'i (kırmızı) faz gecikmesiyle izliyor. Hata düz bölümlerde küçük, dönüş noktalarında büyür (lag ≈ ω_in × cascade_zaman_sabiti). RMS 4.68° < 5° PASS.*
+*Şekil 11.19 — θ_out (mavi) θ_ref'i (kırmızı) faz gecikmesiyle izliyor. Hata düz bölümlerde küçük, dönüş noktalarında büyür (lag ≈ ω_in × cascade_zaman_sabiti). RMS 4.68° < 5° PASS.*
+
+> 📊 **Üreten betik:** `scripts/mirror_test.py` (gerçek motor testi 2.T6)
 
 **Öğrenilen ders (kullanıcı eleştirisiyle düzeltildi):** Kp_pos önce deneme-yanılma ile (2→4→5) arandı — bu bir kontrol mühendisinin yöntemi **değil** ve projenin "kaynaklı ilerleme" disiplinine aykırı. Doğrusu: **takip görevi → tip-1 hız hata sabiti Kv → Kp_pos = ω_in/e_ss = 6** (`[Franklin2010] §4.2`). Deney (4.68°) analizi **doğrular, üretmez**. İki ders: (1) step (Kp_pos=2, overshootsuz) ve takip (Kp_pos=6, düşük-lag) farklı görevlerdir, farklı kazanç gerektirir; (2) **bant genişliği limiti** — hızlı el (~80°/s, ~0.5 Hz) cascade'in ~0.3 Hz bandını aşar, bu beklenen (gimbal yavaş-orta hareket için).
 

@@ -148,7 +148,9 @@ Tek bir I2C transaction ile 14 byte okunarak sensör verisinin tutarlılığı (
 
 Sensör eğildiğinde yerçekimi vektörü eksenlere farklı projeksiyon yapar. Pitch (öne-arkaya eğim) ve Roll (sağa-sola eğim) açıları şu formüllerle hesaplanır:
 
-$$\text{pitch} = \text{atan2}\!\left(a_x,\ \sqrt{a_y^2 + a_z^2}\right)\cdot\frac{180}{\pi}, \qquad \text{roll} = \text{atan2}\!\left(a_y,\ \sqrt{a_x^2 + a_z^2}\right)\cdot\frac{180}{\pi}$$
+$$\text{pitch} = \operatorname{atan2}\left(a_x,\ \sqrt{a_y^2 + a_z^2}\right)\cdot\frac{180}{\pi}$$
+
+$$\text{roll} = \operatorname{atan2}\left(a_y,\ \sqrt{a_x^2 + a_z^2}\right)\cdot\frac{180}{\pi}$$
 
 **Neden `atan2(x, √(y²+z²))` kullanılıyor?**
 
@@ -225,7 +227,9 @@ $$\theta_{fused}[k] = \underbrace{\alpha\,\big(\theta_{fused}[k-1] + \omega_{gyr
 
 ![Complementary filter blok diyagramı](../matlab/asama_0_altyapi/results/complementary_filter_blockdiagram.png)
 
-*Şekil 5.1 — Complementary filter ayrık blok diyagramı (`create_filter_diagram.m`). Üst kol: gyro hızı entegre edilir ($\times\Delta t$) ve önceki füzyon çıktısıyla toplanıp $\alpha$ ile ölçeklenir (yüksek geçiren). Alt kol: ivmeölçer açısı $(1-\alpha)$ ile ölçeklenir (alçak geçiren). $z^{-1}$ bir örnek gecikmedir ($\theta_{fused}[k-1]$ geri besleme). Bu yapı [`00_genel_bakis.md`](00_genel_bakis.md) §2.8'deki ayrık-zaman ($z$) operatörünü kullanır.*
+*Şekil 5.1 — Complementary filter ayrık blok diyagramı. Üst kol: gyro hızı entegre edilir ($\times\Delta t$) ve önceki füzyon çıktısıyla toplanıp $\alpha$ ile ölçeklenir (yüksek geçiren). Alt kol: ivmeölçer açısı $(1-\alpha)$ ile ölçeklenir (alçak geçiren). $z^{-1}$ bir örnek gecikmedir ($\theta_{fused}[k-1]$ geri besleme). Bu yapı [`00_genel_bakis.md`](00_genel_bakis.md) §2.8'deki ayrık-zaman ($z$) operatörünü kullanır.*
+
+> 📊 **Üreten betik:** `matlab/asama_0_altyapi/create_filter_diagram.m`
 
 Firmwaredeki implementasyon:
 
