@@ -41,11 +41,30 @@ Hedef: **üniversiteye yeni başlayan biri belgeyi adım adım — denklem, blok
 
 1. **Blok diyagram (zorunlu):** Her sistem (açık-çevrim/kontrolcüsüz dahil) ve her kontrolcü için blok diyagram embed edilir. Üretim: **MATLAB programatik PNG** (`create_*_diagram*.m`, `results/<konu>/`'ya, git'e girer) — tutarlı tez-tarzı stil (toplama noktası $\Sigma$, transfer-fonksiyon blokları, geri besleme okları). Açık-çevrim sistemin kontrolcüsüz blok diyagramı + denklemi mutlaka bulunur.
 2. **Denklemler LaTeX (zorunlu):** Tüm matematiksel ifadeler GitHub `$...$` (satır içi) / `$$...$$` (blok) ile yazılır — ASCII/kod bloğunda denklem bırakılmaz. MATLAB LaTeX'i `\dfrac`/`\c{c}`/`\"o` desteklemez → figür içi metin İngilizce+`\frac`, Türkçe anlatım markdown caption'da.
-3. **Grafik çıktıları (zorunlu):** İlgili sonuç görselleri (step, Bode, kutup haritası, kazanç taraması, test sonucu) embed + Türkçe caption ile yorumlanır.
+3. **Grafik çıktıları + üretim notu (zorunlu):** İlgili sonuç görselleri (step, Bode, kutup haritası, kazanç taraması, test sonucu) embed + Türkçe caption ile yorumlanır. **Her embed'in altına onu üreten betik tam yoluyla not düşülür:** `> 📊 **Üreten betik:** \`matlab/.../script.m\`` (veya `scripts/test.py`). Sebep: izlenebilirlik — bir grafiği yeniden üretmek/güncellemek isteyen okuyucu betiği anında bulur.
 4. **MATLAB fonksiyon prensibi (zorunlu):** Kullanılan her toolbox fonksiyonu (`lsqcurvefit`, `tfest`, `pidtune`, `bode`, `margin`, `lsim`, `step`…) için *ne yaptığı + hangi algoritma/prensiple* açıklanır — "şu fonksiyonu çağırdık" yetersizdir.
 5. **Kavram katmanı:** Ortak kontrol teorisi kavramları (transfer fn, Laplace, kutup/kararlılık, Bode/PM/GM, tip sistem, Tustin) **bir kez** [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md) "Ortak Kontrol Teorisi Primer'i"nde anlatılır; aşama belgeleri tekrar etmez, **oraya atıf verir** ve kavramı kendi sistemine uygular.
 
 > `docs/00_genel_bakis.md` = **aşamalar-arası ortak teori primer'i** (üniversite 1. sınıf seviyesi), donanım mimarisi DEĞİL (o README vitrinindedir). Yeni aşama açılırken bu disiplin baştan uygulanır (sonradan eklemek yerine).
+
+##### ⚠ LaTeX & MATLAB figür tuzakları (öğrenilen dersler — render bozulmasını önler)
+
+Bu tuzaklar gerçek hatalara yol açtı; denklem/figür yazarken baştan uygula (kapanışta `/asama-kapat` mekanik tarar):
+
+**GitHub/KaTeX inline math (`$...$`):**
+- Kapanış `$` **öncesinde** ve açılış `$` **sonrasında boşluk OLAMAZ.** `$E = R - $` ❌ → GitHub `$`'i kapanış saymaz, **satırdaki sonraki tüm math bozulur** → `$E = R - Y$` ✅
+- Bir satırda tek-`$` sayısı **dengeli (çift)** olmalı; dengesiz tek `$` o satırı bozar.
+- Blok `$$...$$` ayrı satırda, öncesi/sonrası **boş satır** ile.
+- Matematik subscript'lerde Türkçe aksan yerine düz/İngilizce (`\text{meas}`, `\text{ölç}` değil) — KaTeX `\c{c}`/`\"o`'yu güvenilir render etmez.
+
+**MATLAB LaTeX yorumlayıcısı (figür içi `text/title`, `Interpreter','latex'`):**
+- `\dfrac` ❌ → `\frac` ✅ ; `\c{c}`, `\"o`, `\S`, `\emph` ❌ (Türkçe aksan/komut desteklenmez) → figür metni **İngilizce + LaTeX matematik**, Türkçe anlatım markdown caption'da.
+- `\!\left(` ❌ ("Missing/unrecognized delimiter") → `\operatorname{}\left(` ✅ ; `\left` ↔ `\right` daima eşleşir.
+- `_` içeren etiketi `\text{}` içinde escape et (`fused\_pitch`) ya da hiç kullanma.
+
+**MATLAB figür teması (ders-kitabı görseli):**
+- Session dark tema olabilir → script başında `set(groot,'defaultAxesColor','w','defaultAxesXColor','k','defaultAxesYColor','k','defaultTextColor','k')` ile **beyaz zemin zorla**.
+- `exportgraphics(f, ..., 'Resolution',150)`; üretilen PNG `results/<konu>/`'ya (git'e girer); blok diyagram helper'ları (`draw_block`/`draw_sum`/`draw_arrow`) tutarlı stil için yeniden kullan.
 
 ### Aşama kapanışında (her aşama: 1, 2, 3, …)
 

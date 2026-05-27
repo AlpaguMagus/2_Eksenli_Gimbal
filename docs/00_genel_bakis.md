@@ -63,7 +63,7 @@ Karmaşık sistemler **bloklar** ve **oklar** ile çizilir. Her blok bir transfe
 |---|---|
 | Seri (kaskat): $G_1$ sonra $G_2$ | $G_1 G_2$ |
 | Paralel: $G_1$ ve $G_2$ toplanır | $G_1 + G_2$ |
-| **Geri besleme** (negatif): ileri $G$, geri $H$ | $\dfrac{G}{1 + GH}$ |
+| **Geri besleme** (negatif): ileri $G$, geri $H$ | $\frac{G}{1 + GH}$ |
 
 Geri besleme formülünün paydası $1 + GH$, sistemin **kararlılığını** belirler (§2.5).
 
