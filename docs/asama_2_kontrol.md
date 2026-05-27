@@ -14,33 +14,45 @@ Hız iç döngüsü Tustin PI + anti-windup ile tasarlandı; Aşama 2.3'te ideal
 
 ### 11.1. Ne — Kontrolcü Nedir?
 
-**Kontrolcü**, sistem çıkışını (motor hızı, ω) istenen değere (setpoint, ω_ref) ulaştıran kapalı döngü hesaplayıcıdır. Bizim seçimimiz **PI (Proportional + Integral)**:
+**Kontrolcü**, sistem çıkışını (motor hızı, $\omega$) istenen değere (setpoint, $\omega_{ref}$) ulaştıran kapalı döngü hesaplayıcıdır.
 
-```
-e(t)   = ω_ref − ω_measured       (hata)
-u(t)   = Kp·e(t) + Ki·∫e(τ)dτ      (kontrol çıkışı = duty)
-```
+> **Ön bilgi:** Kapalı çevrim, blok diyagram, PID, kararlılık kavramları → [`00_genel_bakis.md`](00_genel_bakis.md) §2.2, §2.5. Bu belge o temeli motora uygular.
 
-- **P (Kp):** Anlık hatayla orantılı tepki — hızlı düzeltme.
-- **I (Ki):** Birikmiş hatayla orantılı — steady-state error'u sıfıra getirir.
+Bizim seçimimiz **PI (Proportional + Integral)**. Zaman domeninde hata ve kontrol çıkışı:
+
+$$e(t) = \omega_{ref} - \omega_{meas}, \qquad u(t) = K_p\,e(t) + K_i\!\int_0^t e(\tau)\,d\tau$$
+
+Laplace domeninde PI kontrolcünün transfer fonksiyonu:
+
+$$C(s) = K_p + \frac{K_i}{s} = \frac{K_p\,s + K_i}{s}$$
+
+- **P ($K_p$):** Anlık hatayla orantılı tepki — hızlı düzeltme.
+- **I ($K_i$):** Birikmiş hatayla orantılı — kalıcı-hal hatasını sıfıra getirir (integratör → sistem tip-1, [`00_genel_bakis.md`](00_genel_bakis.md) §2.7).
 - **D yok:** Encoder zaten hızı ölçüyor (yani zaten "türev"); D ile gürültü amplifiye edilirdi.
+
+Bu PI kontrolcü, motor plant'ı ($G(s)=K/(\tau s+1)$) etrafında kapalı-çevrim bir iç hız döngüsü oluşturur:
+
+![Hız PI kapalı-çevrim blok diyagramı](../matlab/asama_2_kontrol/results/2_1_speed_pi/04_speed_pi_blockdiagram.png)
+
+*Şekil 11.1 — Hız PI iç döngüsü (`create_control_diagrams.m`). $\omega_{ref}$ referans, $\Sigma$ hatayı hesaplar ($e=\omega_{ref}-\omega$), PI kontrol sinyali $u$ üretir, doygunluk ($\pm0.5$ duty) ve sürücü ($V_s u - V_{sat}$) gerçek gerilime çevirir, plant hızı üretir. Encoder ölçümü geri beslenir. Bu, [`00_genel_bakis.md`](00_genel_bakis.md) Şekil 1'deki genel yapının motora özelleşmiş halidir: $C(s)=K_p+K_i/s$, $G(s)=K/(\tau s+1)$.*
 
 ### 11.2. Neden — Niçin Pole Placement?
 
 Pole placement, kapalı döngünün **karakteristik denkleminin köklerini** istenen yerlere taşıyarak parametre hesabı yapan **analitik** bir tasarım yöntemidir (`[Franklin2010] §6.4`).
 
-**Kapalı döngü transfer fonksiyonu (1. derece plant + PI):**
-```
-T(s) = K(Kp·s + Ki) / [τs² + (1 + K·Kp)s + K·Ki]
-```
+**Kapalı döngü transfer fonksiyonu** (1. derece plant $G=K/(\tau s+1)$ + PI $C=(K_p s+K_i)/s$, birim geri besleme $T=\frac{CG}{1+CG}$):
 
-Bunu standart 2. derece formla eşitlersek:
-```
-τs² + (1 + K·Kp)s + K·Ki  =  τ · (s² + 2ζω_n·s + ω_n²)
-                              ⇓
-Kp = (2·ζ·ω_n·τ − 1) / K
-Ki = ω_n² · τ / K
-```
+$$T(s) = \frac{K(K_p s + K_i)}{\tau s^2 + (1 + K K_p)\,s + K K_i}$$
+
+Paydayı standart 2. derece karakteristik denklemle eşitlersek ([`00_genel_bakis.md`](00_genel_bakis.md) §2.4):
+
+$$\tau s^2 + (1 + K K_p)\,s + K K_i = \tau\left(s^2 + 2\zeta\omega_n s + \omega_n^2\right)$$
+
+İki tarafın $s$ katsayılarını eşitleyip $K_p, K_i$ için çözeriz:
+
+$$\boxed{\,K_p = \frac{2\zeta\omega_n\tau - 1}{K}, \qquad K_i = \frac{\omega_n^2\,\tau}{K}\,}$$
+
+Böylece istenen kapalı-çevrim davranışını ($\zeta, \omega_n$) seçip kazançları **analitik** olarak hesaplarız — kapalı-çevrim kutuplarını istediğimiz yere "yerleştiririz" (pole placement).
 
 **Parametre seçimi (Aşama 2.1, kullanıcı onaylı):**
 - ζ = 1.0 (kritik sönüm) — sıfır overshoot, `[Franklin2010] §3.6`
@@ -58,11 +70,13 @@ Ki = ω_n² · τ / K
 
 #### Adım 2: pidtune (otomatik karşılaştırma)
 - `design_speed_pi_autotune.m` — Robust / Balanced / Fast modları
+- **`pidtune` çalışma prensibi** (Control System Toolbox): plant'ı verir, hedef bant genişliğini (veya robustluk slider'ını) belirtirsin; fonksiyon açık-çevrim kazanç geçiş frekansını ve faz payını hedefleyerek (loop-shaping) $K_p, K_i$'yi otomatik seçer. Analitik formül vermez — "kara kutu" optimizasyon. Bizim için **karşılaştırma referansı**: analitik pole placement'ın yanında bağımsız ikinci görüş.
 - Üçü de **376 ms settling, %13-18 OS** — çok yavaş, hedef altında
 
 #### Adım 3: Karşılaştırma + Validation
 - `compare_speed_pi.m` — Bode, step response, gain/phase margin
-- 5 kontrolcü tablosu hocaya sunum için
+- **`bode` / `margin` prensibi:** `bode` sistemin frekans yanıtını (kazanç dB + faz) hesaplar; `margin` bu yanıttan kazanç payı (GM) ve faz payını (PM) otomatik çıkarır ([`00_genel_bakis.md`](00_genel_bakis.md) §2.6). Büyük PM → sönümlü/sağlam. 5 kontrolcü bu marjlarla karşılaştırıldı.
+- 5 kontrolcü tablosu jüri/sunum için akademik kanıt
 
 #### Adım 4: Simulink kapalı döngü
 - `create_speed_loop_simulink.m` — programatik `.slx` üretimi
@@ -122,15 +136,13 @@ Ki = ω_n² · τ / K
 
 #### Tustin (bilinear) discretization
 
-Sürekli zaman PI'yi z-domain'e dönüştürmek için Tustin yaklaşımı (`[AstromMurray2008] §10.2`):
-```
-s ≈ (2/Ts)·(z−1)/(z+1)
-```
+Firmware ayrık adımlarla ($T_s=5$ ms) çalışır, ama PI tasarımı sürekli zamandadır. Sürekli $C(s)$'i ayrık $z$-domenine taşımak için Tustin (bilinear) yaklaşımı kullanılır ([`00_genel_bakis.md`](00_genel_bakis.md) §2.8, `[AstromMurray2008] §10.2`):
 
-PI integratoru:
-```
-i[k] = i[k-1] + Ki·Ts/2·(e[k] + e[k-1])
-```
+$$s \approx \frac{2}{T_s}\cdot\frac{z-1}{z+1}$$
+
+Bu, integral terimini (trapez kuralı) firmware'de toplanabilir bir fark denklemine çevirir:
+
+$$i[k] = i[k-1] + \frac{K_i T_s}{2}\big(e[k] + e[k-1]\big)$$
 
 **Paralel form (firmware'de uygulanan):**
 ```c
@@ -147,16 +159,11 @@ float SpeedPI_Step(float omega_measured) {
 
 #### Anti-windup back-calculation (Aström-Murray §10.4)
 
-PI saturation'a girdiğinde integrator wind-up eder — sınırı aşan komutları biriktirir, recovery'i bozar. Çözüm:
+PI saturation'a (duty $\pm0.5$) girdiğinde integrator **wind-up** eder — sınırı aşan komutları biriktirir, recovery'i bozar. Çözüm back-calculation: doygunluk hatasını ($e_{aw}$) integratordan geri besle:
 
-```
-u_sat   = clamp(u_unsat, ±duty_max)        // saturation
-e_aw    = u_sat − u_unsat                   // saturation hatası
-i[k]   += (Ts/T_t) · e_aw                   // integratorda geri-hesapla
-T_t     = T_i = Kp/Ki = 28.75 ms            // klasik tracking time
-```
+$$u_{sat} = \text{clamp}(u, \pm u_{max}), \quad e_{aw} = u_{sat} - u, \quad i[k] \mathrel{+}= \frac{T_s}{T_t}\,e_{aw}, \quad T_t = \frac{K_p}{K_i} = 28.75\ \text{ms}$$
 
-Saturation yokken `e_aw = 0` → düzeltme sıfır. Saturation girince integrator "saturation tarafına çekilir", lockout sonrası ani patlama önlenir.
+Saturation yokken $e_{aw}=0$ → düzeltme sıfır. Saturation girince integrator "doygunluk tarafına çekilir", lockout sonrası ani patlama önlenir ($T_t$: tracking time sabiti).
 
 #### Mode-tabanlı komut seti (Aşama 2.2.C — kullanıcı onaylı A: açık MODE)
 
@@ -361,15 +368,15 @@ Görsel: `matlab/asama_2_kontrol/results/2_3_realistic_sim/realistic_sim_verific
 
 #### 11.13.1. Ne — Cascade Pozisyon Kontrolü
 
-İç hız döngüsünün (Aşama 2.3) etrafına **pozisyon dış döngüsü** sarıldı:
+İç hız döngüsünün (Aşama 2.3) etrafına **pozisyon dış döngüsü** sarıldı. Dış döngü (P kontrolcü) konum hatasından bir hız referansı üretir; iç döngü (hız PI) bunu takip eder:
 
-```
-θ_ref → (+) → [Kp_pos] → ω_ref → [hız PI iç döngü] → motor → θ
-         ↑                                                   │
-         └──────────────── pozisyon geri besleme ───────────┘
-```
+![Cascade pozisyon kontrol blok diyagramı](../matlab/asama_2_kontrol/results/2_5_cascade/cascade_textbook_diagram.png)
 
-Dış döngü çıkış mili açısını (θ) kontrol eder, çıkışı iç döngünün hız referansıdır. Çıkış mili açısı encoder'dan: `θ_out = EC × 360/466` (0.773°/count çözünürlük).
+*Şekil 11.13 — Cascade kontrol (`create_control_diagrams.m`): dış pozisyon P döngüsü + iç hız PI döngüsü. $\theta_{ref}\to\Sigma_1\to K_{p,pos}\to\omega_{ref}\to\Sigma_2\to$ PI $\to$ plant $\to\omega\to\frac{1}{s}\to\theta$. **İç döngü (mavi)** hız $\omega$'yı geri besler, **dış döngü (kırmızı)** konum $\theta$'yı. Hızdan konuma geçiş bir integratördür ($\frac{1}{s}$) — bu yüzden plant tip-1, P kontrolcü step'te sıfır hata verir ([`00_genel_bakis.md`](00_genel_bakis.md) §2.7). Resmi firmware-uyumlu Simulink modeli için bkz. §11.13.7.*
+
+Dış döngü çıkış mili açısını ($\theta$) kontrol eder, çıkışı iç döngünün hız referansıdır. Çıkış mili açısı encoder'dan okunur:
+
+$$\theta_{out} = EC \times \frac{360°}{466} \quad (0.773°/\text{count çözünürlük})$$
 
 #### 11.13.2. Neden — Cascade + P + Çıkış Mili (3 Sokratik Karar)
 
@@ -453,20 +460,25 @@ Sürtünmeli sim θ_std=0° (gerçek Test 2.5: <0.7°) — **sim artık gerçeğ
 
 #### 11.13.8. IMU Mirror Takip — Analitik Kazanç Tasarımı (Aşama 2.7)
 
-**Ne:** `MODE:MIRROR` — motor, IMU pitch açısını **canlı takip eder** (breadboard'u eğince motor şaftı aynı açıya gider). Cascade altyapısı (§11.13) değişmez; setpoint `POS_DEG` komutu yerine **canlı fused_pitch**'ten beslenir: `θ_ref = clamp(fused_pitch − pitch₀, ±60°)`, 90°/s slew. Mirror = **takip/taklit** (`+pitch`, aynı yön); gerçek gimbal stabilizasyonu (`−pitch`, kamerayı sabit tutma) Aşama 5'e aittir.
+**Ne:** `MODE:MIRROR` — motor, IMU pitch açısını **canlı takip eder** (breadboard'u eğince motor şaftı aynı açıya gider). Cascade altyapısı (§11.13) değişmez; setpoint `POS_DEG` komutu yerine **canlı fused_pitch**'ten beslenir: $\theta_{ref} = \text{clamp}(\text{fused\_pitch} - p_0,\ \pm60°)$, 90°/s slew. Mirror = **takip/taklit** ($+$pitch, aynı yön); gerçek gimbal stabilizasyonu ($-$pitch, kamerayı sabit tutma) Aşama 5'e aittir.
+
+![IMU mirror takip blok diyagramı](../matlab/asama_2_kontrol/results/2_7_mirror/mirror_blockdiagram.png)
+
+*Şekil 11.17 — IMU mirror zinciri (`create_control_diagrams.m`): IMU + complementary filter (Aşama 0) → fused pitch → referans üretimi (offset $-p_0$, $\pm60°$ clamp, slew) → cascade (§11.13) → motor. Referans artık sabit bir `POS_DEG` değil, **canlı IMU sinyalidir** — bu yüzden tasarım kriteri step değil, hareketli hedef (ramp) takibidir.*
 
 **Firmware:** `src/cmd_parser.c` (`MODE:MIRROR`), `src/main.c` (göreli pitch₀ referansı + ±60° clamp + slew + cascade). Güvenlik: STOP/RESET takipten çıkıp DUTY'ye döner; watchdog hedefi sıfırlar.
 
-**Neden Kp_pos farklı — ANALİTİK tasarım (deneme-yanılma değil):** Pozisyon **step** (§11.13, Kp_pos=2) ile canlı **takip** farklı görevlerdir. Takip görevinde kazanç, **hız hata sabiti** ile hesaplanır (`[Franklin2010] §4.2`):
+**Neden Kp_pos farklı — ANALİTİK tasarım (deneme-yanılma değil):** Pozisyon **step** (§11.13, $K_{p,pos}=2$) ile canlı **takip** farklı görevlerdir. Takip görevinde kazanç, **hız hata sabiti** $K_v$ ile hesaplanır ([`00_genel_bakis.md`](00_genel_bakis.md) §2.7, `[Franklin2010] §4.2`). Cascade açık-çevrim, dış P + iç döngü ($T_{inner}$, DC kazancı 1) + integratör ($1/s$):
 
-```
-Cascade açık döngü:  L(s) = Kp_pos · T_inner(s) · (1/s)   → TİP-1 sistem
-Hız hata sabiti:     Kv = lim_{s→0} s·L(s) = Kp_pos·T_inner(0) = Kp_pos   (T_inner DC=1)
-Ramp takip hatası:   e_ss = ω_in / Kv = ω_in / Kp_pos
-⇒ Tasarım:           Kp_pos ≥ ω_in / e_ss_hedef
-```
+$$L(s) = K_{p,pos}\cdot T_{inner}(s)\cdot \frac{1}{s} \quad\Rightarrow\quad \text{tip-1 sistem}$$
 
-Gimbal-hızı hareket ω_in≈30°/s, hedef e_ss<5° → **Kp_pos ≥ 6**. Sinüs analizi (`design_mirror_tracking.m`, sensitivite `S=1/(1+L)`) doğruluyor:
+Hız hata sabiti ve sabit-hızlı (ramp) hareketin kalıcı-hal takip hatası:
+
+$$K_v = \lim_{s\to 0} s\,L(s) = K_{p,pos}\,T_{inner}(0) = K_{p,pos}, \qquad e_{ss} = \frac{\omega_{in}}{K_v} = \frac{\omega_{in}}{K_{p,pos}}$$
+
+$$\Rightarrow\quad K_{p,pos} \geq \frac{\omega_{in}}{e_{ss,\text{hedef}}}$$
+
+Gimbal-hızı hareket $\omega_{in}\approx30°$/s, hedef $e_{ss}<5°$ → $K_{p,pos} \geq 6$. Sinüs analizi (`design_mirror_tracking.m`, sensitivite $S=\frac{1}{1+L}$) doğruluyor:
 
 | Kp_pos | Sinüs takip RMS (analitik, 30°/0.2Hz) |
 |---|---|

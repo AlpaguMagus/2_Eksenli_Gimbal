@@ -9,7 +9,7 @@ Proje çok-belgeli bir ekosistemle ilerler. **Her belge tek bir soruyu, tek bir 
 | Belge | Rol / cevapladığı soru | Güncelleme tetiği |
 |---|---|---|
 | `README.md` | **Vitrin** — proje tanıtımı, mimari şema, hızlı başlangıç, repo + doküman haritası, "şu an neredeyiz" | Davranış/yapı/aşama-durum değişikliği |
-| `docs/00_genel_bakis.md` | Vizyon, sistem mimarisi, aşamalar-arası ortak teori | Mimari/vizyon değişikliği |
+| `docs/00_genel_bakis.md` | Vizyon + **ortak kontrol teorisi primer'i** (aşamalar-arası temel: transfer fn, kararlılık, Bode, tip sistem) | Vizyon/teori-primer değişikliği |
 | `docs/asama_<N>_*.md` | **Derin akademik içerik** (ders-kitabı): kavram + neden + nasıl + nerede + sonuç | İlgili aşama ilerleyince |
 | `ROADMAP.md` | Plan, aşamalar, test iskeleti, açık sorular, tamamlanma kanıtı | Her adım/aşama bitiminde |
 | `PROJE_DURUMU.md` | "Şu an neredeyiz" 5-10 satır özet | Aşama/alt-aşama geçişinde |
@@ -34,6 +34,18 @@ Her aşama belgesi, her bileşen (donanım, algoritma, kontrolcü, filter) için
 5. **Ne sonuç çıktı:** Test sonucu, sayısal kanıt, **görsel embed** — *"Test 1.T5 NRMSE %11, `![...](../matlab/asama_1_model/results/<id>/10_validation_summary.png)`"*
 
 Ek olarak: kaynaklı **tartışma / öğrenilen dersler** bölümü ve **açık konular**. Her teknik karar `KAYNAKCA.md` etiketli.
+
+#### Matematiksel & görsel gösterim zorunlulukları (ders-kitabı kalitesi)
+
+Hedef: **üniversiteye yeni başlayan biri belgeyi adım adım — denklem, blok diyagram, grafik — takip ederek anlayabilmeli.** Her sistem ve her kontrolcü için:
+
+1. **Blok diyagram (zorunlu):** Her sistem (açık-çevrim/kontrolcüsüz dahil) ve her kontrolcü için blok diyagram embed edilir. Üretim: **MATLAB programatik PNG** (`create_*_diagram*.m`, `results/<konu>/`'ya, git'e girer) — tutarlı tez-tarzı stil (toplama noktası $\Sigma$, transfer-fonksiyon blokları, geri besleme okları). Açık-çevrim sistemin kontrolcüsüz blok diyagramı + denklemi mutlaka bulunur.
+2. **Denklemler LaTeX (zorunlu):** Tüm matematiksel ifadeler GitHub `$...$` (satır içi) / `$$...$$` (blok) ile yazılır — ASCII/kod bloğunda denklem bırakılmaz. MATLAB LaTeX'i `\dfrac`/`\c{c}`/`\"o` desteklemez → figür içi metin İngilizce+`\frac`, Türkçe anlatım markdown caption'da.
+3. **Grafik çıktıları (zorunlu):** İlgili sonuç görselleri (step, Bode, kutup haritası, kazanç taraması, test sonucu) embed + Türkçe caption ile yorumlanır.
+4. **MATLAB fonksiyon prensibi (zorunlu):** Kullanılan her toolbox fonksiyonu (`lsqcurvefit`, `tfest`, `pidtune`, `bode`, `margin`, `lsim`, `step`…) için *ne yaptığı + hangi algoritma/prensiple* açıklanır — "şu fonksiyonu çağırdık" yetersizdir.
+5. **Kavram katmanı:** Ortak kontrol teorisi kavramları (transfer fn, Laplace, kutup/kararlılık, Bode/PM/GM, tip sistem, Tustin) **bir kez** [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md) "Ortak Kontrol Teorisi Primer'i"nde anlatılır; aşama belgeleri tekrar etmez, **oraya atıf verir** ve kavramı kendi sistemine uygular.
+
+> `docs/00_genel_bakis.md` = **aşamalar-arası ortak teori primer'i** (üniversite 1. sınıf seviyesi), donanım mimarisi DEĞİL (o README vitrinindedir). Yeni aşama açılırken bu disiplin baştan uygulanır (sonradan eklemek yerine).
 
 ### Aşama kapanışında (her aşama: 1, 2, 3, …)
 

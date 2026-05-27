@@ -148,15 +148,7 @@ Tek bir I2C transaction ile 14 byte okunarak sensör verisinin tutarlılığı (
 
 Sensör eğildiğinde yerçekimi vektörü eksenlere farklı projeksiyon yapar. Pitch (öne-arkaya eğim) ve Roll (sağa-sola eğim) açıları şu formüllerle hesaplanır:
 
-```
-                    ax
-pitch = atan2( ─────────────── ) × (180/π)
-               √(ay² + az²)
-
-                    ay
-roll  = atan2( ─────────────── ) × (180/π)
-               √(ax² + az²)
-```
+$$\text{pitch} = \text{atan2}\!\left(a_x,\ \sqrt{a_y^2 + a_z^2}\right)\cdot\frac{180}{\pi}, \qquad \text{roll} = \text{atan2}\!\left(a_y,\ \sqrt{a_x^2 + a_z^2}\right)\cdot\frac{180}{\pi}$$
 
 **Neden `atan2(x, √(y²+z²))` kullanılıyor?**
 
@@ -174,21 +166,15 @@ roll  = atan2( ─────────────── ) × (180/π)
 
 ### 4.2. Jiroskop (Gyroscope) — Açısal Hız Ölçümü
 
-Jiroskop, her eksen etrafındaki **açısal hızı** (°/s) ölçer. Ham dijital değerden fiziksel birime dönüşüm:
+Jiroskop, her eksen etrafındaki **açısal hızı** (°/s) ölçer. Ham dijital değerden fiziksel birime dönüşüm (MPU6050 ±250°/s skala, `[MPU6050_DS]`):
 
-```
-              ham_değer (LSB)
-ω (°/s) = ─────────────────────
-            131 LSB/(°/s)
-```
+$$\omega\ [°/s] = \frac{\text{ham değer [LSB]}}{131\ \text{LSB}/(°/s)}$$
 
 Açısal hız, sayısal entegrasyon ile açıya dönüştürülür:
 
-```
-θ(t) = θ(t-1) + ω × Δt
-```
+$$\theta(t) = \theta(t-1) + \omega\cdot\Delta t$$
 
-Burada `Δt`, iki ölçüm arası geçen süredir (firmwaredeki `dt`, `HAL_GetTick()` farkından hesaplanır).
+Burada $\Delta t$, iki ölçüm arası geçen süredir (firmwaredeki `dt`, `HAL_GetTick()` farkından hesaplanır). Bu entegrasyonun zayıflığı: $\omega$'daki küçük bias zamanla birikir → **drift** (§4.3, complementary filter bunu düzeltir).
 
 **Jiroskobun güçlü ve zayıf yönleri:**
 
@@ -231,14 +217,15 @@ Bu iki sensörün avantajlı frekans bölgelerini birleştirmek için **sensör 
 
 ### 5.1. Temel Denklem
 
-Complementary filter, bir **yüksek geçiren filtre** (gyro için) ile bir **alçak geçiren filtre** (accelerometer için) birleşiminden oluşur:
+Complementary filter, bir **yüksek geçiren filtre** (gyro için) ile bir **alçak geçiren filtre** (accelerometer için) birleşiminden oluşur (`[Mahony2008]`). Ayrık zaman temel denklemi:
 
-```
-θ_fused = α × (θ_fused_prev + ω_gyro × Δt) + (1 - α) × θ_accel
-          ├──────────── Gyro ────────────┤   ├── Accelerometer ──┤
-          │    Yüksek geçiren filtre     │   │ Alçak geçiren     │
-          │    (kısa vadeli değişim)     │   │ (uzun vadeli ref)  │
-```
+$$\theta_{fused}[k] = \underbrace{\alpha\,\big(\theta_{fused}[k-1] + \omega_{gyro}\,\Delta t\big)}_{\text{gyro — yüksek geçiren}} + \underbrace{(1-\alpha)\,\theta_{accel}}_{\text{accel — alçak geçiren}}$$
+
+İki filtrenin ağırlıkları toplamı 1'dir ($\alpha + (1-\alpha) = 1$) — "tamamlayıcı" (complementary) adı buradan gelir: gyro'nun yüksek-frekans güvenilirliği ile ivmeölçerin düşük-frekans (mutlak) referansı çakışmadan birleşir.
+
+![Complementary filter blok diyagramı](../matlab/asama_0_altyapi/results/complementary_filter_blockdiagram.png)
+
+*Şekil 5.1 — Complementary filter ayrık blok diyagramı (`create_filter_diagram.m`). Üst kol: gyro hızı entegre edilir ($\times\Delta t$) ve önceki füzyon çıktısıyla toplanıp $\alpha$ ile ölçeklenir (yüksek geçiren). Alt kol: ivmeölçer açısı $(1-\alpha)$ ile ölçeklenir (alçak geçiren). $z^{-1}$ bir örnek gecikmedir ($\theta_{fused}[k-1]$ geri besleme). Bu yapı [`00_genel_bakis.md`](00_genel_bakis.md) §2.8'deki ayrık-zaman ($z$) operatörünü kullanır.*
 
 Firmwaredeki implementasyon:
 
@@ -259,7 +246,7 @@ fused_roll  = 0.98f * (fused_roll  + gx_dps * dt) + 0.02f * roll;
 | 0.95 | %95 | %5 | ~1 s | Accel gürültüsü belirginleşir |
 | 0.80 | %80 | %20 | ~0.25 s | Accel'e çok bağımlı, gürültülü |
 
-Zaman sabiti yaklaşık olarak: `τ ≈ Δt × α / (1 - α)`. Mevcut ayarda `τ ≈ 0.05 × 0.98 / 0.02 ≈ 2.45 s`, yani gyro drift'i yaklaşık 2.5 saniye içinde ivmeölçer referansına doğru düzeltilir.
+Zaman sabiti yaklaşık olarak $\tau \approx \Delta t\cdot\frac{\alpha}{1-\alpha}$. Mevcut ayarda $\tau \approx 0.05\cdot\frac{0.98}{0.02} \approx 2.45$ s, yani gyro drift'i yaklaşık 2.5 saniye içinde ivmeölçer referansına doğru düzeltilir.
 
 ### 5.3. Gyro Eksen İşaret Yönleri
 

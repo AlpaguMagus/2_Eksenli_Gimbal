@@ -31,7 +31,7 @@ Her belge tek bir soruyu, tek bir okuyucu kitlesine cevaplar:
 | Belge | Cevapladığı soru | Okuyucu |
 |---|---|---|
 | **README.md** (bu dosya) | Proje ne, nasıl çalıştırılır, nereye bakılır? | İlk gelen / GitHub |
-| [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md) | Vizyon, sistem mimarisi, aşamalar-arası ortak temel? | Jüri / geliştirici |
+| [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md) | Vizyon + **ortak kontrol teorisi primer'i** (transfer fn, kararlılık, Bode, tip sistem)? | Jüri / yeni başlayan |
 | [`docs/asama_0_altyapi.md`](docs/asama_0_altyapi.md) | Donanım, firmware, IMU füzyonu, USB, motor/encoder **nasıl** kuruldu? | Geliştirici |
 | [`docs/asama_1_model.md`](docs/asama_1_model.md) | Motor modeli (K, τ) **nasıl/neden** çıkarıldı, **sonuç** ne? | Jüri (akademik) |
 | [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md) | Kontrolcü **neden** öyle tasarlandı, **alternatifler**, **sonuç**? | Jüri (akademik) |
@@ -127,7 +127,7 @@ Komut seti detayı → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md).
 2_Eksenli_Gimbal/
 ├── README.md                 ← Bu dosya (vitrin)
 ├── docs/                     ← Aşama-bazlı teknik/akademik belgeler
-│   ├── 00_genel_bakis.md     ← Vizyon, sistem mimarisi, ortak teori
+│   ├── 00_genel_bakis.md     ← Vizyon + ortak kontrol teorisi primer'i (denklem/diyagram)
 │   ├── asama_0_altyapi.md    ← Donanım, firmware, IMU, filter, USB, motor/encoder
 │   ├── asama_1_model.md      ← Sistem tanımlama (K, τ, dead-band)
 │   └── asama_2_kontrol.md    ← Hız PI, sim-to-real, disturbance, pozisyon cascade
