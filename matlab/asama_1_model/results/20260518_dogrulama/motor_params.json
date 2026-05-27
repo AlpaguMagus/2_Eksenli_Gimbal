@@ -1,0 +1,28 @@
+{
+  "model": "first_order_with_deadband",
+  "K_cw": 54.534689126697216,
+  "K_ccw": 53.98238818160943,
+  "tau_median_s": 0.07742337107201043,
+  "tau_iqr_s": 0.039875693308566648,
+  "V_dead_pos_V": -0.24193569722539171,
+  "V_dead_neg_V": 0.24792185132225558,
+  "V_supply_V": 12.15,
+  "V_sat_V": 0.5,
+  "symmetry_pct": 1.0179060453658375,
+  "R2_pos": 0.999841000649331,
+  "R2_neg": 0.99980150502971554,
+  "validation_nrmse_mean": 10.355058611940244,
+  "validation_nrmse_max": 16.810411181487151,
+  "validation_pass_T1_T5": true,
+  "n_steps_fitted": 18,
+  "test_id": "20260518_dogrulama",
+  "commit": "a065ec2",
+  "kaynak": [
+    "Ljung1999 §3",
+    "Ljung1999 §4",
+    "Ljung1999 §16",
+    "Franklin2010 §3",
+    "Soderstrom1989 §4",
+    "TB6612_DS §1"
+  ]
+}

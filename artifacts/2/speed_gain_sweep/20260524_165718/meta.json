@@ -1,0 +1,81 @@
+{
+  "test_id": "20260524_165718",
+  "title": "Aşama 2.3 — 5 kazanç seti SP_W:50 taraması",
+  "timestamp": "2026-05-24T16:57:44",
+  "commit": "a065ec2",
+  "setpoint_rad_s": 50.0,
+  "dt_source": "DWT_microsecond",
+  "encoder_filter": "moving_avg_5",
+  "results": [
+    {
+      "name": "pole_aggressive",
+      "kp": 0.1133,
+      "ki": 7.7401,
+      "omega_ss": 34.58,
+      "omega_std": 97.36,
+      "u_abs": 0.5,
+      "u_std": 0.498,
+      "u_min": -0.5,
+      "u_max": 0.5,
+      "bang_bang": true,
+      "settled": false,
+      "n": 142
+    },
+    {
+      "name": "pole_conservative",
+      "kp": 0.1163,
+      "ki": 4.0447,
+      "omega_ss": 34.22,
+      "omega_std": 98.33,
+      "u_abs": 0.5,
+      "u_std": 0.496,
+      "u_min": -0.5,
+      "u_max": 0.5,
+      "bang_bang": true,
+      "settled": false,
+      "n": 142
+    },
+    {
+      "name": "pidtune_Robust",
+      "kp": 0.0045,
+      "ki": 0.5112,
+      "omega_ss": 48.69,
+      "omega_std": 120.55,
+      "u_abs": 0.364,
+      "u_std": 0.378,
+      "u_min": -0.347,
+      "u_max": 0.5,
+      "bang_bang": true,
+      "settled": false,
+      "n": 142
+    },
+    {
+      "name": "pidtune_Balanced",
+      "kp": 0.0001,
+      "ki": 0.2664,
+      "omega_ss": 58.57,
+      "omega_std": 167.85,
+      "u_abs": 0.425,
+      "u_std": 0.441,
+      "u_min": -0.5,
+      "u_max": 0.5,
+      "bang_bang": true,
+      "settled": false,
+      "n": 142
+    },
+    {
+      "name": "pidtune_Fast",
+      "kp": 0.0001,
+      "ki": 0.2664,
+      "omega_ss": 42.34,
+      "omega_std": 173.5,
+      "u_abs": 0.428,
+      "u_std": 0.442,
+      "u_min": -0.5,
+      "u_max": 0.5,
+      "bang_bang": true,
+      "settled": false,
+      "n": 142
+    }
+  ]
+}

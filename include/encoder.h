@@ -29,6 +29,20 @@
 void    Encoder_Init(void);
 int32_t Encoder_GetCount(void);          /* TIM2->CNT, signed 32-bit */
 void    Encoder_Reset(void);             /* sayacı sıfırla */
-float   Encoder_GetSpeed(float dt_sec);  /* MOTOR ŞAFTI rad/s. Çıkış mili için 9.7'ye böl. */
+float   Encoder_GetSpeed(float dt_sec);  /* MOTOR ŞAFTI rad/s (ham). Çıkış mili için 9.7'ye böl. */
+
+/* ── Filtrelenmiş hız ölçümü (Aşama 2.3) ───────────────────────────────────
+ * SORUN: Encoder_GetSpeed ham çıktısı çok kuantize — 1 count ≈ 18.7 rad/s
+ *   (Δt≈7 ms, 48 olay/devir). Hız PI bu kuantize ölçüme tepki verince
+ *   bang-bang salınım (limit cycle) oluşuyor → motor titrer, dönmez.
+ * ÇÖZÜM (A+B): N-örnek moving average. Δt ≈ sabit olduğundan
+ *   mean(son N ham hız) hem efektif çözünürlüğü N× artırır (B: pencere),
+ *   hem yüksek frekans gürültüyü bastırır (A: filtre).
+ *   WINDOW=5 → efektif çözünürlük 18.7/5 ≈ 3.74 rad/s, gecikme ~(N-1)/2·Δt ≈ 14 ms.
+ * Kontrolcü faz marjına etkisi: PM 80.8° → ~58° (hâlâ >45° güvenli).
+ * Ham Encoder_GetSpeed korunur (Aşama 1 reproducibility + stall check için). */
+#define ENCODER_SPEED_WINDOW  5
+float   Encoder_FilterSpeed(float raw_speed_radps);  /* moving average, SP_W PI girişi */
+void    Encoder_FilterReset(void);                   /* pencere temizle (mod geçişi/STOP) */
 
 #endif /* ENCODER_H */

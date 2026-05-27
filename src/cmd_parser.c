@@ -1,5 +1,8 @@
 #include "cmd_parser.h"
 #include "motor.h"
+#include "speed_pi.h"
+#include "position_p.h"
+#include "encoder.h"
 #include "usbd_cdc_if.h"
 #include "stm32f4xx_hal.h"
 #include <string.h>
@@ -10,34 +13,166 @@
 static char     line_buf[CMD_BUF_SIZE];
 static uint16_t line_len = 0;
 
-static uint32_t last_cmd_tick_ms = 0;
+static uint32_t  last_cmd_tick_ms = 0;
+static CmdMode_t current_mode     = CMD_MODE_DUTY;   /* varsayılan, geriye uyumlu */
 
 static const char PONG[] = "PONG\r\n";
 
 static void parse_line(const char *line)
 {
+    /* ── MODE komutları ─────────────────────────────────────────── */
+    if (strcmp(line, "MODE:DUTY") == 0) {
+        /* SP_W → DUTY geçiş: motoru durdur, PI'yi resetle (windup birikmesin) */
+        if (current_mode != CMD_MODE_DUTY) {
+            Motor_Stop();
+            SpeedPI_Reset();
+            Encoder_FilterReset();
+        }
+        current_mode = CMD_MODE_DUTY;
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if (strcmp(line, "MODE:SP_W") == 0) {
+        if (current_mode != CMD_MODE_SP_W) {
+            /* DUTY → SP_W geçiş: motoru durdur, PI'yi sıfırla (eski state varsa) */
+            Motor_Stop();
+            SpeedPI_Reset();
+            Encoder_FilterReset();
+        }
+        current_mode = CMD_MODE_SP_W;
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if (strcmp(line, "MODE:POS") == 0) {
+        if (current_mode != CMD_MODE_POS) {
+            /* → POS cascade geçiş: motoru durdur, iç PI + filtre + dış P sıfırla.
+             * Encoder_Reset: mevcut konum 0° referans olur (göreceli pozisyon).
+             * Slew=0: dış P zaten yumuşak ω_ref üretir, iç döngü slew'i ekstra
+             *   faz kaybı katıp cascade'i bozar (sim'de slew yoktu). */
+            Motor_Stop();
+            SpeedPI_Reset();
+            Encoder_FilterReset();
+            PositionP_Reset();
+            Encoder_Reset();
+            SpeedPI_SetSlewRate(0.0f);
+            PositionP_SetGain(2.0f);   /* step: konservatif/overshootsuz (Aşama 2.5) */
+        }
+        current_mode = CMD_MODE_POS;
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if (strcmp(line, "MODE:MIRROR") == 0) {
+        if (current_mode != CMD_MODE_MIRROR) {
+            /* → MIRROR (Aşama 2.7): POS cascade ile aynı reset; ek olarak main loop
+             * geçiş edge'inde pitch0 (göreli referans) kaydeder. Encoder_Reset →
+             * motor 0° = geçiş anı; θ_ref başlangıçta 0 → ani sıçrama yok.
+             * Dış döngü hedefi (θ_ref) main loop'ta fused_pitch'ten slew'li üretilir. */
+            Motor_Stop();
+            SpeedPI_Reset();
+            Encoder_FilterReset();
+            PositionP_Reset();
+            Encoder_Reset();
+            SpeedPI_SetSlewRate(0.0f);
+            PositionP_SetGain(6.0f);   /* takip kazancı — ANALİTİK ([Franklin2010] §4.2,
+                                        * design_mirror_tracking.m): tip-1 sistem, Kv=Kp_pos.
+                                        * Ramp e_ss=ω_in/Kv; ω_in=30°/s, hedef<5° → Kp_pos≥6.
+                                        * Sinüs (30°,0.2Hz) RMS 4.63°<5° doğrular. Cascade ayrımı
+                                        * 33/6≈5.5×>5× [§6.4]. Test 2.T6 deneysel 4.68° tutarlı. */
+        }
+        current_mode = CMD_MODE_MIRROR;
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
+    /* ── DUTY komutu — sadece DUTY modda motor sürer ────────────── */
     if (strncmp(line, "DUTY:", 5) == 0) {
         float d = strtof(line + 5, NULL);
-        if (d < 0.0f) {
-            Motor_SetDir(MOTOR_CCW);
-            Motor_SetDuty(-d);
-        } else {
-            Motor_SetDir(MOTOR_CW);
-            Motor_SetDuty(d);
+        if (current_mode == CMD_MODE_DUTY) {
+            if (d < 0.0f) {
+                Motor_SetDir(MOTOR_CCW);
+                Motor_SetDuty(-d);
+            } else {
+                Motor_SetDir(MOTOR_CW);
+                Motor_SetDuty(d);
+            }
         }
+        /* DUTY komutu yanlış modda gelirse sessizce ignore — log yok, parser temiz */
         last_cmd_tick_ms = HAL_GetTick();
+        return;
     }
-    else if (strcmp(line, "STOP") == 0) {
+
+    /* ── SP_W komutu — sadece SP_W modda etkili ──────────────────── */
+    if (strncmp(line, "SP_W:", 5) == 0) {
+        float r = strtof(line + 5, NULL);
+        /* Setpoint set edilir (PI bu değeri kullanır); main loop SP_W modda
+         * SpeedPI_Step çağırır ve Motor_SetDir/Duty'yi yönetir. */
+        SpeedPI_SetSetpoint(r);
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
+    /* ── POS_DEG komutu — POS modda hedef çıkış mili açısı (derece) ── */
+    if (strncmp(line, "POS_DEG:", 8) == 0) {
+        float deg = strtof(line + 8, NULL);
+        /* Dış döngü setpoint; main loop POS modda PositionP_Step → ω_ref →
+         * SpeedPI → Motor_SetDutySigned zincirini sürer. */
+        PositionP_SetSetpoint(deg);
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    /* ── KPP komutu — pozisyon P kazancı runtime ayarı (flash'sız) ── */
+    if (strncmp(line, "KPP:", 4) == 0) {
+        PositionP_SetGain(strtof(line + 4, NULL));
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
+    /* ── Runtime kazanç ayarı (Aşama 2.3 — 5 kazanç setini flash'sız dene) ── */
+    if (strncmp(line, "KP:", 3) == 0) {
+        float kp = strtof(line + 3, NULL);
+        SpeedPI_SetGains(kp, SpeedPI_GetKi());   /* Ki korunur */
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if (strncmp(line, "KI:", 3) == 0) {
+        float ki = strtof(line + 3, NULL);
+        SpeedPI_SetGains(SpeedPI_GetKp(), ki);   /* Kp korunur */
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if (strncmp(line, "SLEW:", 5) == 0) {
+        SpeedPI_SetSlewRate(strtof(line + 5, NULL));  /* rad/s/s, 0=ani step */
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
+    /* ── Mod-bağımsız komutlar ──────────────────────────────────── */
+    if (strcmp(line, "STOP") == 0) {
         Motor_Stop();
+        SpeedPI_Reset();
+        Encoder_FilterReset();
+        /* POS modda main loop PositionP'den setpoint alır → hedefi mevcut konuma
+         * çek (e=0 → ω_ref=0) ki STOP sonrası motor eski hedefe gitmesin (pozisyon tut). */
+        if (current_mode == CMD_MODE_POS) PositionP_SetSetpoint(PositionP_GetThetaOut());
+        /* MIRROR sürekli takip modu: STOP = takipten çık (yoksa main loop fused_pitch'ten
+         * setpoint üretip Motor_Stop'u ezer). DUTY'ye dön → motor güvenli durur. */
+        if (current_mode == CMD_MODE_MIRROR) current_mode = CMD_MODE_DUTY;
         last_cmd_tick_ms = HAL_GetTick();
+        return;
     }
-    else if (strcmp(line, "RESET") == 0) {
+    if (strcmp(line, "RESET") == 0) {
         Motor_ResetLockout();
+        SpeedPI_Reset();
+        Encoder_FilterReset();
+        if (current_mode == CMD_MODE_POS) PositionP_SetSetpoint(PositionP_GetThetaOut());
+        if (current_mode == CMD_MODE_MIRROR) current_mode = CMD_MODE_DUTY;
         last_cmd_tick_ms = HAL_GetTick();
+        return;
     }
-    else if (strcmp(line, "PING") == 0) {
+    if (strcmp(line, "PING") == 0) {
         CDC_Transmit_FS((uint8_t *)PONG, (uint16_t)(sizeof(PONG) - 1U));
         last_cmd_tick_ms = HAL_GetTick();
+        return;
     }
     /* Tanınmayan komut → sessizce ignore (dead-letter) */
 }
@@ -48,7 +183,6 @@ void CmdParser_Feed(const uint8_t *buf, uint16_t len)
         char c = (char)buf[i];
 
         if (c == '\n') {
-            /* Satır sonu — \r varsa kaldır */
             if (line_len > 0 && line_buf[line_len - 1] == '\r') {
                 line_len--;
             }
@@ -62,13 +196,10 @@ void CmdParser_Feed(const uint8_t *buf, uint16_t len)
             line_buf[line_len++] = c;
         }
         else {
-            /* Overflow — buffer reset, satır atıldı */
-            line_len = 0;
+            line_len = 0;   /* overflow → satır atıldı */
         }
     }
 }
 
-uint32_t CmdParser_LastCmdTick(void)
-{
-    return last_cmd_tick_ms;
-}
+uint32_t CmdParser_LastCmdTick(void) { return last_cmd_tick_ms; }
+CmdMode_t CmdParser_GetMode(void)    { return current_mode; }

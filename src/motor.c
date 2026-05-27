@@ -152,6 +152,29 @@ void Motor_SetDuty(float duty01)
     /* else: büyük sıçrama — Motor_Tick yumuşatır */
 }
 
+/* Aşama 2.3 ara test — kapalı döngü için doğrudan PWM yazma.
+ * Motor_SetDuty + Motor_Tick (Aşama 0 soft-start rampası) AÇIK DÖNGÜ içindi;
+ * hız PI ile kullanılınca rampa + dead-band clamp kontrol sinyalini bozuyordu
+ * (PI ±0.5 zıplayınca |Δ|>0.10 → rampa devreye → kontrolcü ile çakışma).
+ * Bu fonksiyon: signed duty → yön + |duty|, RAMPA YOK, dead-band YOK.
+ * Lockout + saturation (±MOTOR_MAX_DUTY) korunur. current/target senkron
+ * tutulur (stall check current_duty kullanıyor). */
+void Motor_SetDutySigned(float duty)
+{
+    if (stall_active) return;   /* lockout — reddet */
+
+    /* Signed saturation ±MOTOR_MAX_DUTY */
+    float d = duty;
+    if (d >  MOTOR_MAX_DUTY) d =  MOTOR_MAX_DUTY;
+    if (d < -MOTOR_MAX_DUTY) d = -MOTOR_MAX_DUTY;
+
+    float mag = (d >= 0.0f) ? d : -d;
+    Motor_SetDir((d >= 0.0f) ? MOTOR_CW : MOTOR_CCW);
+    current_duty = mag;   /* rampa state senkron — stall check tutarlı */
+    target_duty  = mag;
+    _apply_pwm(mag);
+}
+
 void Motor_Tick(void)
 {
     /* Main loop'tan her iterasyonda (200 Hz @ 5 ms) çağrılır.

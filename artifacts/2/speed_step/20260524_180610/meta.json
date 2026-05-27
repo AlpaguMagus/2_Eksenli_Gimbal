@@ -1,0 +1,107 @@
+{
+  "test_id": "20260524_180610",
+  "title": "Aşama 2.3 hız PI step response (Test 2.T2)",
+  "timestamp": "2026-05-24T18:06:43",
+  "commit": "3504fb9",
+  "status": "PASS",
+  "gains": {
+    "Kp": 0.002,
+    "Ki": 0.1,
+    "slew": 200
+  },
+  "note": "serbest mil; gimbalda yük ile yeniden ayar (ROADMAP §5)",
+  "ma_window": 5,
+  "results": [
+    {
+      "setpoint": 40,
+      "n": 105,
+      "valid": true,
+      "omega_ss": 39.2,
+      "ss_error_pct": 2.0,
+      "overshoot_pct": 12.2,
+      "settling_s": 2.881,
+      "u_std": 0.005,
+      "bang_bang": false
+    },
+    {
+      "setpoint": -40,
+      "n": 105,
+      "valid": true,
+      "omega_ss": 40.1,
+      "ss_error_pct": 0.2,
+      "overshoot_pct": 12.2,
+      "settling_s": 2.969,
+      "u_std": 0.004,
+      "bang_bang": false
+    },
+    {
+      "setpoint": 80,
+      "n": 105,
+      "valid": true,
+      "omega_ss": 76.8,
+      "ss_error_pct": 4.1,
+      "overshoot_pct": 2.9,
+      "settling_s": null,
+      "u_std": 0.003,
+      "bang_bang": false
+    },
+    {
+      "setpoint": -80,
+      "n": 105,
+      "valid": true,
+      "omega_ss": 79.1,
+      "ss_error_pct": 1.2,
+      "overshoot_pct": 12.2,
+      "settling_s": null,
+      "u_std": 0.002,
+      "bang_bang": false
+    },
+    {
+      "setpoint": 120,
+      "n": 105,
+      "valid": true,
+      "omega_ss": 120.2,
+      "ss_error_pct": 0.2,
+      "overshoot_pct": 2.9,
+      "settling_s": 0.88,
+      "u_std": 0.002,
+      "bang_bang": false
+    },
+    {
+      "setpoint": -120,
+      "n": 105,
+      "valid": true,
+      "omega_ss": 120.3,
+      "ss_error_pct": 0.3,
+      "overshoot_pct": 6.0,
+      "settling_s": 2.182,
+      "u_std": 0.003,
+      "bang_bang": false
+    },
+    {
+      "setpoint": 160,
+      "n": 105,
+      "valid": true,
+      "omega_ss": 158.6,
+      "ss_error_pct": 0.9,
+      "overshoot_pct": 2.9,
+      "settling_s": 1.138,
+      "u_std": 0.003,
+      "bang_bang": false
+    },
+    {
+      "setpoint": -160,
+      "n": 105,
+      "valid": true,
+      "omega_ss": 160.7,
+      "ss_error_pct": 0.5,
+      "overshoot_pct": 2.9,
+      "settling_s": 1.137,
+      "u_std": 0.003,
+      "bang_bang": false
+    }
+  ],
+  "artifacts": [
+    "data.csv"
+  ]
+}

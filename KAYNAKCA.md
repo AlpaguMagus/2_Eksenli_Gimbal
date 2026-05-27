@@ -21,6 +21,10 @@
 - **[Soderstrom1989]** T. Söderström, P. Stoica, *"System Identification"*, Prentice Hall, 1989.
   - Daha eski ama kapsamlı; least-squares fit derivation için temel
 
+- **[Olsson1998]** H. Olsson, K.J. Åström, C. Canudas de Wit, M. Gäfvert, P. Lischinsky, *"Friction Models and Friction Compensation"*, European Journal of Control, 1998.
+  - Coulomb + viskoz + stiction (statik) sürtünme modelleri; LuGre dinamik model
+  - Aşama 2.6.5: cascade gerçekçi simde Coulomb/stiction (Karnopp minimal hali) — sürtünme limit-cycle'ı söndürdü, sim-to-real gap kapandı
+
 ## Klasik Kontrol (PID, Cascade)
 
 - **[Franklin2010]** G. Franklin, J.D. Powell, A. Emami-Naeini, *"Feedback Control of Dynamic Systems"*, 6th ed., Pearson, 2010.

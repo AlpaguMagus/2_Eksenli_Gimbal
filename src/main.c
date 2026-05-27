@@ -6,6 +6,8 @@
 #include "encoder.h"
 #include "motor.h"
 #include "cmd_parser.h"
+#include "speed_pi.h"
+#include "position_p.h"
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
@@ -78,6 +80,45 @@ int main(void)
     Encoder_Init();           /* TIM2, PA15+PB3 */
     Motor_Init();              /* TIM3, PB0 PWM, PB12-14 GPIO, STBY=LOW */
 
+    /* Hız iç döngü PI kazançları.
+     *
+     * ⚠ Aşama 2.3 BULGUSU: Aşama 2.1 Simulink tasarımı (conservative pole
+     * placement Kp=0.1163, Ki=4.0447) gerçek sistemde BANG-BANG limit cycle
+     * verdi. Kök neden: Simulink ideal ölçüm + farklı plant varsaydı; gerçekte
+     * serbest mil çok hızlı (0.5 duty → ~280 rad/s no-load) + encoder kuantize
+     * + yüksek Kp her error'da saturation'a fırlatıyordu → limit cycle.
+     *
+     * AMPIRIK ÇÖZÜM (artifacts/2/, düşük-kazanç taraması): Kp=0.002, Ki=0.1
+     * → motor tüm setpoint'lere temiz oturuyor (50/120/30 rad/s, bang-bang yok).
+     * Conservative'den ~58× düşük. Bu kazançlar 2b'de Simulink'e gerçekçi
+     * efektler (kuantizasyon + gecikme + serbest mil) eklenerek teorik doğrulanacak.
+     *
+     * Runtime KP:/KI:/SLEW: komutlarıyla flash'sız ayarlanabilir (test için).
+     * Kaynaklar: [AstromMurray2008] §10.2 (Tustin), §10.4 (back-calculation) */
+    static const SpeedPI_Config SPEED_PI_CFG = {
+        .Kp       = 0.002f,           /* ampirik (2.3); 2.1 conservative çok yüksekti */
+        .Ki       = 0.1f,
+        .Ts       = 0.005f,           /* 200 Hz fixed sample */
+        .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı */
+        .T_t      = 0.02f             /* Kp/Ki — Aström-Murray T_t = T_i */
+    };
+    SpeedPI_Init(&SPEED_PI_CFG);
+
+    /* Pozisyon dış döngü P kontrolcü (Aşama 2.5 — cascade).
+     * Kp_pos=2.0 [1/s]: matlab/asama_2_kontrol/design_position_p.m
+     *   dış döngü ω_c≈1.93 rad/s = iç döngü ω_n 9.4'ten 5× yavaş [Franklin2010 §6.4]
+     *   PM 69.7°, tip-1 → P ile ss_error=0 [Franklin2010 §4.3]
+     * Gerçekçi sim (verify_realistic_cascade.m): ss_err %1.75, OS %12.5.
+     *   ⚠ simde küçük limit-cycle (iç hız döngüsü düşük hızda kuant. kör) —
+     *   gerçek motorda sürtünme söndürebilir, Test 2.5 ile doğrulanacak. */
+    static const PositionP_Config POS_P_CFG = {
+        .Kp_pos         = 2.0f,
+        .gear_ratio     = 9.7f,
+        .counts_per_rev = 466.0f,   /* 48 × 9.7 (çıkış mili event/rev) */
+        .omega_ref_max  = 300.0f    /* rad/s motor şaftı güvenlik limiti */
+    };
+    PositionP_Init(&POS_P_CFG);
+
     /* USB CDC başlat */
     USBD_Init(&hUsbDeviceFS, &CDC_Desc, DEVICE_FS);
     USBD_RegisterClass(&hUsbDeviceFS, &USBD_CDC);
@@ -89,13 +130,24 @@ int main(void)
     Motor_Enable();            /* STBY=HIGH — sürücü artık aktif */
 
     int16_t ax, ay, az, gx, gy, gz;
-    char    buf[128];   /* +OMEGA alanı için */
+    char    buf[160];   /* +OMEGA, +SP, +U alanları için */
 
     /* Complementary filter durumu */
     float fused_pitch = 0.0f;
     float fused_roll  = 0.0f;
     const float alpha = 0.98f;
-    uint32_t last_tick = HAL_GetTick();
+    uint32_t last_cyccnt = DWT->CYCCNT;   /* dt için DWT (µs hassas) */
+
+    /* Aşama 2.7 — IMU mirror durumu (MODE:MIRROR).
+     * θ_ref = clamp(fused_pitch − pitch0, ±60°), slew 90°/s ile yumuşatılır.
+     *   pitch0: MIRROR'a geçiş anındaki pitch (göreli referans, ani sıçrama yok)
+     *   clamp ±60°: ±90° complementary singülaritesinden (atan2) uzak + motor güvenli
+     *   slew: ani breadboard sarsıntısında hedef sıçramasın (cascade ωc 1.9 rad/s) */
+    const float MIRROR_CLAMP_DEG = 60.0f;
+    const float MIRROR_SLEW_DPS  = 90.0f;
+    static float mirror_pitch0   = 0.0f;   /* göreli referans (geçiş anı pitch) */
+    static float mirror_ref      = 0.0f;   /* slew sonrası uygulanan θ_ref (derece) */
+    static bool  mirror_prev     = false;  /* MIRROR'a yeni giriş edge-detect */
 
     uint32_t last_tx          = 0;
     uint32_t last_led         = 0;
@@ -105,14 +157,21 @@ int main(void)
     {
         MPU6050_Read(&ax, &ay, &az, &gx, &gy, &gz);
 
-        /* dt hesabı */
-        uint32_t now = HAL_GetTick();
-        float dt = (now - last_tick) / 1000.0f;
-        if (dt <= 0.0f || dt > 0.5f) dt = 0.005f;  /* ilk döngü / overflow koruması */
-        last_tick = now;
+        uint32_t now = HAL_GetTick();   /* ms — watchdog / TX throttle / LED için */
+
+        /* dt: DWT cycle counter ile µs hassas (Aşama 2.3).
+         * HAL_GetTick ms çözünürlüğü loop ~7 ms'te ±14% jitter veriyordu →
+         * ω = Δcount/dt ölçümünü bozup hız PI'yi bang-bang'e sokuyordu.
+         * DWT 96 MHz → dt çözünürlüğü ~10 ns. Unsigned fark wrap-safe. */
+        uint32_t cyc_now  = DWT->CYCCNT;
+        uint32_t cyc_diff = cyc_now - last_cyccnt;   /* wrap-safe (unsigned) */
+        last_cyccnt = cyc_now;
+        float dt = (float)cyc_diff / 96000000.0f;     /* SYSCLK 96 MHz */
+        if (dt <= 0.0f || dt > 0.5f) dt = 0.005f;     /* ilk döngü / overflow koruması */
 
         int32_t enc_count = Encoder_GetCount();
-        float   enc_speed = Encoder_GetSpeed(dt);   /* motor şaftı rad/s */
+        float   enc_speed = Encoder_GetSpeed(dt);            /* ham motor şaftı rad/s */
+        float   enc_speed_filt = Encoder_FilterSpeed(enc_speed);  /* moving avg — PI girişi */
 
         /* PA0 KEY butonu (active-low) → fake stall injection */
         bool key_pressed = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET);
@@ -122,9 +181,14 @@ int main(void)
         Motor_StallCheck(enc_speed);
 
         /* Watchdog — 1 sn boyunca komut yoksa Motor_Stop. Edge'de USB CDC'ye
-         * 'WATCHDOG_TIMEOUT\r\n' bir kerelik mesaj (sürekli flood yok). */
-        if (now - CmdParser_LastCmdTick() > 1000U) {
+         * 'WATCHDOG_TIMEOUT\r\n' bir kerelik mesaj (sürekli flood yok).
+         * ⚠ Aşama 2.5: watchdog aktifken mod sürüşü ATLANMALI — yoksa kapalı
+         * döngü (SP_W/POS) Motor_Stop'u hemen ezer, motor dönmeye devam eder.
+         * SpeedPI_Reset setpoint'i de 0'lar → komut akışı kesilince motor durur. */
+        bool wd_active = (now - CmdParser_LastCmdTick() > 1000U);
+        if (wd_active) {
             Motor_Stop();
+            SpeedPI_Reset();
             if (!watchdog_tripped) {
                 static const char ev[] = "WATCHDOG_TIMEOUT\r\n";
                 CDC_Transmit_FS((uint8_t *)ev, (uint16_t)(sizeof(ev) - 1U));
@@ -134,44 +198,85 @@ int main(void)
             watchdog_tripped = false;
         }
 
-        /* Motor rampa step'i (non-blocking, target_duty'ye yaklaşır) */
-        Motor_Tick();
-
+        /* ── Sensör füzyonu (mod sürüşünden ÖNCE — MIRROR modu fused_pitch kullanır) ── */
         float fax = (float)ax, fay = (float)ay, faz = (float)az;
-
-        /* İvmeölçer açısı */
-        float pitch = atan2f(fax, sqrtf(fay*fay + faz*faz)) * RAD2DEG;
+        float pitch = atan2f(fax, sqrtf(fay*fay + faz*faz)) * RAD2DEG;   /* ivmeölçer açısı */
         float roll  = atan2f(fay, sqrtf(fax*fax + faz*faz)) * RAD2DEG;
-
-        /* Gyro hızı — varsayılan ±250°/s → 131 LSB/(°/s) */
-        float gx_dps = (float)gx / 131.0f;
+        float gx_dps = (float)gx / 131.0f;   /* gyro ±250°/s → 131 LSB/(°/s) */
         float gy_dps = (float)gy / 131.0f;
-
-        /* Complementary filter:
-           pitch → Y ekseni dönüşü → gy_dps    
-           roll  → X ekseni dönüşü → gx_dps   */   
+        /* Complementary filter: pitch→Y ekseni (gy), roll→X ekseni (gx) */
         fused_pitch = alpha * (fused_pitch - gy_dps * dt) + (1.0f - alpha) * pitch;
         fused_roll  = alpha * (fused_roll  + gx_dps * dt) + (1.0f - alpha) * roll;
 
+        /* MIRROR'a yeni giriş (edge): göreli referans pitch0 + slew durumu sıfırla */
+        bool is_mirror = (CmdParser_GetMode() == CMD_MODE_MIRROR);
+        if (is_mirror && !mirror_prev) { mirror_pitch0 = fused_pitch; mirror_ref = 0.0f; }
+        mirror_prev = is_mirror;
+        if (wd_active) mirror_ref = 0.0f;   /* watchdog: hedef sıfırla (komut kesilince güvenli) */
+
+        /* ── Mod-bağımlı motor sürüş (watchdog aktifken atlanır) ────────
+         * DUTY: Motor_Tick rampa. SP_W: hız PI. POS: cascade (poz P → hız PI).
+         * MIRROR (Aşama 2.7): θ_ref = clamp(fused_pitch−pitch0, ±60°), slew 90°/s
+         *   → POS cascade ile motor IMU pitch'ini takip eder (ayna/taklit). */
+        if (!wd_active) {
+            if (CmdParser_GetMode() == CMD_MODE_SP_W) {
+                /* PI girişi FİLTRELENMİŞ hız (moving average — ham kuantize ölçüm). */
+                float u = SpeedPI_Step(enc_speed_filt);
+                Motor_SetDutySigned(u);   /* doğrudan, rampasız */
+            } else if (CmdParser_GetMode() == CMD_MODE_POS) {
+                float omega_ref = PositionP_Step(enc_count, NULL);
+                SpeedPI_SetSetpoint(omega_ref);          /* dış döngü → iç döngü setpoint */
+                float u = SpeedPI_Step(enc_speed_filt);
+                Motor_SetDutySigned(u);
+            } else if (is_mirror) {
+                /* Hedef: göreli pitch, ±60° clamp (singülarite + güvenlik) */
+                float target = fused_pitch - mirror_pitch0;
+                if (target >  MIRROR_CLAMP_DEG) target =  MIRROR_CLAMP_DEG;
+                if (target < -MIRROR_CLAMP_DEG) target = -MIRROR_CLAMP_DEG;
+                /* Slew limit (90°/s): ani IMU sıçramasını yumuşat (dt — DWT µs) */
+                float max_step = MIRROR_SLEW_DPS * dt;
+                float d = target - mirror_ref;
+                if      (d >  max_step) mirror_ref += max_step;
+                else if (d < -max_step) mirror_ref -= max_step;
+                else                    mirror_ref  = target;
+                /* Cascade: θ_ref → poz P → ω_ref → hız PI → motor */
+                PositionP_SetSetpoint(mirror_ref);
+                float omega_ref = PositionP_Step(enc_count, NULL);
+                SpeedPI_SetSetpoint(omega_ref);
+                float u = SpeedPI_Step(enc_speed_filt);
+                Motor_SetDutySigned(u);
+            } else {
+                Motor_Tick();             /* DUTY modu rampa */
+            }
+        }
+
         /* USB CDC transmit — 40 Hz throttle (her 25 ms'de bir).
-         * T_US: DWT.CYCCNT / 96  → mikrosaniye timestamp (firmware tarafı,
-         *       Python tarafı clock'tan bağımsız precision). Aşama 1 motor
-         *       sistem tanımlama fit'inde τ ölçümü için kullanılır.
-         * OMEGA: firmware tarafında hesaplanan motor şaftı hızı (rad/s).
-         * EC ham count ile yan yana — Aşama 1 fitting için ikisi de Python'da. */
+         * T_US: DWT.CYCCNT / 96 → mikrosaniye timestamp ([ARM_DWT]).
+         * OMEGA: firmware'in hesapladığı motor şaftı hızı (rad/s, signed).
+         * EC: ham encoder count (long, signed).
+         * SP: hız PI setpoint (rad/s) — sadece SP_W modda anlamlı, DUTY modda 0.
+         * U:  hız PI kontrol çıkışı (signed duty) — son SpeedPI_Step sonucu.
+         * TR: pozisyon hedefi (çıkış mili derece) — POS/MIRROR modda anlamlı (takip hatası
+         *     analizi: TR vs EC×360/466). MIRROR'da slew'li göreli pitch hedefi. */
         if (now - last_tx >= 25U) {
             uint32_t t_us = DWT->CYCCNT / 96U;
+            float sp = SpeedPI_GetSetpoint();
+            float u  = SpeedPI_GetControl();
+            float tr = PositionP_GetSetpoint();   /* θ_ref derece (POS/MIRROR) */
             int len = snprintf(buf, sizeof(buf),
-                "T_US:%lu,P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,OMEGA:%.1f\r\n",
+                "T_US:%lu,P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,OMEGA:%.1f,SP:%.1f,U:%.3f,TR:%.1f\r\n",
                 (unsigned long)t_us,
                 pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll,
-                (long)enc_count, enc_speed);
+                (long)enc_count, enc_speed, sp, u, tr);
             CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
             last_tx = now;
         }
 
-        /* Stall event — tetik anında bir kerelik USB mesajı */
+        /* Stall event — tetik anında bir kerelik USB mesajı.
+         * Stall sırasında Motor_SetDuty reddedildiği için SP_W modda PI integrator
+         * wind-up etmemesi için resetlenir (lockout dolduktan sonra ani patlama yok). */
         if (Motor_PollStallEvent()) {
+            SpeedPI_Reset();
             static const char ev[] = "STALL_DETECTED\r\n";
             CDC_Transmit_FS((uint8_t *)ev, (uint16_t)(sizeof(ev) - 1));
         }

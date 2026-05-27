@@ -1,0 +1,17 @@
+{
+  "task": "reference_tracking",
+  "system_type": 1,
+  "Kv_equals": "Kp_pos",
+  "omega_in_dps": 30,
+  "ess_target_deg": 5,
+  "Kp_pos_ramp_req": 6,
+  "Kp_pos_selected": 5,
+  "sinus_A_deg": 30,
+  "sinus_f_hz": 0.2,
+  "sinus_rms_at_Kp5": 5.5604897780922027,
+  "experimental_rms_deg": 4.68,
+  "kaynak": [
+    "Franklin2010 §4.2",
+    "Franklin2010 §6.1"
+  ]
+}
