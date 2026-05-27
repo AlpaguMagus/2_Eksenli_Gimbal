@@ -17,6 +17,20 @@ Step response deneyleriyle (18 step: 9 duty × CW/CCW) DC motorun birinci-derece
 
 **Sistem tanımlama** (`[Ljung1999] §1, §3`), bir fiziksel sistemin **giriş-çıkış verisinden** matematiksel modelini çıkarma sürecidir. Bizim sistemimiz: PWM duty komutu → motor şaft hızı (rad/s). Bu adımda Pololu 25D motor + TB6612 sürücü kombinasyonunun **transfer fonksiyonu** çıkarıldı.
 
+> **Ön bilgi:** Transfer fonksiyonu, Laplace dönüşümü, kutup ve 1. derece sistem kavramları → [`00_genel_bakis.md`](00_genel_bakis.md) §2.1–§2.3. Bu belge o temeli motora uygular.
+
+Modellediğimiz sistem **açık çevrimdir** (henüz kontrolcü yok): duty komutu motoru sürer, çıkış serbestçe oturur. Sürücü, duty'yi efektif gerilime çevirir ($V_{eff}=V_s\,u - V_{sat}$); plant ise bu gerilimi şaft hızına dönüştürür:
+
+![Açık-çevrim motor modeli — kontrolcüsüz sistem blok diyagramı](../matlab/asama_1_model/results/20260518_011926/11_block_diagram_openloop.png)
+
+*Şekil 10.0 — Açık-çevrim (kontrolcüsüz) motor modeli (`create_block_diagram.m`). Sürücü bloğu duty $u\in[-1,1]$'i efektif gerilime çevirir; plant $G(s)$ birinci derece dinamiktir. Aşama 1'in görevi $K$ ve $\tau$'yu deneysel olarak bulmaktır. Bu sistem Aşama 2'de bir kontrolcü ($C(s)$) ile geri-besleme döngüsüne sokulacaktır ([`00_genel_bakis.md`](00_genel_bakis.md) Şekil 1).*
+
+Birinci derece motor transfer fonksiyonu (sürücü kazancı dahil edilmeden, saf plant):
+
+$$G(s) = \frac{\Omega(s)}{V_{eff}(s)} = \frac{K}{\tau s + 1}$$
+
+Burada $K$ DC kazanç (girdiğimiz gerilime karşılık oturan hız), $\tau$ ise zaman sabitidir (sistemin ne kadar hızlı oturduğu). Tek kutbu $s=-1/\tau$ sol yarı düzlemdedir → açık çevrimde kararlı (§10.7, Şekil 10.x kutup haritası).
+
 ### 10.2. Neden — Niçin Önce Modelleme?
 
 Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §6.4`) yapacaksak, motorun K (DC kazanç) ve τ (zaman sabiti) değerlerini bilmemiz gerekir:
@@ -32,22 +46,41 @@ Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §
 - 4497 örnek, 36 segment, gzip'li CSV → `artifacts/1/step_response/<id>/raw/data.csv.gz`
 
 **Adım 2 — Step bazlı fit** (`fit_first_order.m`):
-- **Model:** `ω(t) = ω_ss · (1 − e^(−(t−t0)/τ))`
-- **Yöntem A:** `lsqcurvefit` (Optimization Toolbox, `[Soderstrom1989] §4`)
-- **Yöntem B:** `tfest` + iddata (System Identification Toolbox, `[Ljung1999] §4`)
-- Her step için ikisini de koştur, daha düşük NRMSE veren seçilir → 16/18 step'te lsqcurve
+
+Birinci derece sistemin step yanıtı (§10.1'deki $G(s)$'in zaman domeni karşılığı):
+
+$$\omega(t) = \omega_{ss}\left(1 - e^{-(t-t_0)/\tau}\right)$$
+
+Bu eğriyi her step'in ölçülen verisine **uydurarak** (curve fitting) $\omega_{ss}$ ve $\tau$ bulunur. İki bağımsız yöntem koşturulur ve daha iyi uyanı seçilir:
+
+- **Yöntem A — `lsqcurvefit`** (Optimization Toolbox, `[Soderstrom1989] §4`): Parametreleri ($\omega_{ss}, \tau, t_0$), model ile ölçüm arasındaki **kareler toplamını minimize** ederek bulan bir optimizasyon çözücüsüdür:
+
+$$\min_{\theta}\ \sum_{k}\big(\omega_{\text{model}}(t_k;\theta) - \omega_{\text{meas}}(t_k)\big)^2,\qquad \theta=[\omega_{ss},\tau,t_0]$$
+
+  **Çalışma prensibi:** Levenberg-Marquardt algoritması — gradyan inişi (uzaktayken güvenli) ile Gauss-Newton'u (yakınken hızlı) harmanlar. Başlangıç tahmininden başlayıp her iterasyonda hatayı azaltan yöne adım atar, yakınsayınca durur. Model denklemi açıkça bizim elimizde olduğu için **şeffaftır**.
+
+- **Yöntem B — `tfest`** (System Identification Toolbox, `[Ljung1999] §4`): Veriden doğrudan transfer fonksiyonu kestirir (1 kutup, 0 sıfır istenir). **Çalışma prensibi:** prediction-error method (PEM) — modelin bir sonraki örneği tahmin etme hatasını minimize eder; iç yapıyı `tfest` kendi seçer ("kara kutuya" daha yakın). Girdi olarak `iddata` nesnesi (giriş `V_eff`, çıkış `ω`, örnekleme süresi) alır.
+
+- Her step için ikisini de koştur, daha düşük NRMSE veren seçilir → 16/18 step'te `lsqcurvefit` kazandı (açık model varsayımı bu temiz step verisinde daha iyi uydu).
 
 **Adım 3 — Dead-band tespit** (`compute_dead_band.m`):
-- Lineer regresyon: `ω_ss = K · V_eff + b` → `V_dead = −b/K` (x-intercept)
-- `V_eff = V_supply·duty − V_sat = 12.15·duty − 0.5`
-- CW/CCW ayrı fit
+
+Oturmuş hızların ($\omega_{ss}$) efektif gerilime ($V_{eff}$) karşı lineer regresyonu yapılır:
+
+$$\omega_{ss} = K\cdot V_{eff} + b \quad\Rightarrow\quad V_{dead} = -\frac{b}{K}\ \ (\text{x-eksenini kestiği nokta})$$
+
+Burada $V_{eff} = V_{supply}\cdot\text{duty} - V_{sat} = 12.15\cdot\text{duty} - 0.5$ (sürücü kaybı çıkarılmış efektif gerilim). $V_{dead}$ motorun dönmeye başladığı eşik gerilimdir; CW/CCW için ayrı fit edilir.
 
 **Adım 4 — Simetri analizi:** CW/CCW K karşılaştırması (`plot_results.m §06`)
 
 **Adım 5 — Model validation** (Test 1.T5, `validate_model.m`):
-- Tek (K_avg, τ_median) çiftiyle her step yeniden simüle et (`lsim`)
-- NRMSE her step için, sınır: ort < %15, max < %20 (`[Ljung1999] §16` "good agreement")
-- Simulink modeli (`motor_model_asama1.slx`) programatik üretildi
+- Tek $(K_{avg}, \tau_{median})$ çiftiyle her step yeniden simüle et (`lsim`). **`lsim` prensibi:** verilen transfer fonksiyonunu, keyfi bir giriş sinyaline karşı zaman domeninde sayısal olarak çözer (durum-uzayı formuna çevirip adım adım entegre eder). Burada giriş gerçek deneydeki $V_{eff}$ basamağı, çıkış simüle $\omega$.
+- Uyum kalitesi her step için **NRMSE** (normalize edilmiş RMS hatası) ile ölçülür:
+
+$$\text{NRMSE} = \frac{\sqrt{\frac{1}{N}\sum_k\big(\omega_{\text{meas}}[k]-\omega_{\text{model}}[k]\big)^2}}{\omega_{\max}-\omega_{\min}}\times 100\%$$
+
+  Sınır: ortalama < %15, maksimum < %20 (`[Ljung1999] §16` "good agreement" kriteri).
+- Simulink modeli (`motor_model_asama1.slx`) programatik üretildi (blok diyagram kanıtı).
 
 ### 10.4. Nerede — Dosya ve Konum Referansları
 
@@ -91,8 +124,17 @@ Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §
 K = 53.89 rad/s/V      (K_cw ve K_ccw ortalaması)
 τ = 60.5 ms            (median, gürültüye dayanıklı)
 V_dead ≈ 0             (dinamik dead-band yok)
-G(s) = K / (τs + 1)    (birinci derece TF, dead-band çıkarılmış)
 ```
+
+Somut transfer fonksiyonu (dead-band çıkarılmış, Aşama 2 kontrolcü tasarımının temeli):
+
+$$G(s) = \frac{K}{\tau s + 1} = \frac{53.89}{0.0605\,s + 1}$$
+
+Tek kutup $s = -1/\tau = -16.5$ rad/s, sol yarı düzlemde → sistem açık çevrimde kararlı, salınımsız (§[`00_genel_bakis.md`](00_genel_bakis.md) §2.5 kararlılık kuralı):
+
+![Birinci derece motorun kutup haritası](../matlab/asama_1_model/results/20260518_011926/12_pole_map.png)
+
+*Şekil 10.6 — Motorun kutup haritası (`create_block_diagram.m`). Tek reel kutup $s=-16.5$ sol yarı düzlemde (LHP). Karmaşık (sanal) bileşeni yok → salınım yok; negatif reel → sönerek oturur. Aşama 2'de kontrolcü bu kutbu daha hızlı/sönümlü bir yere taşıyacak (pole placement).*
 
 ### 10.6. Test Sonuçları
 
@@ -184,12 +226,12 @@ Bu, datasheet V_sat=0.5V varsayımımızın **görsel olarak doğrulanmasıdır*
 
 *Şekil 10.3 — τ dağılımı (median 60.5 ms) ve duty bağımlılığı. Saçılım, tek-τ 1. derece modelin ortalama bir yaklaşım olduğunu gösterir (`[Franklin2010] §3.5`).*
 
-**Gerçek DC motor 2. derece:**
-```
-G(s) = K / [(τ_e·s + 1) · (τ_m·s + 1)]
-```
-- τ_e (elektriksel) = L/R ≈ 2-10 ms
-- τ_m (mekanik) = J/b ≈ 50-200 ms
+**Gerçek DC motor aslında 2. derecedir:**
+
+$$G(s) = \frac{K}{(\tau_e s + 1)(\tau_m s + 1)}$$
+
+- $\tau_e$ (elektriksel) $= L/R \approx 2\text{-}10$ ms
+- $\tau_m$ (mekanik) $= J/b \approx 50\text{-}200$ ms
 
 Bizim için τ_m / τ_e ≈ 12-25× → elektriksel kısım anında biter, mekanik baskın → **1. derece görünür**. 40 Hz USB örneklemesi τ_e'yi zaten göremez (25 ms aralık).
 
@@ -240,6 +282,8 @@ Tek (K, τ) ile validation NRMSE |duty|≈0.18'de minimum (%5.7), uçlarda yüks
 | 08 | `08_validation_cw.png` | Test 1.T5 model vs ölçüm (CW) |
 | 09 | `09_validation_ccw.png` | Test 1.T5 model vs ölçüm (CCW) |
 | 10 | `10_validation_summary.png` | Test 1.T5 NRMSE özet (U-eğrisi) |
+| 11 | `11_block_diagram_openloop.png` | Açık-çevrim motor blok diyagramı (duty → sürücü → plant → ω) |
+| 12 | `12_pole_map.png` | Birinci derece sistemin kutup haritası (s=−1/τ, kararlılık) |
 | — | `motor_model_asama1.slx` | Simulink blok diyagramı (programatik üretildi) |
 | — | `motor_params.json` | Aşama 2 girişi (firmware için kaynak) |
 | — | `fit_report.md` | Detaylı sayısal rapor |
