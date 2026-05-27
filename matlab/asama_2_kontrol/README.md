@@ -60,8 +60,10 @@ MATLAB çıktıları firmware'e **manuel** aktarılır (Embedded Coder yok). Ger
  * Kaynak: [AstromMurray2008] §10.2 (Tustin), §10.4 (back-calc) */
 .Kp = 0.002f,  .Ki = 0.1f,  .Ts = 0.005f,  .T_t = 0.02f;
 
-/* Pozisyon P — design_position_p.m, [Franklin2010] §6.4/§4.3 */
-.Kp_pos = 2.0f;   /* ω_ref_motor = Kp_pos·(θ_ref−θ_out)·9.7 (redüktör) */
+/* Pozisyon P — GÖREVE ÖZEL kazanç (cmd_parser MODE geçişinde set):
+ *   MODE:POS  step  → Kp_pos=2.0 (cascade ω_c=ω_n_iç/5, overshootsuz) [Franklin2010 §6.4/§4.3]
+ *   MODE:MIRROR takip→ Kp_pos=6.0 (Kv hız hata sabiti, e_ss=ω_in/Kv) [Franklin2010 §4.2]
+ * ω_ref_motor = Kp_pos·(θ_ref−θ_out)·9.7 (redüktör) */
 ```
 
 ## Test Akışı

@@ -15,12 +15,12 @@
 |---|---|---|
 | **0 — Altyapı** | ✅ KAPALI | Donanım + firmware + IMU füzyonu + USB CDC + koruma katmanları |
 | **1 — Sistem Tanımlama** | ✅ KAPALI | `K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0` — model NRMSE %11 (Test 1.T5 PASS) |
-| **2 — Tek Motor Kontrol** | 🟡 DEVAM | Hız PI ✅ + sim-to-real gap çözüldü ✅ + disturbance ✅ + **pozisyon cascade PASS** ✅ → sırada IMU mirror (2.7) |
+| **2 — Tek Motor Kontrol** | ✅ KAPALI | Hız PI + sim-to-real gap + disturbance + pozisyon cascade + IMU mirror — **tüm testler PASS** (2.T2/T4/T5/T6) |
 | 3 — MIMO Model | ⬜ | İki motor + decoupling |
 | 4 — MIMO Kontrol | ⬜ | LQR/LQG + Kalman |
 | 5 — Gerçek Gimbal | ⬜ | 3D-baskı + stabilizasyon |
 
-**En son (2026-05-24):** Pozisyon cascade kontrolü (poz P → hız PI) gerçek motorda doğrulandı — 6/6 hedef, ss_error <0.8°, **limit-cycle yok** (gerçekçi sim öngördü ama motor sürtünmesi söndürdü). Detay → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md). Güncel durum → [`PROJE_DURUMU.md`](PROJE_DURUMU.md).
+**En son (2026-05-27):** **Aşama 2 KAPALI** — IMU mirror takip (motor IMU pitch'ini izler) Test 2.T6 PASS (gimbal-hızı RMS 4.68°, Kp_pos analitik Kv tasarımı). Aşama 2 tüm kontrol omurgası (hız PI → cascade → mirror) gerçek motorda doğrulandı. Sırada **Aşama 3 — MIMO model**. Detay → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md) §11.15 (kapanış sentezi). Güncel durum → [`PROJE_DURUMU.md`](PROJE_DURUMU.md).
 
 ---
 

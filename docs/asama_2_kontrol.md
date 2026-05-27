@@ -528,17 +528,52 @@ Gerçekçi cascade simi ilk çalıştırmada büyük salınım gösterdi. Kök n
 
 4. **Kazançlar serbest mil içindir** (ROADMAP §5 kritik notu). Gerçek gimbalda yük + denge ile iç ve dış döngü kazançları yeniden ayarlanacak; bu, sürtünme/atalet dengesini değiştireceğinden yukarıdaki (3) maddesi yeniden değerlendirilmeli.
 
-### 11.15. Bir Sonraki Aşama
+### 11.15. Aşama 2 Kapanış — Toplu Sonuç ve Sentez (2.9)
 
-**Aşama 2.1→2.6 ✅ tamamlandı** (hız PI tasarım + ampirik tuning + teorik doğrulama + disturbance rejection + pozisyon cascade firmware + gerçek motor doğrulama).
+Aşama 2, Aşama 1'in motor modeli (`G(s)=K/(τs+1)`, K=53.89 rad/s/V, τ=60.5 ms) üzerine **tam bir klasik kontrol omurgası** kurdu: hız iç döngüsü (PI) → pozisyon dış döngüsü (cascade P) → canlı referans takibi (IMU mirror). Tasarım MATLAB'da analitik+Simulink, doğrulama gerçek motorda; her adım kaynaklı ve artifact'li.
 
-**Sıradaki:**
-- **Aşama 2.7:** IMU mirror — setpoint = +fused_pitch (motor IMU pitch'ini takip eder)
-- **Aşama 2.8:** Mirror tracking testi
-- **Aşama 2.9:** Aşama 2 akademik rapor
-- **Aşama 3+:** MIMO model → LQG/Kalman → gerçek 3D-baskı gimbal
+#### Alt-aşama + test özeti
 
-ROADMAP §2'de detaylı plan.
+| Alt-aşama | İş | Test | Sonuç |
+|---|---|---|---|
+| 2.1 | Hız PI tasarımı (pole placement + pidtune, 5 kontrolcü) | — | conservative seçildi |
+| 2.2 | Firmware hız PI (Tustin + anti-windup + MODE/SP_W) | — | build PASS |
+| 2.3 | Sim-to-real gap + ampirik tuning | **2.T2** | ✅ PASS (8/8 step) |
+| 2.4 | Disturbance rejection | **2.T4** | ✅ PASS (ω %82 dip → recovery) |
+| 2.5/2.6 | Pozisyon cascade (poz P → hız PI) firmware | **2.T5** | ✅ PASS (ss<0.8°, limit-cycle yok) |
+| 2.6.5 | Cascade Simulink + sürtünme modeli | — | sim-to-real gap kapandı |
+| 2.7/2.8 | IMU mirror (canlı takip) | **2.T6** | ✅ PASS (gimbal-hızı RMS 4.68°) |
+
+#### Firmware kontrolcü kazançları (kalıcı, kaynaklı)
+
+| Kontrolcü | Kazanç | Nasıl bulundu | Kaynak |
+|---|---|---|---|
+| Hız PI (iç döngü) | Kp=0.002, Ki=0.1 | **Ampirik** (2.1 conservative gerçekte bang-bang verdi) | Test 2.3 + gerçekçi sim doğrulama `[Ljung1999] §16` |
+| Pozisyon P — **step** (POS) | Kp_pos=2.0 | **Analitik** (ω_c=ω_n_iç/5 cascade kuralı) | `[Franklin2010] §6.4`, §4.3 |
+| Pozisyon P — **takip** (MIRROR) | Kp_pos=6.0 | **Analitik** (Kv=ω_in/e_ss hız hata sabiti) | `[Franklin2010] §4.2` |
+
+#### Ana akademik bulgular
+
+1. **Sim-to-real gap iki yönlüdür.** Model, dahil etmediği fiziğe göre *her iki yönde* yanılır: Aşama 2.3'te eksik kuantizasyon ideal simi **iyimser** yaptı (bang-bang öngöremedi); 2.6.5'te eksik sürtünme gerçekçi simi **kötümser** yaptı (yapay limit-cycle). İkisi de gerçek testle düzeltildi → simülasyona ne körü körüne güven, ne de güvensizlik (`[Ljung1999] §16`).
+2. **Ampirik ve analitik birbirini doğrular.** Hız PI ampirik bulundu, sonra gerçekçi Simulink teorik temellendirdi (2b). Tersine, mirror Kp_pos analitik hesaplandı (Kv), deney doğruladı. Sağlam mühendislik ikisini de kullanır.
+3. **Kazanç tasarımı göreve özeldir.** Pozisyon **step** (konum hata sabiti, overshootsuz → Kp_pos=2) ve **takip** (hız hata sabiti, düşük-lag → Kp_pos=6) farklı kriterlerle tasarlanır — aynı plant, farklı görev, farklı kazanç.
+4. **Bant genişliği fiziksel bir limittir.** Cascade ~0.3 Hz bandı, hızlı el hareketini (~80°/s) takip edemez; gimbal yavaş-orta hareket (kamera) için tasarlanır. Encoder kuantizasyonu (18.7 rad/s) düşük-hız ölçümünü, redüktör sürtünmesi ise mikro-düzeltmeyi belirler.
+
+#### Kaynaklar
+
+`[Franklin2010]` §3.5/§4.2/§4.3/§6.4/§8 (model, error constants, tip, cascade, kuantizasyon), `[AstromMurray2008]` §10.2/§10.4 (Tustin, anti-windup), `[Ljung1999]` §16 (iteratif model validation), `[Olsson1998]` (Coulomb/stiction sürtünme).
+
+#### Aşama 3'e devir (açık konular)
+
+- **Kazançlar serbest mil içindir** — gerçek gimbalda kamera yükü + denge ile yeniden ayar (kritik).
+- Encoder düşük-hız kuantizasyonu — yük altında T-metodu/pencere büyütme gerekebilir.
+- Tam sürtünme tanımlama (LuGre/Stribeck) — ayrı deney, gelecek iş.
+
+### 11.16. Bir Sonraki Aşama
+
+**Aşama 2 ✅ KAPALI** (2.1→2.9, tüm testler PASS). `feature/asama-2-tek-motor-kontrol` → main `--no-ff` merge + `asama-2-kapali` tag.
+
+**Aşama 3 — İki Motor MIMO Model:** iki eksen kuplaj modellemesi + decoupling analizi (RGA, condition number). Yeni branch `feature/asama-3-mimo-model`. ROADMAP §3.
 
 ---
 

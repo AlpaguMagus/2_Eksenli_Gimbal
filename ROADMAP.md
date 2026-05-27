@@ -2,8 +2,8 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
-> - **Son güncelleme:** 2026-05-24 (Aşama 2.5+2.6 — pozisyon cascade gerçek motorda PASS, ss<0.8°, limit-cycle yok)
-> - **Aktif aşama:** Aşama 2 🟡 DEVAM (2.1→2.8 tamam: hız PI + sim-to-real + disturbance + cascade + IMU mirror Test 2.T6 PASS) → sırada 2.9 akademik rapor + main'e merge (asama-2-kapali)
+> - **Son güncelleme:** 2026-05-27 (Aşama 2 ✅ KAPALI — IMU mirror Test 2.T6 PASS + 2.9 akademik kapanış; main'e merge + asama-2-kapali tag)
+> - **Aktif aşama:** Aşama 2 ✅ KAPALI → **Aşama 3 (İki Motor MIMO Model)** açılışı, yeni branch `feature/asama-3-mimo-model`
 > - **Dokümantasyon:** Aşama-bazlı `docs/` ekosistemi (README vitrin + `docs/asama_<N>_*.md` derin içerik)
 > - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
 
@@ -167,7 +167,7 @@ V_eff = V_supply · duty − V_sat,   V_supply=12.15 V,  V_sat=0.5 V
 
 ---
 
-## 🎛 Aşama 2 — Tek Motor Kontrol (PI / PID / Cascade)  *(AÇILDI 2026-05-18)*
+## 🎛 Aşama 2 — Tek Motor Kontrol (PI / PID / Cascade)  *(KAPALI 2026-05-27)*
 
 ### Vizyon
 
