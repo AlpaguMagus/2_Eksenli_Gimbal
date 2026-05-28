@@ -275,7 +275,30 @@ $$\omega_{co} = \frac{0.02}{0.98 \times 0.05} = 0.41\ \text{rad/s} \approx 0.065
 
 > 📊 **Üreten betik:** `matlab/asama_0_altyapi/create_filter_diagram.m`
 
-**Açık konu — tam optimal α (Aşama 5):** Kesim frekansının *tam optimum* yeri, accel gürültü yoğunluğu ile gyro drift oranının eşitlendiği noktadır; bu da IMU'nun **Allan variance** karakterizasyonunu (ayrı, uzun-süreli statik ölçüm deneyi) gerektirir. Bu veri henüz yok → mevcut α=0.98 kesim-frekansı gerekçesiyle kullanılıyor, tam optimizasyon gerçek gimbal donanımında (Aşama 5) yapılacak. (Kaynak: `[Mahony2008]` complementary filter teorisi; Allan variance için IEEE Std 952.)
+#### Veri-temelli doğrulama — Allan variance (2026-05-28) ✅
+
+Kesim frekansının *tam optimum* yeri, accel açı gürültüsü ile gyro entegrasyon drift'inin eşitlendiği noktadır. Bunu veriyle çıkarmak için IMU 15 dk **sabit** tutulup ham gyro/accel loglandı (`scripts/imu_noise_log.py`, 32147 örnek @ 35.7 Hz), gyro'nun **overlapping Allan deviation**'ı hesaplandı (`analyze_allan_variance.m`, IEEE Std 952).
+
+**Ölçülen gürültü parametreleri (MPU6050 pitch gyro):**
+
+| Parametre | Değer | Yorum |
+|---|---|---|
+| Angle random walk (ARW) | **1.09 °/√hr** (0.0181 °/√s @ τ=1s) | yüksek-frekans gyro gürültüsü — MPU6050 için tipik |
+| Bias instability | **~3 °/hr** (0.00085 °/s, τ_B≈324 s) | düşük-frekans drift — sağlıklı, düşük |
+| Accel açı gürültüsü σ | **0.238°** | statik pitch std (detrend) |
+
+![IMU gyro Allan deviation](../matlab/asama_0_altyapi/results/allan_deviation.png)
+
+*Şekil 5.3 — Gyro Allan deviation (log-log). Düşük τ'da eğim $-1/2$ (ARW bölgesi, kırmızı kesikli referans); τ_B≈324 s'de minimuma (bias instability) iner. Klasik MEMS gyro karakteristiği — gyro statik koşulda çok kararlı.*
+
+> 📊 **Üreten betik:** `scripts/imu_noise_log.py` (veri) + `matlab/asama_0_altyapi/analyze_allan_variance.m` (analiz)
+
+**Sonuç — neden hâlâ α=0.98 (teorik statik-optimal 0.9997 değil):** Eşitlik $\text{ARW}\sqrt{\tau_{co}}=\sigma_{accel}$'den saf-statik optimal $\tau_{co}=171$ s, $\omega_{co}=0.006$ rad/s, $\alpha_{opt}=0.9997$ çıkıyor — yani gyro o kadar temiz ki saf gürültü-optimali "accel'e neredeyse hiç güvenme" diyor. **Ama bu yalnızca statik gürültü içindir.** α=0.98 (daha güçlü accel düzeltmesi) bilinçli ve güvenli bir mühendislik seçimidir, çünkü Allan testinin görmediği hatalar gerçekte baskındır:
+- **Dinamik hatalar:** scale-factor hatası, g-duyarlılığı, montaj hizasızlığı — statik testte yok, harekette gyro açısını bozar.
+- **Sıcaklık drift'i:** 15 dk sabit-sıcaklık testinde görünmez; uzun çalışmada gyro bias kayar.
+- **Lineer-ivme bozulması:** accel açısı sadece statikte doğru; α=0.9997 ile accel düzeltmesi 171 s'ye yayılır → uzun gimbal kullanımında drift birikir. α=0.98 ($\tau\approx2.45$ s) bu drift'i hızla bağlar.
+
+**Akademik kapanış:** Allan variance, gyro'nun *gürültü tabanını* veriyle doğruladı (sağlıklı, ARW/bias tipik) ve α=0.98'in **güvenli tarafta** olduğunu gösterdi — saf-statik optimum daha yüksek, ama robustluk (dinamik+termal+lineer-ivme) için daha düşük α tercih edilir. Bu, projenin *"ölç + analiz et, ama mühendislik yargısıyla karar ver"* ilkesinin (analitik-önce + Sokratik) somut örneğidir. (Kaynak: `[Mahony2008]` complementary filter teorisi; Allan variance için IEEE Std 952-1997.)
 
 ### 5.3. Gyro Eksen İşaret Yönleri
 

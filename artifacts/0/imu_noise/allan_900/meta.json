@@ -1,0 +1,14 @@
+{
+  "test_id": "allan_900",
+  "title": "IMU statik gürültü (Allan variance)",
+  "timestamp": "2026-05-28T21:47:51",
+  "commit": "2d09a64",
+  "result": {
+    "samples": 32147,
+    "duration_s": 900.0,
+    "fs_hz": 35.7
+  },
+  "artifacts": [
+    "data.csv.gz"
+  ]
+}

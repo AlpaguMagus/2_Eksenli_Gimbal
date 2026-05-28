@@ -83,6 +83,10 @@
   - <https://x-io.co.uk/open-source-imu-and-ahrs-algorithms/>
   - Madgwick filter — ±90° singülarite çözümü için (Aşama 5 sonrası opsiyonel)
 
+- **[IEEE952]** IEEE Std 952-1997, *"IEEE Standard Specification Format Guide and Test Procedure for Single-Axis Interferometric Fiber Optic Gyros"*, Annex C: Allan variance.
+  - Overlapping Allan deviation ile gyro gürültü karakterizasyonu: angle random walk (ARW, slope −1/2), bias instability (minimum, /0.664)
+  - Aşama 0: MPU6050 statik logundan (`imu_noise_log.py`) ARW=1.09°/√hr, bias instab.≈3°/hr ölçüldü → complementary filter α=0.98 robustluk gerekçesi (`analyze_allan_variance.m`)
+
 ## Donanım — Datasheet'ler ve Üretici Belgeleri
 
 - **[TB6612_DS]** Toshiba, *"TB6612FNG — Dual-channel motor driver"* datasheet.
