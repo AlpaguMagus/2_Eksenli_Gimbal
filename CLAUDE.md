@@ -51,15 +51,18 @@ Hedef: **üniversiteye yeni başlayan biri belgeyi adım adım — denklem, blok
 
 Bu tuzaklar gerçek hatalara yol açtı; denklem/figür yazarken baştan uygula (kapanışta `/asama-kapat` mekanik tarar):
 
-**GitHub/KaTeX inline math (`$...$`):**
+**GitHub/KaTeX inline+blok math (`$...$`, `$$...$$`):**
 - Kapanış `$` **öncesinde** ve açılış `$` **sonrasında boşluk OLAMAZ.** `$E = R - $` ❌ → GitHub `$`'i kapanış saymaz, **satırdaki sonraki tüm math bozulur** → `$E = R - Y$` ✅
 - Bir satırda tek-`$` sayısı **dengeli (çift)** olmalı; dengesiz tek `$` o satırı bozar.
 - Blok `$$...$$` ayrı satırda, öncesi/sonrası **boş satır** ile.
-- Matematik subscript'lerde Türkçe aksan yerine düz/İngilizce (`\text{meas}`, `\text{ölç}` değil) — KaTeX `\c{c}`/`\"o`'yu güvenilir render etmez.
+- **`\operatorname` ❌ GitHub'da YASAK** ("macros not allowed: operatorname") → `\text{atan2}` veya `\mathrm{}`. (Geçmiş hata: `\!\left`'i `\operatorname`'le "düzelttim", yeni hata soktum.)
+- **`\left\{ ... \right\}` ❌** → GitHub markdown `$$` bloğunda `\{`'yi `{`'ye çevirir → `\left{` → "Missing delimiter". Çözüm: `\left\lbrace ... \right\rbrace` (backslash-harf markdown'dan geçer). Aynısı `\{`/`\}` için her yerde.
+- **`\text{...}` içinde Türkçe aksan (ç,ğ,ı,ö,ş,ü) veya em-dash (—) ❌** → KaTeX render edemez (eksik/bozuk glyph). `\text{count}` ✅, açıklamayı markdown caption'a koy. Subscript'lerde de aynı (`\text{meas}`, `\text{ölç}` değil).
+- `°` (degree) KaTeX'te çalışır ama tutarlılık için `^\circ` tercih edilebilir (zorunlu değil).
 
 **MATLAB LaTeX yorumlayıcısı (figür içi `text/title`, `Interpreter','latex'`):**
 - `\dfrac` ❌ → `\frac` ✅ ; `\c{c}`, `\"o`, `\S`, `\emph` ❌ (Türkçe aksan/komut desteklenmez) → figür metni **İngilizce + LaTeX matematik**, Türkçe anlatım markdown caption'da.
-- `\!\left(` ❌ ("Missing/unrecognized delimiter") → `\operatorname{}\left(` ✅ ; `\left` ↔ `\right` daima eşleşir.
+- `\!\left(` ❌ ("Missing/unrecognized delimiter") → `\left(` (sadece `\!`'i kaldır) ; `\left` ↔ `\right` daima eşleşir.
 - `_` içeren etiketi `\text{}` içinde escape et (`fused\_pitch`) ya da hiç kullanma.
 
 **MATLAB figür teması (ders-kitabı görseli):**

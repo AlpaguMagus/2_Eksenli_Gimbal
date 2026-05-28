@@ -69,7 +69,7 @@ $$\min_{\theta}\ \sum_{k}\big(\omega_{\text{model}}(t_k;\theta) - \omega_{\text{
 
 Oturmuş hızların ($\omega_{ss}$) efektif gerilime ($V_{eff}$) karşı lineer regresyonu yapılır:
 
-$$\omega_{ss} = K\cdot V_{eff} + b \quad\Rightarrow\quad V_{dead} = -\frac{b}{K}\ \ (\text{x-eksenini kestiği nokta})$$
+$$\omega_{ss} = K\cdot V_{eff} + b \quad\Rightarrow\quad V_{dead} = -\frac{b}{K}\ \ (\text{x-intercept})$$
 
 Burada $V_{eff} = V_{supply}\cdot\text{duty} - V_{sat} = 12.15\cdot\text{duty} - 0.5$ (sürücü kaybı çıkarılmış efektif gerilim). $V_{dead}$ motorun dönmeye başladığı eşik gerilimdir; CW/CCW için ayrı fit edilir.
 

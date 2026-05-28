@@ -39,7 +39,7 @@ $$\tau \frac{d\omega(t)}{dt} + \omega(t) = K\,v(t)$$
 
 Diferansiyel denklemlerle cebir yapmak zordur. **Laplace dönüşümü** ($\mathcal{L}$), zaman domenindeki türev işlemini ($\frac{d}{dt}$) basit bir çarpmaya ($s$ ile) çevirir:
 
-$$\mathcal{L}\left\{\frac{d\omega}{dt}\right\} = s\,\Omega(s)$$
+$$\mathcal{L}\left\lbrace \frac{d\omega}{dt} \right\rbrace = s\,\Omega(s)$$
 
 Böylece diferansiyel denklem cebirsel hale gelir. Yukarıdaki motor denklemini Laplace'a taşıyıp düzenlersek **transfer fonksiyonu** çıkar — çıkışın girişe oranı:
 

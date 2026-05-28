@@ -148,9 +148,9 @@ Tek bir I2C transaction ile 14 byte okunarak sensör verisinin tutarlılığı (
 
 Sensör eğildiğinde yerçekimi vektörü eksenlere farklı projeksiyon yapar. Pitch (öne-arkaya eğim) ve Roll (sağa-sola eğim) açıları şu formüllerle hesaplanır:
 
-$$\text{pitch} = \operatorname{atan2}\left(a_x,\ \sqrt{a_y^2 + a_z^2}\right)\cdot\frac{180}{\pi}$$
+$$\text{pitch} = \text{atan2}\left(a_x,\ \sqrt{a_y^2 + a_z^2}\right)\cdot\frac{180}{\pi}$$
 
-$$\text{roll} = \operatorname{atan2}\left(a_y,\ \sqrt{a_x^2 + a_z^2}\right)\cdot\frac{180}{\pi}$$
+$$\text{roll} = \text{atan2}\left(a_y,\ \sqrt{a_x^2 + a_z^2}\right)\cdot\frac{180}{\pi}$$
 
 **Neden `atan2(x, √(y²+z²))` kullanılıyor?**
 
@@ -170,7 +170,7 @@ $$\text{roll} = \operatorname{atan2}\left(a_y,\ \sqrt{a_x^2 + a_z^2}\right)\cdot
 
 Jiroskop, her eksen etrafındaki **açısal hızı** (°/s) ölçer. Ham dijital değerden fiziksel birime dönüşüm (MPU6050 ±250°/s skala, `[MPU6050_DS]`):
 
-$$\omega\ [°/s] = \frac{\text{ham değer [LSB]}}{131\ \text{LSB}/(°/s)}$$
+$$\omega\ [^\circ/s] = \frac{\text{raw [LSB]}}{131\ \text{LSB}/(^\circ/s)}$$
 
 Açısal hız, sayısal entegrasyon ile açıya dönüştürülür:
 
@@ -221,7 +221,7 @@ Bu iki sensörün avantajlı frekans bölgelerini birleştirmek için **sensör 
 
 Complementary filter, bir **yüksek geçiren filtre** (gyro için) ile bir **alçak geçiren filtre** (accelerometer için) birleşiminden oluşur (`[Mahony2008]`). Ayrık zaman temel denklemi:
 
-$$\theta_{fused}[k] = \underbrace{\alpha\,\big(\theta_{fused}[k-1] + \omega_{gyro}\,\Delta t\big)}_{\text{gyro — yüksek geçiren}} + \underbrace{(1-\alpha)\,\theta_{accel}}_{\text{accel — alçak geçiren}}$$
+$$\theta_{fused}[k] = \underbrace{\alpha\,\big(\theta_{fused}[k-1] + \omega_{gyro}\,\Delta t\big)}_{\text{gyro (high-pass)}} + \underbrace{(1-\alpha)\,\theta_{accel}}_{\text{accel (low-pass)}}$$
 
 İki filtrenin ağırlıkları toplamı 1'dir ($\alpha + (1-\alpha) = 1$) — "tamamlayıcı" (complementary) adı buradan gelir: gyro'nun yüksek-frekans güvenilirliği ile ivmeölçerin düşük-frekans (mutlak) referansı çakışmadan birleşir.
 

@@ -436,7 +436,7 @@ Artifact: `artifacts/2/antiwindup/20260528_203803/` (summary + meta + raw).
 
 Dış döngü çıkış mili açısını ($\theta$) kontrol eder, çıkışı iç döngünün hız referansıdır. Çıkış mili açısı encoder'dan okunur:
 
-$$\theta_{out} = EC \times \frac{360°}{466} \quad (0.773°/\text{count çözünürlük})$$
+$$\theta_{out} = EC \times \frac{360^\circ}{466} \quad (0.773^\circ/\text{count})$$
 
 #### 11.13.2. Neden — Cascade + P + Çıkış Mili (3 Sokratik Karar)
 
