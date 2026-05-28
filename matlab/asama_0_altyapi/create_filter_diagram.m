@@ -58,7 +58,43 @@ function create_filter_diagram()
 
     exportgraphics(f, fullfile(outdir, 'complementary_filter_blockdiagram.png'), 'Resolution', 150);
     close(f);
+
+    fig_bode(outdir);
     fprintf('Asama 0 complementary filter diyagrami uretildi: %s\n', outdir);
+end
+
+% ====================================================================
+function fig_bode(outdir)
+% Complementary filter frekans bölünmesi: accel LPF + gyro HPF, kesim ω_co
+    alpha = 0.98; Ts = 0.05;
+    wco = (1-alpha)/(alpha*Ts);          % kesim frekansı (rad/s)
+
+    w = logspace(-2, 2, 800);
+    % 1. derece tamamlayıcı çift (kesim wco):
+    lpf = 1 ./ sqrt(1 + (w/wco).^2);              % accel alçak-geçiren |LPF|
+    hpf = (w/wco) ./ sqrt(1 + (w/wco).^2);        % gyro yüksek-geçiren |HPF|
+
+    f = figure('Position', [100 100 760 460], 'Color', 'w');
+    ax = axes; hold(ax, 'on'); grid(ax, 'on'); set(ax, 'XScale', 'log');
+    plot(w, 20*log10(lpf), 'b', 'LineWidth', 2);
+    plot(w, 20*log10(hpf), 'r', 'LineWidth', 2);
+    xline(wco, 'k--', 'LineWidth', 1.2);
+    yline(-3, 'Color', [0.5 0.5 0.5], 'LineStyle', ':');
+    plot(wco, -3, 'ko', 'MarkerFaceColor', 'k', 'MarkerSize', 7);
+    xlim([0.01 100]);
+
+    text(wco*1.3, -6, sprintf('\\omega_{co} = %.2f rad/s', wco), 'FontSize', 11, 'Interpreter', 'tex');
+    text(0.013, -16, 'accel reliable', 'Color', 'b', 'FontSize', 10);
+    text(60, -16, 'gyro reliable', 'Color', 'r', 'FontSize', 10, 'HorizontalAlignment', 'right');
+
+    xlabel('frequency \omega [rad/s]', 'Interpreter', 'tex', 'FontSize', 12);
+    ylabel('|gain| [dB]', 'FontSize', 12);
+    title('Complementary Filter Frequency Split (\alpha=0.98)', 'Interpreter', 'tex', 'FontSize', 13, 'FontWeight', 'bold');
+    legend('accel (low-pass)', 'gyro (high-pass)', '\omega_{co} (crossover)', ...
+        'Location', 'east', 'TextColor', 'k', 'Color', 'w', 'EdgeColor', [0.6 0.6 0.6]);
+    ylim([-20 2]);
+    exportgraphics(f, fullfile(outdir, 'complementary_filter_bode.png'), 'Resolution', 150);
+    close(f);
 end
 
 % ====================================================================

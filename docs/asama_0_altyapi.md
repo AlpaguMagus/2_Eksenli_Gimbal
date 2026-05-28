@@ -252,6 +252,31 @@ fused_roll  = 0.98f * (fused_roll  + gx_dps * dt) + 0.02f * roll;
 
 Zaman sabiti yaklaşık olarak $\tau \approx \Delta t\cdot\frac{\alpha}{1-\alpha}$. Mevcut ayarda $\tau \approx 0.05\cdot\frac{0.98}{0.02} \approx 2.45$ s, yani gyro drift'i yaklaşık 2.5 saniye içinde ivmeölçer referansına doğru düzeltilir.
 
+#### α'nın analitik gerekçesi — kesim frekansı (neden 0.98?)
+
+> **Analitik-önce tasarım** (CLAUDE.md): α "tipik 0.98" diye seçilmemeli, bir **kesim frekansı** kriteriyle gerekçelendirilmeli. Aşağıda α'nın hangi frekansta accel↔gyro geçişi yaptığı türetilir; tam optimum (Allan variance) açık konu olarak işaretlenir.
+
+Complementary filter, gyro koluna bir **yüksek-geçiren**, accel koluna bir **alçak-geçiren** filtre uygular; ikisinin **kesim frekansı aynıdır** (tamamlayıcılık şartı). Ayrık fark denkleminden ($\theta[k]=\alpha(\theta[k-1]+\omega\Delta t)+(1-\alpha)\theta_{accel}$) bu kesim frekansı analitik olarak:
+
+$$\omega_{co} = \frac{1-\alpha}{\alpha\,\Delta t}$$
+
+Mevcut değerlerle ($\alpha=0.98$, $\Delta t=0.05$ s):
+
+$$\omega_{co} = \frac{0.02}{0.98 \times 0.05} = 0.41\ \text{rad/s} \approx 0.065\ \text{Hz}$$
+
+**Neden bu frekans makul?** Kesim, iki gürültü kaynağının kesiştiği yere yerleştirilmelidir:
+- **Kesimin altında** (yavaş, $<0.065$ Hz): accel'e güven — yerçekimi mutlak referansı drift'siz; gyro burada drift biriktirir.
+- **Kesimin üstünde** (hızlı): gyro'ya güven — accel burada titreşim/lineer-ivme gürültüsüne maruz.
+- $\omega_{co}=0.41$ rad/s, motor kontrol bandının (cascade $\omega_c\approx1.9$ rad/s, [`00_genel_bakis.md`](00_genel_bakis.md) §2.6) **~5× altında** ve elle-sallama/titreşim bandının ($\gtrsim1$ Hz) çok altında → accel gürültüsü füzyona sızmaz, gyro kısa-vadeli dinamiği korunur. Bu yüzden 0.98 **makul bir mühendislik seçimidir**.
+
+![Complementary filter frekans bölünmesi](../matlab/asama_0_altyapi/results/complementary_filter_bode.png)
+
+*Şekil 5.2 — Complementary filter frekans karakteristiği. Accel LPF (mavi) ve gyro HPF (kırmızı) kazançları $\omega_{co}=0.41$ rad/s'de kesişir; toplamları her frekansta 1'dir (tamamlayıcılık). Kesim, accel'in güvenilir olduğu düşük frekans ile gyro'nun güvenilir olduğu yüksek frekansı ayırır.*
+
+> 📊 **Üreten betik:** `matlab/asama_0_altyapi/create_filter_diagram.m`
+
+**Açık konu — tam optimal α (Aşama 5):** Kesim frekansının *tam optimum* yeri, accel gürültü yoğunluğu ile gyro drift oranının eşitlendiği noktadır; bu da IMU'nun **Allan variance** karakterizasyonunu (ayrı, uzun-süreli statik ölçüm deneyi) gerektirir. Bu veri henüz yok → mevcut α=0.98 kesim-frekansı gerekçesiyle kullanılıyor, tam optimizasyon gerçek gimbal donanımında (Aşama 5) yapılacak. (Kaynak: `[Mahony2008]` complementary filter teorisi; Allan variance için IEEE Std 952.)
+
 ### 5.3. Gyro Eksen İşaret Yönleri
 
 MPU6050 datasheet'inde tanımlanan eksen yönleri, sensörün fiziksel montaj yönüne göre firmware'deki işaret seçimini belirler:
