@@ -238,6 +238,30 @@ Algoritma seçimi, parametre değeri, kontrolcü tasarımı, fit yöntemi, model
 
 `KAYNAKCA.md` sınıflandırılmış Markdown: sistem tanımlama, klasik kontrol, optimal kontrol, state estimation, MIMO, donanım, yazılım. BibTeX/LaTeX kullanılmaz (gerekirse sonra dönüşüm).
 
+## Analitik-Önce Tasarım Prensibi (toolbox referans, deneme-yanılma yasak)
+
+**Her tasarım kararı (kontrolcü kazancı, kök yerleştirme, eşik, filtre katsayısı, gözlemci kazancı) önce mühendislik bakış açısıyla — analitik veya optimal el-hesabıyla — çözülür.** Hazır toolbox fonksiyonu birincil tasarım aracı DEĞİL.
+
+### Sıralama (her aşamada uygulanır)
+
+1. **Analitik / optimal çözüm (birincil):** Karakteristik denklemi yaz, kökleri tayin et (pole placement / root locus), transfer fonksiyonunu türet, optimizasyon problemini kur (LQR → Riccati, en küçük kareler → normal denklemler). Kapalı-çevrim kutuplarının *nereye* ve *neden* gittiğini göster. Sonuç bir **formül/türetme** olmalı, bir buton çıktısı değil.
+2. **Toolbox = doğrulama/referans (ikincil):** `pidtune`, `rlocus`, `place`, `lqr`, `margin` vb. analitik sonucu **doğrulamak veya karşılaştırmak** için kullanılır — *"elle hesapladım X, toolbox Y dedi, %Z uyum"*. Toolbox'ın *neyi hangi prensiple* yaptığı da açıklanır (kara kutu bırakılmaz).
+3. **Analitik yetmezse → gerekçeli numerik/toolbox:** Problem analitik olarak çözülemiyorsa (yüksek mertebe, nonlineer, MIMO kuplaj) veya analitik çözüm performans sağlamıyorsa, toolbox/numerik yönteme geçilir — **ama neden analitiğin yetmediği açıkça yazılır.**
+
+### Yasaklar ve onaylananlar
+
+- ❌ **Deneme-yanılma:** Kazancı elle çevirip ("KPP 2→4→5") "iyi göründü" demek yasak. (Geçmiş hata: mirror Kp_pos deneme-yanılmayla arandı → kullanıcı eleştirdi → Kv hız hata sabitiyle analitik yeniden türetildi.)
+- ❌ **Toolbox-önce:** Önce `pidtune` çağırıp sonucu kabul etmek. pidtune ancak analitik tasarımın *yanında* karşılaştırma olarak durur.
+- ✅ **Analitik + kaynak + toolbox doğrulama:** *"Karakteristik denklem $\tau s^2+(1+KK_p)s+KK_i$'yi $\zeta=1,\omega_n=60$ ile eşitleyip $K_p,K_i$ türettim `[Franklin2010] §6.4`; `pidtune` ile karşılaştırdım (tabloda)."*
+
+### Bu projede uygulanmış örnekler
+
+- Hız PI: pole placement (karakteristik denklem → $K_p,K_i$ formülü), `pidtune` referans karşılaştırma. ✅
+- Mirror $K_{p,pos}$: tip-1 hız hata sabiti $K_v=\omega_{in}/e_{ss}$ analitik, deney doğrular. ✅
+- Cascade dış döngü: root locus + kapalı-çevrim kutup analizi (analitik karakteristik denklem, `rlocus` doğrulama). ✅
+
+> Bu prensip mevcut **Kaynaklı ilerleme** (§ yukarı) ve **Sokratik rehber** (§ aşağı) ile birlikte uygulanır: analitik çöz + kaynakla + alternatifleri tart.
+
 ## Sokratik rehber rolü (kontrol/gömülü/robotik mühendisi)
 
 Kullanıcının önerdiği yöntemi **doğrudan uygulamak yerine** alternatifleri sun. Özellikle akademik açıdan zengin konularda (kontrolcü tasarımı, sistem tanımlama, model yapısı, parametre seçimi) bu zorunludur.

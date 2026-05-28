@@ -390,6 +390,33 @@ $$\theta_{out} = EC \times \frac{360°}{466} \quad (0.773°/\text{count çözün
 
 **Kazanç:** `Kp_pos = 2.0 [1/s]` (`design_position_p.m`). Dış döngü ω_c≈1.93 rad/s = iç döngü ω_n (9.4) / 5 — cascade kuralı `[Franklin2010] §6.4` (iç döngü 5× hızlı). PM 69.7°, GM 23 dB.
 
+#### 11.13.2b. Kök-Düzeyi Doğrulama — Root Locus (Analitik-Önce)
+
+Bandwidth-separation seçimi (Kp_pos=2) **kök düzeyinde** de gerekçelendirilir. Analitik-önce yaklaşım: önce karakteristik denklemi elle çıkar, sonra `rlocus` ile doğrula (CLAUDE.md "Analitik-Önce Tasarım").
+
+İç hız döngüsünün kapalı-çevrim karakteristik denklemi (plant duty→ω kazancı $K V_s = 654.8$ dahil, §11.13.7):
+
+$$0.0605\,s^2 + 2.3096\,s + 65.48 = 0 \;\Rightarrow\; \omega_{n,i} = 32.9\ \text{rad/s},\quad \zeta_i = 0.58$$
+
+Bu, §11.13.7'deki "iç ωn~33" bulgusunu **analitik** doğrular (`design_position_p.m` 9.4 demişti, Vsupply'ı sadeleştirmişti). İç döngü hızlı olduğundan dış döngü baskın yaklaşımı $T_i \approx 1/(\tau_{eff}s+1)$, $\tau_{eff} = 2\zeta_i/\omega_{n,i} = 0.035$ s. Dış açık-çevrim $L_o = K_{p,pos}/[s(\tau_{eff}s+1)]$:
+
+$$s^2 + \frac{1}{\tau_{eff}}s + \frac{K_{p,pos}}{\tau_{eff}} = 0$$
+
+Çift kök (breakaway) koşulu (diskriminant sıfır) → $K_{p,pos,bp} = 1/(4\tau_{eff}) \approx 7.1$. Yani $K_{p,pos} < 7.1$ iken iki **reel** kök (overdamped, **salınımsız**); üstünde kompleks kökler (salınım). Seçilen $K_{p,pos}=2$ bu sınırın çok altında → baskın kutup analitik $\approx -2.1$ rad/s. Tam 3. derece modelle `rlocus`/`pole` doğrulaması:
+
+| $K_{p,pos}$ | Baskın kutup (rlocus) | İç döngü kutupları | Davranış |
+|---|---|---|---|
+| 2 (step) | **−2.06** | $-18.1 \pm j26.9$ | overdamped, salınımsız |
+| 6 (mirror) | **−6.44** | $-15.9 \pm j27.5$ | overdamped, salınımsız |
+
+Analitik tahmin ($-2.1$) tam modelle ($-2.06$) **%2 uyum** — el-hesabı doğrulandı. İç döngü kutupları baskın kutuptan ~9× hızlı → cascade ayrımı korunuyor; ikisi de reel olduğundan gerçek motordaki salınımsız oturma (Test 2.5) kök düzeyinde açıklanır.
+
+![Cascade dış döngü root locus](../matlab/asama_2_kontrol/results/2_5_cascade/cascade_rootlocus.png)
+
+*Şekil 11.13b — Cascade dış döngü root locus. Açık-çevrim kutupları (×): integratör $s=0$ ve iç döngü çifti $-18\pm j27$; sıfır (○) $s=-50$. $K_{p,pos}$ arttıkça baskın kutup orijinden reel eksende sola yürür (salınımsız), $K_{p,pos}\approx 7.1$'de breakaway. Seçilen $K_{p,pos}=2$ (mavi kare) baskın kutbu $-2.06$'ya koyar — geniş kararlılık marjı.*
+
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/design_position_rootlocus.m`
+
 #### 11.13.3. Sokratik Süreç — Gerçekçi Sim, 5V Hatası, Sürtünme
 
 Bu aşama, **dürüst mühendislik sürecinin** örneğidir:
