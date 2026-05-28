@@ -108,7 +108,7 @@ def main():
     ap.add_argument("--down", type=float, default=2.0, help="recovery gözlem süresi")
     ap.add_argument("--kp", type=float, default=0.002)
     ap.add_argument("--ki", type=float, default=0.1)
-    ap.add_argument("--slew", type=float, default=0, help="0 = slew kapalı (ani step, wind-up için)")
+    ap.add_argument("--slew", type=float, default=1000, help="rad/s/s — yüksek=hızlı step (450'ye ~0.45s, wind-up için). 0 firmware'de setpoint'i dondurur, kullanma.")
     ap.add_argument("--test-id", default=None)
     args=ap.parse_args()
 
@@ -126,7 +126,10 @@ def main():
 
     up=down=[]
     try:
+        # Serial açılışı DTR/RTS toggle ile BlackPill'i resetleyebilir → boot bekle
+        print(f"[{ts()}] firmware boot bekleniyor (1.5 s)..."); time.sleep(1.5)
         rtt=handshake(ser); print(f"[{ts()}] PONG ({rtt:.1f} ms)")
+        send(ser,"RESET"); time.sleep(0.2)   # lockout temizle (önceki stall artığı)
         send(ser,"STOP"); time.sleep(1.0)
         send(ser,"MODE:SP_W"); time.sleep(0.05)
         send(ser,f"KP:{args.kp}"); send(ser,f"KI:{args.ki}"); send(ser,f"SLEW:{args.slew}")
@@ -148,7 +151,9 @@ def main():
     t  = [s[0] for s in alls]
     om = moving_avg([s[1] for s in alls], MA_WINDOW)
     t_down = up[-1][0] if up else 0.0   # recovery başlangıç anı (down fazı ilk örnek ~)
-    rec = settle_time(t, om, args.sp_low, 0.05*args.sp_low, t_down)
+    # tolerans kuantizasyon-farkında: 1 encoder count ≈ 18.7 rad/s → ±20 (±%5 band imkansız dar)
+    tol = max(0.05*args.sp_low, 20.0)
+    rec = settle_time(t, om, args.sp_low, tol, t_down)
     om_high = mean([s[1] for s in up[len(up)//2:]]) if up else 0.0   # wind-up platosu
     rec_ms = round(rec*1000) if rec else None
 
@@ -181,8 +186,9 @@ def write_summary(out, test_id, args, res, status, raw):
         f.write(f"- **Hedef:** anti-windup (firmware'de aktif) recovery'yi sim OFF ({SIM_OFF_MS} ms) altına indirir\n\n")
         f.write("## Sonuç\n\n")
         f.write("| Metric | Değer | Referans | Durum |\n|---|---|---|---|\n")
-        f.write(f"| recovery (450→50) | {res['recovery_ms']} ms | sim ON {SIM_ON_MS} / OFF {SIM_OFF_MS} | {'✓' if status=='PASS' else '?'} |\n")
+        f.write(f"| recovery (450→50, ±20 rad/s band) | {res['recovery_ms']} ms | sim ON {SIM_ON_MS} / OFF {SIM_OFF_MS} | {'✓' if status=='PASS' else '?'} |\n")
         f.write(f"| wind-up platosu | {res['omega_high_plateau']} rad/s | ~327 (max no-load) | — |\n\n")
+        f.write("> Recovery bandı ±20 rad/s (~1 encoder count=18.7); ±%5 band kuantizasyonla imkansız.\n\n")
         f.write(f"## Durum: **{status}**\n\n")
         f.write("Gerçek recovery sim OFF'tan belirgin hızlıysa anti-windup gerçekte çalışıyor demektir "
                 "(sim ON ile uyum → sim-to-real gap kapalı). Detay: docs/asama_2_kontrol.md §11.12.9.\n\n")

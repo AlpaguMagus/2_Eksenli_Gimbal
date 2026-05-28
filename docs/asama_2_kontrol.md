@@ -238,7 +238,7 @@ Motor sürücü
 |---|---|---|---|
 | 2.T1 (kararlılık marjı) | GM≥6 dB, PM≥45° | ampirik (çalışan) PM=60.2°, GM=∞ — firmware plant'ta analitik+`margin` (§11.12.8) | ✅ PASS |
 | 2.T2 (Hız step response, firmware) | T_set<5τ_ol=300ms, OS<%10, ss_err<%2 | bekliyor | ☐ Aşama 2.3 |
-| 2.T3 (Anti-windup recovery) | recovery iyileşmesi | sim: ON 235ms vs OFF 715ms (§11.12.9); gerçek motor `antiwindup_test.py` bekliyor | 🟡 sim PASS / gerçek açık |
+| 2.T3 (Anti-windup recovery) | recovery iyileşmesi | sim: ON 235 vs OFF 715 ms; **gerçek motor 637 ms** (< sim OFF → anti-windup aktif) (§11.12.9) | ✅ PASS (sim + gerçek) |
 | 2.T4 (Disturbance rejection) | Setpoint dönüş<200ms | bekliyor | ☐ Aşama 2.4 |
 | 2.T5 (Cascade pozisyon step) | OS<%10, ss_err<1° | bekliyor | ☐ Aşama 2.6 |
 | **2.T6 (Mirror takip)** ⭐ | **RMS<5°** | bekliyor | ☐ Aşama 2.8 |
@@ -404,7 +404,23 @@ Anti-windup recovery'yi **3× hızlandırır** (715→235 ms) ve integratör şi
 
 > 📊 **Üreten betik:** `matlab/asama_2_kontrol/verify_antiwindup.m`
 
-**Gerçek motor doğrulaması (açık konu):** Sim teoriyi kanıtladı; sim-to-real gap dersimiz (§11.12.3) gereği sim tek başına yeterli değil. `scripts/antiwindup_test.py` ile gerçek motorda büyük step → recovery ölçülecek (firmware flash sonrası). Beklenen: anti-windup'lı recovery belirgin hızlı; ham sayı artifact'e işlenecek.
+**Gerçek motor doğrulaması (2026-05-28, flash sonrası) ✅:** `scripts/antiwindup_test.py` gerçek motorda koşturuldu (450→50 saturation senaryosu, serbest mil):
+
+| | recovery (450→50) | wind-up platosu |
+|---|---|---|
+| **Gerçek motor** (anti-windup ON, firmware) | **637 ms** | 274 rad/s (saturation) |
+| sim ON (referans) | 235 ms | — |
+| sim OFF (referans) | 715 ms | — |
+
+Gerçek recovery (637 ms) sim OFF'un (715 ms) **altında** → anti-windup gerçekte aktif ve wind-up gecikmesini azaltıyor. Ama sim ON'dan (235 ms) belirgin yavaş — **yine bir sim-to-real gap** (§11.12.3 ile aynı tema): gerçekte ek gecikmeler (serbest mil ataleti/coast — düşük sürtünme motorun yavaş yavaşlaması, encoder kuantizasyonu 18.7 rad/s, telemetri gecikmesi) sim'in öngörmediği yavaşlamayı getiriyor.
+
+**Dürüstlük notu:** Firmware'de anti-windup runtime kapatılamaz (back-calculation kodda sabit), bu yüzden gerçek OFF *ölçülemedi* — sim OFF teorik referanstır. "Anti-windup faydalı" çıkarımı, gerçek ON'un (637) sim OFF'un (715) altında kalmasına dayanır; doğrudan gerçek ON/OFF karşılaştırması değil. Recovery bandı ±20 rad/s (~1 encoder count); ±%5 band kuantizasyonla imkansızdır.
+
+Artifact: `artifacts/2/antiwindup/20260528_203803/` (summary + meta + raw).
+
+![Test 2.T3 gerçek motor recovery profili](../matlab/asama_2_kontrol/results/2_3_realistic_sim/antiwindup_real_recovery.png)
+
+> 📊 **Üreten betik:** `scripts/antiwindup_test.py` (gerçek motor) + `matlab/asama_2_kontrol/plot_antiwindup_real.m` (görsel)
 
 ### 11.13. Aşama 2.5 — Pozisyon Cascade Kontrol (Test 2.5 PASS ✅) ⭐⭐⭐
 
@@ -632,7 +648,7 @@ Aşama 2, Aşama 1'in motor modeli (`G(s)=K/(τs+1)`, K=53.89 rad/s/V, τ=60.5 m
 | Alt-aşama | İş | Test | Sonuç |
 |---|---|---|---|
 | 2.1 | Hız PI tasarımı (pole placement + pidtune, 5 kontrolcü) | **2.T1** | ✅ PASS (ampirik PM=60.2°, GM=∞ analitik+margin, §11.12.8) |
-| 2.2 | Firmware hız PI (Tustin + anti-windup + MODE/SP_W) | **2.T3** | 🟡 sim PASS (ON 235 vs OFF 715 ms, §11.12.9); gerçek motor açık |
+| 2.2 | Firmware hız PI (Tustin + anti-windup + MODE/SP_W) | **2.T3** | ✅ PASS (sim ON 235 vs OFF 715 ms; gerçek motor 637 ms, §11.12.9) |
 | 2.3 | Sim-to-real gap + ampirik tuning | **2.T2** | ✅ PASS (8/8 step) |
 | 2.4 | Disturbance rejection | **2.T4** | ✅ PASS (ω %82 dip → recovery) |
 | 2.5/2.6 | Pozisyon cascade (poz P → hız PI) firmware | **2.T5** | ✅ PASS (ss<0.8°, limit-cycle yok) |
@@ -663,7 +679,6 @@ Aşama 2, Aşama 1'in motor modeli (`G(s)=K/(τs+1)`, K=53.89 rad/s/V, τ=60.5 m
 - **Kazançlar serbest mil içindir** — gerçek gimbalda kamera yükü + denge ile yeniden ayar (kritik).
 - Encoder düşük-hız kuantizasyonu — yük altında T-metodu/pencere büyütme gerekebilir.
 - Tam sürtünme tanımlama (LuGre/Stribeck) — ayrı deney, gelecek iş.
-- **2.T3 anti-windup gerçek motor doğrulaması** — sim PASS (§11.12.9); `scripts/antiwindup_test.py` ile gerçek motorda recovery ölçülecek (firmware flash sonrası, sim-to-real gap kapatma).
 
 ### 11.16. Bir Sonraki Aşama
 
