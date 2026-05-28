@@ -15,7 +15,7 @@
 |---|---|---|
 | **0 — Altyapı** | ✅ KAPALI | Donanım + firmware + IMU füzyonu + USB CDC + koruma katmanları |
 | **1 — Sistem Tanımlama** | ✅ KAPALI | `K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0` — model NRMSE %11 (Test 1.T5 PASS) |
-| **2 — Tek Motor Kontrol** | ✅ KAPALI | Hız PI + sim-to-real gap + disturbance + pozisyon cascade + IMU mirror — **tüm testler PASS** (2.T2/T4/T5/T6) |
+| **2 — Tek Motor Kontrol** | ✅ KAPALI | Hız PI + sim-to-real gap + disturbance + pozisyon cascade + IMU mirror — 2.T1/T2/T4/T5/T6 PASS; 2.T3 (anti-windup) sim PASS, gerçek motor doğrulaması açık |
 | 3 — MIMO Model | ⬜ | İki motor + decoupling |
 | 4 — MIMO Kontrol | ⬜ | LQR/LQG + Kalman |
 | 5 — Gerçek Gimbal | ⬜ | 3D-baskı + stabilizasyon |

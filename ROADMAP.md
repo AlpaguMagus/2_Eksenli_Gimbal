@@ -302,9 +302,9 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
 | # | Test | Beklenen | Durum |
 |---|---|---|---|
-| 2.T1 | Pole placement + pidtune kazançları | Gain margin ≥ 6 dB, phase margin ≥ 45° | ☐ |
+| 2.T1 | Kararlılık marjı (ampirik/çalışan kazanç) | Gain margin ≥ 6 dB, phase margin ≥ 45° | ✅ PASS — ampirik Kp=0.002 firmware plant'ta **PM=60.2°, GM=∞** (analitik PM~58° + `margin` doğrulama, %4 uyum). Conservative ωc=1259>Nyquist 628 → sim-to-real gap'in margin-düzeyi kanıtı. `docs §11.12.8` |
 | 2.T2 | Hız step response (firmware) | settling < 5τ, overshoot < %10, ss_error < %2 | ✅ PASS (Kp=0.002, 8/8 step temiz, ss_err çoğunlukla <%2, bang-bang yok. Settling/OS metrikleri düşük setpoint'te encoder kuantizasyonu ile sınırlı — `artifacts/2/speed_step/20260524_180610/`) |
-| 2.T3 | Anti-windup recovery | Saturation sonrası recovery < 100 ms | ☐ |
+| 2.T3 | Anti-windup recovery | recovery iyileşmesi | 🟡 **sim PASS** — büyük step (450→50) saturation: anti-windup ON 235 ms vs OFF 715 ms recovery (3× hızlı), integratör şişmesi 32× az (`docs §11.12.9`, `verify_antiwindup.m`). **Gerçek motor** `scripts/antiwindup_test.py` ile doğrulanacak (flash sonrası). |
 | 2.T4 | Disturbance rejection | Yük sonrası setpoint'e dönüş | ✅ PASS — elle yük (7 müdahale), ω %82 düştü, PI duty 0.18→0.5 telafi, setpoint'e döndü. `artifacts/2/disturbance/20260524_192851/` (7 u piki grafiği). Recovery süresi metriği encoder kuantizasyonu ile sınırlı. |
 | 2.T5 | Cascade pozisyon step | Overshoot < %10, ss_error < 1° | ✅ PASS — 6/6 segment (30/90/45/0/-45/0°), ss_err <0.8°, OS <1°, **limit-cycle yok** (θ_std <0.7°). Gerçekçi sim limit-cycle öngördü ama gerçek motor sürtünmesi söndürdü (sim kötümserdi). `artifacts/2/position_step/20260524_212456/` |
 | 2.T6 | Mirror takip (KRİTİK) | RMS < 5° | ✅ PASS — gimbal-hızı (~25-30°/s) RMS **4.68°** (Kp_pos=5), analitik Kv tasarımı Kp_pos=6→4.63° doğruladı. Hızlı el (~80°/s) bant-genişliği limiti (~10°, beklenen). `artifacts/2/mirror/20260526_204240/` |

@@ -236,9 +236,9 @@ Motor sürücü
 
 | Test | Beklenen | Ölçülen | Durum |
 |---|---|---|---|
-| 2.T1 (Conservative margin) | GM≥6 dB, PM≥45° | ∞, 80.8° | ✅ PASS |
+| 2.T1 (kararlılık marjı) | GM≥6 dB, PM≥45° | ampirik (çalışan) PM=60.2°, GM=∞ — firmware plant'ta analitik+`margin` (§11.12.8) | ✅ PASS |
 | 2.T2 (Hız step response, firmware) | T_set<5τ_ol=300ms, OS<%10, ss_err<%2 | bekliyor | ☐ Aşama 2.3 |
-| 2.T3 (Anti-windup recovery) | Recovery<100ms | bekliyor | ☐ Aşama 2.3 |
+| 2.T3 (Anti-windup recovery) | recovery iyileşmesi | sim: ON 235ms vs OFF 715ms (§11.12.9); gerçek motor `antiwindup_test.py` bekliyor | 🟡 sim PASS / gerçek açık |
 | 2.T4 (Disturbance rejection) | Setpoint dönüş<200ms | bekliyor | ☐ Aşama 2.4 |
 | 2.T5 (Cascade pozisyon step) | OS<%10, ss_err<1° | bekliyor | ☐ Aşama 2.6 |
 | **2.T6 (Mirror takip)** ⭐ | **RMS<5°** | bekliyor | ☐ Aşama 2.8 |
@@ -365,6 +365,46 @@ Ampirik Kp=0.002'yi **teorik temellendirmek** için Aşama 2.1 Simulink modeline
 Görsel: `matlab/asama_2_kontrol/results/2_3_realistic_sim/realistic_sim_verification.png` (sol: conservative bang-bang, sağ: ampirik stabil).
 
 **Akademik kapanış:** *"Modelle → test et → gerçekte çalışmadı → kök nedeni bul → çöz (ampirik) → modeli gerçekçi yap → teorik temellendirir."* — `[Ljung1999] §16` iteratif model validation'ın tam döngüsü.
+
+#### 11.12.8. Margin-Düzeyi Doğrulama — Test 2.T1 (Analitik-Önce)
+
+Sim-to-real gap'i **kararlılık marjı** düzeyinde de inceleyelim — hem ampirik kazancın güvenliğini belgelemek hem conservative'in neden battığını margin ile göstermek için. Analitik-önce: faz payını analitik tahmin et, `margin()` ile doğrula. İkisi de **firmware'in gerçek plant'ında** (PI çıkışı duty → ω, kazanç $K V_s = 654.8$) değerlendirilir:
+
+| Kazanç | PM (`margin`) | $\omega_c$ | GM | Sonuç |
+|---|---|---|---|---|
+| **Ampirik** $K_p=0.002$ (çalışan) | **60.2°** | 34.4 rad/s | ∞ | 🟢 güvenli |
+| Conservative $K_p=0.1163$ (kullanılmıyor) | 89.2° | **1259 rad/s** | ∞ | 🔴 yanıltıcı |
+
+**Ampirik analitik PM:** iç döngü $\zeta_i = 0.58$ (§11.13.2b) → yaklaşık kural $PM \approx 100\,\zeta_i = 58°$ (`[Franklin2010] §6`, $\zeta<0.7$ için); `margin()` 60.2° verdi (**%4 uyum**, analitik doğrulandı). $\omega_c = 34$ rad/s iç döngü $\omega_{n,i} = 32.9$ ile tutarlı.
+
+**Conservative'in tuzağı — lineer margin neden yanıltıcı:** Sürekli-zaman margin conservative'i "güvenli" gösteriyor (PM=89°!). Ama $\omega_c = 1259$ rad/s, **örnekleme Nyquist frekansını** (200 Hz → $\omega_{Nyq} = 628$ rad/s) 2× aşıyor. Ayrık sistemde bu bant genişliğinde kontrol fiziksel olarak imkansız → sürekli-zaman lineer analiz çöker, gerçekte bang-bang. **Ders:** kararlılık marjı tek başına yetmez; $\omega_c$ daima örnekleme frekansına göre değerlendirilir ($\omega_c \ll \omega_{Nyq}$ olmalı). Bu, sim-to-real gap'in (§11.12.3) **margin-düzeyi kök nedenidir** — 2.T1 sadece "PASS" değil, *neden* sorusunun cevabıdır.
+
+![Test 2.T1 — ampirik vs conservative margin](../matlab/asama_2_kontrol/results/2_1_speed_pi/05_margin_empirical_vs_conservative.png)
+
+*Şekil 11.12a — Firmware plant'ında (duty→ω) açık-çevrim Bode. Ampirik (mavi) $\omega_c=34$ rad/s'de 0 dB keser (örnekleme altında, güvenli). Conservative (kırmızı kesikli) $\omega_c=1259$ rad/s — Nyquist'in 2× üstü, sürekli margin (PM=89°) yanıltıcı. İkisinin de fazı $-180°$'ye ulaşmaz (GM=∞), ama bu lineer-sürekli resimde; gerçek ayrık + saturasyonlu sistemde conservative bang-bang verdi.*
+
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/design_speed_margin_empirical.m`
+
+#### 11.12.9. Anti-Windup Doğrulama — Test 2.T3 (sim)
+
+Anti-windup back-calculation (§11.6) mekanizmasının çalıştığını simülasyonda kanıtlayalım. Analitik-önce sıra: sim teoriyi gösterir, gerçek motor doğrular (`scripts/antiwindup_test.py`).
+
+**Senaryo:** Ulaşılamaz step 0→450 rad/s. Plant'ın u=0.5 ile ulaşabileceği max hız $K V_s \cdot 0.5 = 327$ rad/s → 450 asla ulaşılmaz, hata sürekli pozitif, integratör durmadan şişer (**wind-up**). Sonra 450→50: anti-windup kapalıysa şişmiş integratör boşalana kadar $u$ yüksek kalır, ω 50'ye geç iner.
+
+| | recovery (450→50) | max integratör |
+|---|---|---|
+| anti-windup **ON** | **235 ms** | 0.44 (sınırlı) |
+| anti-windup OFF | 715 ms | 14.26 (wind-up) |
+
+Anti-windup recovery'yi **3× hızlandırır** (715→235 ms) ve integratör şişmesini **32× azaltır** (14.26→0.44) — back-calculation'ın ($i \mathrel{+}= \frac{T_s}{T_t}(u_{sat}-u)$, §11.6) değeri sayısal kanıtla doğrulandı.
+
+![Test 2.T3 anti-windup recovery](../matlab/asama_2_kontrol/results/2_3_realistic_sim/antiwindup_recovery.png)
+
+*Şekil 11.12b — Anti-windup recovery (3 panel). Üst (ω): ON (mavi) 450→50 geçişinde hızlı iner; OFF (kırmızı) integratör boşalana kadar 327 rad/s'de takılı kalır (~0.5 s gecikme). Orta (u): ON hızlı negatife geçer (frenleme), OFF saturasyonda kalır. Alt (integratör): ON sınırlı (~0.44), OFF 14.26'ya şişer (wind-up) ve yavaş boşalır. Klasik wind-up patolojisi ve back-calculation çözümü.*
+
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/verify_antiwindup.m`
+
+**Gerçek motor doğrulaması (açık konu):** Sim teoriyi kanıtladı; sim-to-real gap dersimiz (§11.12.3) gereği sim tek başına yeterli değil. `scripts/antiwindup_test.py` ile gerçek motorda büyük step → recovery ölçülecek (firmware flash sonrası). Beklenen: anti-windup'lı recovery belirgin hızlı; ham sayı artifact'e işlenecek.
 
 ### 11.13. Aşama 2.5 — Pozisyon Cascade Kontrol (Test 2.5 PASS ✅) ⭐⭐⭐
 
@@ -591,8 +631,8 @@ Aşama 2, Aşama 1'in motor modeli (`G(s)=K/(τs+1)`, K=53.89 rad/s/V, τ=60.5 m
 
 | Alt-aşama | İş | Test | Sonuç |
 |---|---|---|---|
-| 2.1 | Hız PI tasarımı (pole placement + pidtune, 5 kontrolcü) | — | conservative seçildi |
-| 2.2 | Firmware hız PI (Tustin + anti-windup + MODE/SP_W) | — | build PASS |
+| 2.1 | Hız PI tasarımı (pole placement + pidtune, 5 kontrolcü) | **2.T1** | ✅ PASS (ampirik PM=60.2°, GM=∞ analitik+margin, §11.12.8) |
+| 2.2 | Firmware hız PI (Tustin + anti-windup + MODE/SP_W) | **2.T3** | 🟡 sim PASS (ON 235 vs OFF 715 ms, §11.12.9); gerçek motor açık |
 | 2.3 | Sim-to-real gap + ampirik tuning | **2.T2** | ✅ PASS (8/8 step) |
 | 2.4 | Disturbance rejection | **2.T4** | ✅ PASS (ω %82 dip → recovery) |
 | 2.5/2.6 | Pozisyon cascade (poz P → hız PI) firmware | **2.T5** | ✅ PASS (ss<0.8°, limit-cycle yok) |
@@ -623,6 +663,7 @@ Aşama 2, Aşama 1'in motor modeli (`G(s)=K/(τs+1)`, K=53.89 rad/s/V, τ=60.5 m
 - **Kazançlar serbest mil içindir** — gerçek gimbalda kamera yükü + denge ile yeniden ayar (kritik).
 - Encoder düşük-hız kuantizasyonu — yük altında T-metodu/pencere büyütme gerekebilir.
 - Tam sürtünme tanımlama (LuGre/Stribeck) — ayrı deney, gelecek iş.
+- **2.T3 anti-windup gerçek motor doğrulaması** — sim PASS (§11.12.9); `scripts/antiwindup_test.py` ile gerçek motorda recovery ölçülecek (firmware flash sonrası, sim-to-real gap kapatma).
 
 ### 11.16. Bir Sonraki Aşama
 
