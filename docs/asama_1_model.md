@@ -77,9 +77,9 @@ Burada $V_{eff} = V_{supply}\cdot\text{duty} - V_{sat} = 12.15\cdot\text{duty} -
 
 **Adım 5 — Model validation** (Test 1.T5, `validate_model.m`):
 - Tek $(K_{avg}, \tau_{median})$ çiftiyle her step yeniden simüle et (`lsim`). **`lsim` prensibi:** verilen transfer fonksiyonunu, keyfi bir giriş sinyaline karşı zaman domeninde sayısal olarak çözer (durum-uzayı formuna çevirip adım adım entegre eder). Burada giriş gerçek deneydeki $V_{eff}$ basamağı, çıkış simüle $\omega$.
-- Uyum kalitesi her step için **NRMSE** (normalize edilmiş RMS hatası) ile ölçülür:
+- Uyum kalitesi her step için **NRMSE** (normalize edilmiş RMS hatası, yüzde) ile ölçülür:
 
-$$\text{NRMSE} = \frac{\sqrt{\frac{1}{N}\sum_k\big(\omega_{\text{meas}}[k]-\omega_{\text{model}}[k]\big)^2}}{\omega_{\max}-\omega_{\min}}\times 100\%$$
+$$\text{NRMSE} = 100\times\frac{\sqrt{\frac{1}{N}\sum_k\big(\omega_{\text{meas}}[k]-\omega_{\text{model}}[k]\big)^2}}{\omega_{\max}-\omega_{\min}}$$
 
   Sınır: ortalama < %15, maksimum < %20 (`[Ljung1999] §16` "good agreement" kriteri).
 - Simulink modeli (`motor_model_asama1.slx`) programatik üretildi (blok diyagram kanıtı).

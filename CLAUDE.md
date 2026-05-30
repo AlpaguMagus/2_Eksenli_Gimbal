@@ -58,6 +58,7 @@ Bu tuzaklar gerçek hatalara yol açtı; denklem/figür yazarken baştan uygula 
 - **`\operatorname` ❌ GitHub'da YASAK** ("macros not allowed: operatorname") → `\text{atan2}` veya `\mathrm{}`. (Geçmiş hata: `\!\left`'i `\operatorname`'le "düzelttim", yeni hata soktum.)
 - **`\left\{ ... \right\}` ❌** → GitHub markdown `$$` bloğunda `\{`'yi `{`'ye çevirir → `\left{` → "Missing delimiter". Çözüm: `\left\lbrace ... \right\rbrace` (backslash-harf markdown'dan geçer). Aynısı `\{`/`\}` için her yerde.
 - **`\text{...}` içinde Türkçe aksan (ç,ğ,ı,ö,ş,ü) veya em-dash (—) ❌** → KaTeX render edemez (eksik/bozuk glyph). `\text{count}` ✅, açıklamayı markdown caption'a koy. Subscript'lerde de aynı (`\text{meas}`, `\text{ölç}` değil).
+- **`%` veya `\%` math (`$...$`/`$$...$$`) içinde ❌** → markdown `\%`'deki backslash'ı yer → bare `%` → KaTeX'te **yorum karakteri** → denklemin geri kalanını + kapanışı yutar, kırar (`\{` ile aynı mekanizma). `\times 100\%` ❌ → `\times 100` yaz, "yüzde/%" kelimesini **markdown metninde** belirt. (Geçmiş hata: $M_p$ ve NRMSE denklemleri `\times 100\%` ile kırılmıştı.)
 - `°` (degree) KaTeX'te çalışır ama tutarlılık için `^\circ` tercih edilebilir (zorunlu değil).
 
 **MATLAB LaTeX yorumlayıcısı (figür içi `text/title`, `Interpreter','latex'`):**

@@ -91,9 +91,9 @@ $$G(s) = \frac{\omega_n^2}{s^2 + 2\zeta\omega_n s + \omega_n^2}$$
 
 ![İkinci derece sistem — sönüm oranının etkisi](../matlab/00_genel_teori/results/03_second_order_zeta.png)
 
-*Şekil 3 — Sönüm oranı $\zeta$'nın etkisi. $\zeta<1$ (az sönümlü): hızlı ama **aşım (overshoot)** var — çıkış hedefi aşıp salınır. $\zeta=1$ (kritik sönüm): aşımsız, en hızlı salınımsız yanıt. $\zeta=0.707$: kontrol mühendisliğinde "ideal" denge (hızlı + makul aşım). Aşım yüzdesi sadece $\zeta$'ya bağlıdır:*
+*Şekil 3 — Sönüm oranı $\zeta$'nın etkisi. $\zeta<1$ (az sönümlü): hızlı ama **aşım (overshoot)** var — çıkış hedefi aşıp salınır. $\zeta=1$ (kritik sönüm): aşımsız, en hızlı salınımsız yanıt. $\zeta=0.707$: kontrol mühendisliğinde "ideal" denge (hızlı + makul aşım). Yüzde aşım $M_p$ (overshoot, %) sadece $\zeta$'ya bağlıdır:*
 
-$$M_p = e^{-\pi\zeta/\sqrt{1-\zeta^2}} \times 100\%$$
+$$M_p = 100\,e^{-\pi\zeta/\sqrt{1-\zeta^2}}$$
 
 *Aşama 2.1'de hız PI tasarlanırken $\zeta=1.0$ seçildi (aşımsız hedef), bu denklemle gerekçelendirildi.*
 
