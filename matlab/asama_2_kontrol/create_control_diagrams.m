@@ -19,10 +19,40 @@ function create_control_diagrams()
         'defaultTextColor','k');
 
     fig_speed_pi(fullfile(here, 'results', '2_1_speed_pi'));
+    fig_disturbance(fullfile(here, 'results', '2_4_disturbance'));
     fig_cascade(fullfile(here, 'results', '2_5_cascade'));
     fig_mirror(fullfile(here, 'results', '2_7_mirror'));
 
     fprintf('Asama 2 kontrol diyagramlari uretildi.\n');
+end
+
+% ====================================================================
+function fig_disturbance(outdir)
+% Hız PI + bozucu (disturbance d) giriş noktası: yük torku plant girişinde.
+% ω_ref → Σ → PI → Σ_d(+d) → plant → ω ; geri besleme. Y(s)/D(s)=G/(1+CG)=G·S
+    if ~exist(outdir,'dir'); mkdir(outdir); end
+    f = figure('Position', [80 80 1080 360], 'Color', 'w');
+    ax = axes('Position', [0 0 1 1]); hold(ax,'on'); axis(ax,[0 15 0 4.5]); axis(ax,'off');
+    y = 2.6;
+    draw_arrow(0.3,y, 1.5,y); text(0.3,y+0.35,'$\omega_{ref}$','Interpreter','latex','FontSize',13);
+    draw_sum(1.85,y,0.33); text(1.4,y+0.45,'$+$','Interpreter','latex','FontSize',13); text(1.95,y-0.55,'$-$','Interpreter','latex','FontSize',13);
+    draw_arrow(2.18,y, 3.1,y); text(2.35,y+0.32,'$e$','Interpreter','latex','FontSize',12);
+    draw_block(4.0,y,1.6,1.0,'$K_p+\frac{K_i}{s}$',[0.85 0.92 1.0]); text(4.0,y-0.92,'PI','FontSize',9,'HorizontalAlignment','center');
+    draw_arrow(4.8,y, 6.0,y);
+    % disturbance toplama noktası
+    draw_sum(6.4,y,0.33); text(6.0,y+0.45,'$+$','Interpreter','latex','FontSize',13);
+    % d yukarıdan girer
+    draw_arrow(6.4,4.0, 6.4,y+0.33); text(6.15,4.15,'$d$ (yuk)','Interpreter','latex','FontSize',12,'Color',[0.7 0.2 0.2]);
+    draw_arrow(6.73,y, 7.9,y);
+    draw_block(9.0,y,2.0,1.0,'$\frac{K\,V_s}{\tau s+1}$',[0.90 1.0 0.88]); text(9.0,y-0.92,'plant','FontSize',9,'HorizontalAlignment','center');
+    draw_arrow(10.0,y, 13.6,y); text(12.3,y+0.35,'$\omega$','Interpreter','latex','FontSize',13);
+    % geri besleme
+    xf=12.0; plot([xf xf],[y 0.9],'k','LineWidth',1.2); plot(xf,y,'k.','MarkerSize',15);
+    plot([xf 1.85],[0.9 0.9],'k','LineWidth',1.2); plot([1.85 1.85],[0.9 y-0.33],'k','LineWidth',1.2); draw_arrowhead(1.85,y-0.33,pi/2);
+    text(7.0,0.55,'encoder feedback ($\omega$)','Interpreter','latex','FontSize',10,'HorizontalAlignment','center');
+    title(ax,'Disturbance Rejection: load d at plant input','FontSize',13,'FontWeight','bold');
+    text(7.5,3.9,'$Y/D = G/(1+CG) = G\,S$','Interpreter','latex','FontSize',11,'HorizontalAlignment','center','Color',[0.3 0.3 0.3]);
+    exportgraphics(f, fullfile(outdir,'disturbance_block.png'), 'Resolution',150); close(f);
 end
 
 % ====================================================================

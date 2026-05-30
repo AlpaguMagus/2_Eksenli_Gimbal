@@ -13,8 +13,8 @@ Bu proje **5 aşamalı kontrol mühendisliği yol haritası** üzerinden iki eks
 | Aşama | Hedef | Hangi teori? | MATLAB klasörü | Belge |
 |---|---|---|---|---|
 | **0 ✅** | Donanım entegrasyonu, koruma katmanları, USB CDC, IMU füzyonu | gömülü sistem, complementary filter | — | [`asama_0_altyapi.md`](asama_0_altyapi.md) |
-| **1 ✅** | Tek motor sistem tanımlama (K, τ, dead-band) | §3, §4 (model, 1. derece) | `matlab/asama_1_model/` | [`asama_1_model.md`](asama_1_model.md) |
-| **2 ✅** | Tek motor PI → cascade → IMU mirror | §3-§8 (PID, kapalı çevrim, Bode, tip sistem) | `matlab/asama_2_kontrol/` | [`asama_2_kontrol.md`](asama_2_kontrol.md) |
+| **1 ✅** | Tek motor sistem tanımlama (K, τ, dead-band) | §2.1–§2.3 (transfer fn, 1. derece) | `matlab/asama_1_model/` | [`asama_1_model.md`](asama_1_model.md) |
+| **2 ✅** | Tek motor PI → cascade → IMU mirror | §2.2–§2.8 (kapalı çevrim, PID, Bode, tip sistem, Tustin) | `matlab/asama_2_kontrol/` | [`asama_2_kontrol.md`](asama_2_kontrol.md) |
 | **3 ⬜** | İki motor MIMO model + decoupling | MIMO, RGA, condition number | `matlab/asama_3_mimo_model/` | (gelecek) |
 | **4 ⬜** | İki motor LQR/LQG + Kalman | optimal kontrol, durum kestirimi | `matlab/asama_4_mimo_kontrol/` | (gelecek) |
 | **5 ⬜** | Gerçek 3D-print gimbal — stabilizasyon | gerçek-dünya entegrasyonu | `matlab/asama_5_gimbal/` | (gelecek) |
@@ -47,6 +47,8 @@ $$G(s) = \frac{\Omega(s)}{V(s)} = \frac{K}{\tau s + 1}$$
 
 Burada $s = \sigma + j\omega$ karmaşık bir frekans değişkenidir. $G(s)$ sistemin "parmak izidir": içindeki $K$ (DC kazanç) ve $\tau$ (zaman sabiti) sistemin tüm dinamiğini özetler. **Aşama 1'in tüm amacı** bu iki sayıyı gerçek motordan deneysel olarak çıkarmaktır (→ [`asama_1_model.md`](asama_1_model.md)).
 
+> **Sembol uyarısı ($\omega$):** Bu belgede $\omega$ üç farklı yerde geçer ve **karıştırılmamalıdır**: (1) motor açısal hızı $\omega(t)$ — fiziksel çıkış; (2) burada $s=\sigma+j\omega$'daki $\omega$ — karmaşık frekansın sanal bileşeni ($s$-düzleminin ekseni, frekans); (3) ileride $\omega_n$ — 2. derece sistemin doğal frekansı (§2.4). Aynı sembol, farklı kavramlar; bağlamdan ayırt edilir.
+
 ### 2.2. Blok diyagram dili
 
 Karmaşık sistemler **bloklar** ve **oklar** ile çizilir. Her blok bir transfer fonksiyonu, her ok bir sinyaldir. Geri besleme (feedback), çıkışı ölçüp girişle karşılaştırma fikridir — kontrolün kalbi:
@@ -68,6 +70,14 @@ Karmaşık sistemler **bloklar** ve **oklar** ile çizilir. Her blok bir transfe
 Geri besleme formülünün paydası $1 + GH$, sistemin **kararlılığını** belirler (§2.5).
 
 ### 2.3. Birinci derece sistem — kazanç ve zaman sabiti
+
+En basit kontrol-edilen sistem, **kontrolcüsüz açık çevrimdir**: giriş doğrudan plant'a verilir, geri besleme yoktur. Tek bir bloktan ibarettir:
+
+![Açık-çevrim tek-blok sistem (kontrolcüsüz)](../matlab/00_genel_teori/results/00_openloop_single.png)
+
+*Şekil 2a — Açık-çevrim (kontrolcüsüz, geri beslemesiz) sistem: giriş $U(s)$ doğrudan plant $G(s)$'e, çıkış $Y(s)$. Aşama 1'de motoru bu şekilde — açık çevrimde, duty verip hızı ölçerek — modelledik. Kontrolcü ve geri besleme (Şekil 1) bunun üzerine Aşama 2'de eklenir.*
+
+> 📊 **Üreten betik:** `matlab/00_genel_teori/create_theory_diagrams.m`
 
 En basit dinamik sistem birinci derecedir: $G(s) = \frac{K}{\tau s + 1}$. Tek bir **kutbu** vardır (paydanın kökü): $s = -1/\tau$. Step (basamak) girişe yanıtı üstel bir yükseliştir:
 
@@ -119,7 +129,9 @@ Bir sistemin farklı frekanslardaki sinüs girişlere tepkisi **Bode diyagramın
 
 ![Bode diyagramı — kazanç ve faz payı](../matlab/00_genel_teori/results/04_bode_concept.png)
 
-*Şekil 5 — Açık-çevrim Bode. **Kazanç geçiş frekansı $\omega_c$**: kazancın 0 dB'yi (birim) kestiği nokta. **Faz payı (PM)**: $\omega_c$'de fazın $-180°$'ye olan uzaklığı — ne kadar büyükse o kadar sönümlü/güvenli (genelde PM>45° istenir). **Kazanç payı (GM)**: faz $-180°$ iken kazancın 0 dB'ye uzaklığı. Bu marjlar Aşama 2.1'de 5 kontrolcüyü karşılaştırırken sağlamlık kriteriydi (seçilen kontrolcü PM=80.8°).*
+*Şekil 5 — Açık-çevrim Bode (3-kutuplu örnek sistem, faz $-180°$'yi geçer). **Kazanç geçiş frekansı $\omega_c$** (kırmızı): kazancın 0 dB'yi kestiği nokta. **Faz payı (PM)** (kırmızı ok): $\omega_c$'de fazın $-180°$'ye uzaklığı — büyükse sönümlü/güvenli (genelde PM>45°; örnekte 47°). **Kazanç payı (GM)** (mor ok): faz $-180°$'yi geçtiği frekansta kazancın 0 dB'ye uzaklığı (örnekte 12 dB; genelde GM>6 dB istenir). Her ikisi de pozitifse sistem kararlıdır. Bu marjlar Aşama 2.1'de 5 kontrolcüyü karşılaştırırken sağlamlık kriteriydi (seçilen kontrolcü PM=80.8°).*
+
+**Bant genişliği (bandwidth):** $\omega_c$ kabaca kapalı-çevrimin **bant genişliğini** belirler — sistemin etkin biçimde *takip edebildiği* en yüksek frekans. Bunun üstündeki giriş bileşenleri zayıflatılır. Pratik kural: örnekleme frekansı bant genişliğinin çok üstünde seçilir (Aşama 2'de iç hız döngüsü $T_s=5$ ms = 200 Hz, kontrol bandının onlarca katı). Aşama 2'deki cascade'in $\sim0.3$ Hz bant genişliği bu kavramla yorumlanır.
 
 > 📊 **Üreten betik:** `matlab/00_genel_teori/create_theory_diagrams.m`
 
@@ -145,7 +157,7 @@ Yukarıdaki teori **sürekli zamandadır** ($s$-domeni). Ama firmware bir mikrod
 
 $$s \approx \frac{2}{T_s}\cdot\frac{z-1}{z+1}$$
 
-Burada $z$ ayrık-zaman operatörüdür ($z^{-1}$ = bir örnek gecikme). Bu dönüşüm, sürekli PI integralini firmware'de toplanabilir bir fark denklemine çevirir (Aşama 2.2). Örnekleme frekansı yeterince yüksek olmalı — projede iç hız döngüsü $T_s=5$ ms (200 Hz), kontrol bant genişliğinin çok üstünde.
+Burada $z$ ayrık-zaman operatörüdür: bir sinyali bir örnek **geciktirmek** $z^{-1}$ ile gösterilir. İdeal (tam) ilişki $z = e^{sT_s}$'dir; Tustin bunun cebirsel olarak kullanışlı, kararlılığı koruyan bir **yaklaşımıdır** (üstel ifadeyi rasyonele çevirir). Bu dönüşüm, sürekli PI integralini firmware'de toplanabilir bir fark denklemine çevirir (Aşama 2.2). Örnekleme frekansı yeterince yüksek olmalı — projede iç hız döngüsü $T_s=5$ ms (200 Hz), kontrol bant genişliğinin çok üstünde.
 
 ---
 

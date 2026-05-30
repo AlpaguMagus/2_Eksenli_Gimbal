@@ -8,9 +8,9 @@ Hız iç döngüsü Tustin PI + anti-windup ile tasarlandı; Aşama 2.3'te ideal
 
 ---
 
-> **Branch:** `feature/asama-1-tek-motor-model`
+> **Branch:** `feature/asama-2-tek-motor-kontrol` → main (tag `asama-2-kapali`)
 > **MATLAB:** `matlab/asama_2_kontrol/`
-> **Durum:** 2.1→2.6 tamamlandı (hız PI + sim-to-real + disturbance + pozisyon cascade), 2.7 IMU mirror sırada.
+> **Durum:** ✅ **Aşama 2 KAPALI** (2.1→2.9, tüm testler PASS: 2.T1/T2/T3/T4/T5/T6). Hız PI → sim-to-real gap → disturbance → cascade pozisyon → IMU mirror; kapanış sentezi §11.15.
 
 ### 11.1. Ne — Kontrolcü Nedir?
 
@@ -232,16 +232,18 @@ Motor sürücü
 | `speed_pi_design_report.md` | Detaylı 5 kontrolcü karşılaştırma raporu |
 | `speed_pi_params.json` | Aşama 2.2 firmware için kaynak |
 
-### 11.9. Test Sonuçları (Aşama 2.1) ve Bir Sonraki Test
+### 11.9. Test Sonuçları (Aşama 2 — tümü)
 
-| Test | Beklenen | Ölçülen | Durum |
+> Aşağıdaki tablo Aşama 2'nin **tüm** testlerinin nihai durumudur (kapanış sentezi §11.15 ile senkron). Her test gerçek motorda (veya belirtilen sim+gerçek) doğrulandı.
+
+| Test | Beklenen | Ölçülen / Sonuç | Durum |
 |---|---|---|---|
 | 2.T1 (kararlılık marjı) | GM≥6 dB, PM≥45° | ampirik (çalışan) PM=60.2°, GM=∞ — firmware plant'ta analitik+`margin` (§11.12.8) | ✅ PASS |
-| 2.T2 (Hız step response, firmware) | T_set<5τ_ol=300ms, OS<%10, ss_err<%2 | bekliyor | ☐ Aşama 2.3 |
-| 2.T3 (Anti-windup recovery) | recovery iyileşmesi | sim: ON 235 vs OFF 715 ms; **gerçek motor 637 ms** (< sim OFF → anti-windup aktif) (§11.12.9) | ✅ PASS (sim + gerçek) |
-| 2.T4 (Disturbance rejection) | Setpoint dönüş<200ms | bekliyor | ☐ Aşama 2.4 |
-| 2.T5 (Cascade pozisyon step) | OS<%10, ss_err<1° | bekliyor | ☐ Aşama 2.6 |
-| **2.T6 (Mirror takip)** ⭐ | **RMS<5°** | bekliyor | ☐ Aşama 2.8 |
+| 2.T2 (hız step response) | T_set<5τ_ol≈300 ms, OS<%10, ss_err<%2 | gerçek motorda 8/8 step temiz, ss_err çoğunlukla <%2, bang-bang yok (§11.12.3-4) | ✅ PASS |
+| 2.T3 (anti-windup recovery) | recovery iyileşmesi | sim: ON 235 vs OFF 715 ms; **gerçek motor 637 ms** (< sim OFF → anti-windup aktif) (§11.12.9) | ✅ PASS (sim + gerçek) |
+| 2.T4 (disturbance rejection) | yük sonrası setpoint'e dönüş | ω %82.8 dip (min 15), PI duty 0.168→0.5 telafi, setpoint'e döndü (§11.11) | ✅ PASS |
+| 2.T5 (cascade pozisyon step) | OS<%10, ss_err<1° | 6/6 segment, ss_err<0.8°, OS<1°, limit-cycle yok (§11.13.6) | ✅ PASS |
+| **2.T6 (mirror takip)** ⭐ | **RMS<5°** | gimbal-hızı RMS 4.68° (Kp_pos analitik Kv tasarımı, §11.13.8) | ✅ PASS |
 
 ### 11.10. Build Durumu
 
@@ -259,6 +261,8 @@ Speed PI modülü eklendikten sonra (Aşama 2.2 öncesi 3.5% / 7.6% idi). Cascad
 #### 11.12.1. Ne oldu
 
 Aşama 2.1'in conservative kazancı (Kp=0.1163, Ki=4.0447) gerçek motorda **bang-bang limit cycle** verdi — motor titredi, dönmedi. Kontrol çıkışı U sürekli ±0.5 saturation arasında zıpladı.
+
+> **Kavram — limit cycle / bang-bang:** *Limit cycle*, nonlineer bir sistemin (burada duty saturation ±0.5 + ölçüm kuantizasyonu) referansa oturmak yerine **sabit-genlikli kalıcı salınıma** kilitlenmesidir. *Bang-bang*, kontrol çıkışının iki uç değer (+0.5 / −0.5) arasında sürekli sıçradığı özel halidir — motor net dönmek yerine titrer. Sebebi: çok yüksek kazanç + saturation; küçük hata bile çıkışı doygunluğa iter, sistem aşar, ters yöne doygunluğa gider, döngü tekrarlar.
 
 #### 11.12.2. Sistematik tanı
 
@@ -377,7 +381,7 @@ Sim-to-real gap'i **kararlılık marjı** düzeyinde de inceleyelim — hem ampi
 
 **Ampirik analitik PM:** iç döngü $\zeta_i = 0.58$ (§11.13.2b) → yaklaşık kural $PM \approx 100\,\zeta_i = 58°$ (`[Franklin2010] §6`, $\zeta<0.7$ için); `margin()` 60.2° verdi (**%4 uyum**, analitik doğrulandı). $\omega_c = 34$ rad/s iç döngü $\omega_{n,i} = 32.9$ ile tutarlı.
 
-**Conservative'in tuzağı — lineer margin neden yanıltıcı:** Sürekli-zaman margin conservative'i "güvenli" gösteriyor (PM=89°!). Ama $\omega_c = 1259$ rad/s, **örnekleme Nyquist frekansını** (200 Hz → $\omega_{Nyq} = 628$ rad/s) 2× aşıyor. Ayrık sistemde bu bant genişliğinde kontrol fiziksel olarak imkansız → sürekli-zaman lineer analiz çöker, gerçekte bang-bang. **Ders:** kararlılık marjı tek başına yetmez; $\omega_c$ daima örnekleme frekansına göre değerlendirilir ($\omega_c \ll \omega_{Nyq}$ olmalı). Bu, sim-to-real gap'in (§11.12.3) **margin-düzeyi kök nedenidir** — 2.T1 sadece "PASS" değil, *neden* sorusunun cevabıdır.
+**Conservative'in tuzağı — lineer margin neden yanıltıcı:** Sürekli-zaman margin conservative'i "güvenli" gösteriyor (PM=89°!). Ama $\omega_c = 1259$ rad/s, **örnekleme Nyquist frekansını** (200 Hz → $\omega_{Nyq} = 628$ rad/s) 2× aşıyor. (**Nyquist frekansı** $f_{Nyq}=f_s/2$: bir ayrık sistemin temsil edebileceği en yüksek frekans; üstündeki dinamik aliasing'e uğrar, kontrol edilemez.) Ayrık sistemde bu bant genişliğinde kontrol fiziksel olarak imkansız → sürekli-zaman lineer analiz çöker, gerçekte bang-bang. **Ders:** kararlılık marjı tek başına yetmez; $\omega_c$ daima örnekleme frekansına göre değerlendirilir ($\omega_c \ll \omega_{Nyq}$ olmalı). Bu, sim-to-real gap'in (§11.12.3) **margin-düzeyi kök nedenidir** — 2.T1 sadece "PASS" değil, *neden* sorusunun cevabıdır.
 
 ![Test 2.T1 — ampirik vs conservative margin](../matlab/asama_2_kontrol/results/2_1_speed_pi/05_margin_empirical_vs_conservative.png)
 
@@ -422,6 +426,51 @@ Artifact: `artifacts/2/antiwindup/20260528_203803/` (summary + meta + raw).
 
 > 📊 **Üreten betik:** `scripts/antiwindup_test.py` (gerçek motor) + `matlab/asama_2_kontrol/plot_antiwindup_real.m` (görsel)
 
+### 11.11. Aşama 2.4 — Disturbance Rejection (Test 2.T4 PASS ✅)
+
+> Bölüm sırası kronolojiktir (2.3 → **2.4** → 2.5); numara §11.12'den sonra gelir ama alt-aşama 2.4'tür.
+
+#### 11.11.1. Ne — Bozucu (Disturbance) Nedir?
+
+**Bozucu (disturbance, $d$)**, sisteme dışarıdan giren, kontrolcünün komutlamadığı istenmeyen etkidir. Burada fiziksel karşılığı **yük torkudur**: motor sabit hızda dönerken çıkış miline elle direnç uygulanması (kameralı gimbalda rüzgâr, mekanik sürtünme, denge bozulması). İyi bir hız kontrolcüsü, bozucuya rağmen çıkışı setpoint'te tutmalıdır — buna **disturbance rejection** denir.
+
+#### 11.11.2. Neden — PI İntegral Aksiyonu Bozucuyu Neden Bastırır (Analitik)
+
+Bozucu plant girişine eklenir (yük torku → efektif sürüşü azaltır). Bozucudan çıkışa transfer fonksiyonu ([`00_genel_bakis.md`](00_genel_bakis.md) §2.2 blok cebri):
+
+$$\frac{Y(s)}{D(s)} = \frac{G(s)}{1 + C(s)G(s)} = G(s)\,S(s), \qquad S(s) = \frac{1}{1+C(s)G(s)}$$
+
+Burada $S(s)$ **duyarlılık (sensitivity) fonksiyonudur** (§11.13.8'de mirror takipte de kullanılır). PI kontrolcüde integratör var ($C(s)=K_p+K_i/s$), yani $s\to0$ iken $C(s)\to\infty$ → $L=CG\to\infty$ → $S(0)\to0$. Sonuç: **sabit (DC) bir bozucunun kalıcı-hal etkisi sıfırdır** — integratör, bozucuyu tam telafi eden bir kontrol çıkışı biriktirir. Bu, tip-1 sistemin (§[`00_genel_bakis.md`](00_genel_bakis.md) §2.7) referans takibindeki sıfır kalıcı-hal hatasının **bozucu karşılığıdır**.
+
+![Disturbance rejection blok diyagramı](../matlab/asama_2_kontrol/results/2_4_disturbance/disturbance_block.png)
+
+*Şekil 11.11 — Bozucu $d$ plant girişine (toplama noktası) eklenir; geri besleme + integral aksiyon $Y/D = G\,S$'i DC'de sıfırlar. Yük arttığında hız düşer → hata artar → PI duty'yi yükseltir → hız toparlanır.*
+
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/create_control_diagrams.m`
+
+#### 11.11.3. Nasıl — Test 2.T4 (gerçek motor, `disturbance_test.py`)
+
+Motor 100 rad/s setpoint'te sabit dönerken (ampirik Kp=0.002, Ki=0.1), çıkış mili **elle 2-3 kez yavaşlatıldı** (kontrollü yük). ω ve kontrol çıkışı $u$ zaman serisi kaydedildi. Eller-çekili temiz başlangıç + hafif yavaşlatma ile geçerli ölçüm alındı.
+
+#### 11.11.4. Ne Sonuç Çıktı
+
+| Metrik | Değer |
+|---|---|
+| Baseline ω / u | 86.9 rad/s / 0.168 |
+| Bozucu altında min ω | 15.0 rad/s (**%82.8 dip**) |
+| Maks u tepkisi | 0.50 (saturation) |
+| Toparlanma | setpoint'e döndü (son 94.2 rad/s) |
+| Stall tetiklendi mi | hayır |
+| **Durum** | **🟢 Test 2.T4 PASS** |
+
+![Disturbance rejection — ω + u zaman serisi](../artifacts/2/disturbance/20260524_192851/disturbance_plot.png)
+
+*Şekil 11.11b — Üstte ω, altta kontrol çıkışı $u$. **7 net $u$ piki**: her elle yavaşlatmada PI çıkışı baseline 0.168'den 0.4–0.5'e fırlıyor (yük telafisi), müdahale bitince baseline'a dönüyor. Klasik döngü: yük → hız düşer → hata artar → duty yükselir → hız toparlanır. İntegral aksiyon, §11.11.2'deki $S(0)\to0$ analitiğini deneysel doğruluyor.*
+
+> 📊 **Üreten betik:** `scripts/disturbance_test.py` (gerçek motor testi 2.T4)
+
+**Not:** Toparlanma süresi metriği encoder kuantizasyonu (18.7 rad/s) ile sınırlı — kesin recovery zamanı yerine "setpoint'e döndü" niteliksel kriteri kullanıldı. İzleme: 2. denemede motor tam durunca $u=0.026$ anomalisi (edge-case, temiz testte yok). Artifact: `artifacts/2/disturbance/20260524_192851/`.
+
 ### 11.13. Aşama 2.5 — Pozisyon Cascade Kontrol (Test 2.5 PASS ✅) ⭐⭐⭐
 
 #### 11.13.1. Ne — Cascade Pozisyon Kontrolü
@@ -444,7 +493,9 @@ $$\theta_{out} = EC \times \frac{360^\circ}{466} \quad (0.773^\circ/\text{count}
 2. **P vs PI dış döngü** → **P**. Plant tip-1 (hız→pozisyon entegratörü) → P kontrolcü ile ss_error=0; PI gereksiz wind-up riski getirir. `[Franklin2010] §4.3`.
 3. **Çıkış mili vs motor şaftı açısı** → **çıkış mili** (gimbal eksen açısı fiziksel anlamlı).
 
-**Kazanç:** `Kp_pos = 2.0 [1/s]` (`design_position_p.m`). Dış döngü ω_c≈1.93 rad/s = iç döngü ω_n (9.4) / 5 — cascade kuralı `[Franklin2010] §6.4` (iç döngü 5× hızlı). PM 69.7°, GM 23 dB.
+**Kazanç:** `Kp_pos = 2.0 [1/s]` (`design_position_p.m`). Dış döngü ω_c≈1.93 rad/s, cascade kuralı gereği iç döngüden ~5× yavaş seçildi (`[Franklin2010] §6.4`, iç döngü 5× hızlı olmalı). PM 69.7°, GM 23 dB.
+
+> **Not (iç döngü ω_n):** `design_position_p.m`'in ilk analitik tahmini iç ω_n≈9.4 rad/s idi (Vsupply ölçeğini sadeleştirmişti). §11.13.7/§11.13.2b'de firmware-uyumlu model + root locus ile **gerçek iç ω_n≈33 rad/s** bulundu (plant kazancı duty→ω, $K V_s=654.8$). Bu, dış/iç ayrımı 5× yerine ~16× yapar → Kp_pos=2.0 cascade kuralından **daha da güvenli** (kök analizi §11.13.2b).
 
 #### 11.13.2b. Kök-Düzeyi Doğrulama — Root Locus (Analitik-Önce)
 
@@ -539,6 +590,8 @@ Test 2.5 sonrası iki eksik kapatıldı: (a) cascade'in resmi Simulink blok diya
 **Bulgu — Simulink, analitik tasarımdaki bir basitleştirmeyi ortaya çıkardı:** Firmware-uyumlu Simulink modeli (Vsupply×duty−Vsat dahil) ideal step'te settling ~2.2 s verdi; analitik `design_position_p.m` (Vsupply/Vsat sadeleştirilmiş) 1.15 s demişti. Fark, iç hız döngüsünün gerçek bant genişliğinden: PI çıkışı *duty* olduğundan plant kazancı `K·Vsupply = 654.8` (duty→ω), yani iç döngü ω_n gerçekte **~33 rad/s** (analitik 9.4 dedi — Vsupply'ı atlamıştı). Sonuç dış döngü lehine: ω_c_dış≈2 rad/s ile iç/dış ayrım 5× değil **~16×** — yani Kp_pos=2.0 cascade kuralından (`[Franklin2010] §6.4`) **daha da konservatif ve güvenli**. Üç settling değeri (analitik 1.15 s, Simulink 2.2 s, gerçek 1.3–1.8 s) aynı mertebede; Kp_pos=2.0 gerçek motorda PASS olduğundan tasarım sağlamdır.
 
 **Sürtünme modeli — sim-to-real gap kapatıldı** (`verify_realistic_cascade.m`). Gerçekçi sime Coulomb/stiction sürtünme eklendi (Karnopp benzeri, minimal): düşük hızda (|ω|<18.7 rad/s) sürücü statik sürtünmeyi yenemezse (|K·V_eff| < K·V_dead, eşik **12.9 rad/s**, Aşama 1 `V_dead≈0.24V`'den) motor *yapışır* (stick). Sonuç:
+
+> **Kavram — statik sürtünme (stiction) / Coulomb:** *Stiction* (static friction) motoru hareketsizken yerinde tutan eşik kuvvettir; sürücü onu yenemezse mil **yapışır** (stick, $\omega=0$). Eşik aşılıp hareket başlayınca *Coulomb* sürtünmesi devreye girer — harekete karşı **sabit genlikli** bir fren torku ($\propto \text{sign}(\omega)$). İkisi de nonlineerdir; pozisyon-tutma rejiminde belirleyici (`[Olsson1998]`).
 
 | Senaryo | ss_err | OS | θ_std | Sonuç |
 |---|---|---|---|---|

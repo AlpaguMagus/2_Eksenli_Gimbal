@@ -4,7 +4,7 @@
 > Her giriş **etiketli** (`[Yazar+Yıl]`), commit mesajlarında, kod yorumlarında
 > ve ROADMAP'te bu etiketle referans verilir.
 >
-> **Son güncelleme:** 2026-05-17
+> **Son güncelleme:** 2026-05-28
 >
 > Bu dosya canlıdır — her yeni teknik karar için ek girişler eklenir.
 > BibTeX/LaTeX yok (gerekirse sonra dönüşüm).

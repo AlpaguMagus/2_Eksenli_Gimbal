@@ -27,12 +27,33 @@ function create_theory_diagrams()
         'defaultAxesZColor','k', 'defaultTextColor','k', 'defaultAxesGridColor',[0.15 0.15 0.15], ...
         'defaultAxesGridAlpha',0.3, 'defaultLegendTextColor','k', 'defaultLegendColor','w');
 
+    fig0_openloop_single(outdir);
     fig1_closed_loop(outdir);
     fig2_first_order(outdir);
     fig3_second_order(outdir);
     fig4_bode(outdir);
 
     fprintf('Genel teori diyagramlari uretildi: %s\n', outdir);
+end
+
+% ====================================================================
+function fig0_openloop_single(outdir)
+% Açık-çevrim (KONTROLCÜSÜZ) tek blok: U(s) → [G(s)] → Y(s)
+% En temel sistem gösterimi — geri besleme/kontrolcü YOK. CLAUDE.md disiplini:
+% "açık-çevrim sistemin kontrolcüsüz blok diyagramı + denklemi mutlaka bulunur."
+    f = figure('Position', [100 100 760 240], 'Color', 'w');
+    ax = axes('Position', [0 0 1 1]); hold(ax, 'on');
+    axis(ax, [0 8 0 3]); axis(ax, 'off');
+    y0 = 1.5;
+    draw_arrow(0.4, y0, 2.2, y0); text(0.5, y0+0.35, '$U(s)$', 'Interpreter','latex','FontSize',13);
+    text(0.5, y0-0.40, 'giris', 'FontSize',9, 'Color',[0.4 0.4 0.4]);
+    draw_block(3.3, y0, 2.0, 1.1, '$G(s)=\frac{K}{\tau s+1}$', [0.90 1.0 0.88]);
+    text(3.3, y0-0.95, 'sistem (plant)', 'FontSize',10, 'HorizontalAlignment','center');
+    draw_arrow(4.3, y0, 7.6, y0); text(6.9, y0+0.35, '$Y(s)$', 'Interpreter','latex','FontSize',13);
+    text(6.9, y0-0.40, 'cikis', 'FontSize',9, 'Color',[0.4 0.4 0.4]);
+    title(ax, 'Open-Loop System (no controller, no feedback)', 'FontSize',13, 'FontWeight','bold');
+    exportgraphics(f, fullfile(outdir, '00_openloop_single.png'), 'Resolution', 150);
+    close(f);
 end
 
 % ====================================================================
@@ -134,27 +155,38 @@ end
 
 % ====================================================================
 function fig4_bode(outdir)
-% Bode + kazanç payı (GM) / faz payı (PM) kavramı
-    L = tf(20, conv([1 1], [1 4]));   % örnek açık-çevrim, makul margin
+% Bode + kazanç payı (GM) / faz payı (PM) kavramı.
+% 3-kutuplu plant → faz -180°'yi GEÇER → hem PM hem GM görünür (sonlu).
+    L = tf(200, conv(conv([1 1], [1 4]), [1 10]));   % 3 kutup: -1,-4,-10 → faz -270°'ye iner; gain tipik PM/GM için
     f = figure('Position', [100 100 720 540], 'Color', 'w');
     [mag, phase, w] = bode(L); mag = squeeze(mag); phase = squeeze(phase);
     magdb = 20*log10(mag);
-    [~, Pm, ~, Wcp] = margin(L);
+    [Gm, Pm, Wcphase, Wcp] = margin(L);   % Wcp: kazanç geçiş, Wcphase: faz -180° geçiş
+    GmdB = 20*log10(Gm);
 
     subplot(2,1,1); semilogx(w, magdb, 'b', 'LineWidth', 1.8); grid on; hold on;
     yline(0, 'k--');
     if isfinite(Wcp); xline(Wcp, 'r:', 'LineWidth', 1.2); end
+    if isfinite(Wcphase)
+        xline(Wcphase, 'm:', 'LineWidth', 1.2);
+        % GM oku: Wcphase'te kazancın 0 dB'ye uzaklığı
+        idxg = find(w >= Wcphase, 1);
+        if ~isempty(idxg)
+            plot([Wcphase Wcphase], [0 magdb(idxg)], 'm', 'LineWidth', 2);
+            text(Wcphase*1.05, magdb(idxg)/2, sprintf('$GM=%.0f$ dB', GmdB), 'Interpreter','latex','FontSize',11,'Color','m');
+        end
+    end
     ylabel('Gain [dB]', 'FontSize',11);
-    title('Bode Plot — Phase Margin (PM)', 'FontSize',13, 'FontWeight','bold');
-    if isfinite(Wcp); text(Wcp*1.1, 5, '$\omega_{c}$ (gain crossover)', 'Interpreter','latex','FontSize',10,'Color','r'); end
+    title('Bode Plot: Phase Margin (PM) and Gain Margin (GM)', 'FontSize',13, 'FontWeight','bold');
 
     subplot(2,1,2); semilogx(w, phase, 'b', 'LineWidth', 1.8); grid on; hold on;
     yline(-180, 'k--');
     if isfinite(Wcp); xline(Wcp, 'r:', 'LineWidth', 1.2); end
+    if isfinite(Wcphase); xline(Wcphase, 'm:', 'LineWidth', 1.2); end
     idx = find(w >= Wcp, 1);
     if ~isempty(idx)
-        plot([Wcp Wcp], [-180 phase(idx)], 'm', 'LineWidth', 2);
-        text(Wcp*1.1, (-180+phase(idx))/2, sprintf('$PM=%.0f^\\circ$', Pm), 'Interpreter','latex','FontSize',11,'Color','m');
+        plot([Wcp Wcp], [-180 phase(idx)], 'r', 'LineWidth', 2);
+        text(Wcp*1.1, (-180+phase(idx))/2, sprintf('$PM=%.0f^\\circ$', Pm), 'Interpreter','latex','FontSize',11,'Color','r');
     end
     ylabel('Phase [deg]', 'FontSize',11);
     xlabel('frequency $\omega$ [rad/s]', 'Interpreter','latex','FontSize',11);

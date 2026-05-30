@@ -35,10 +35,13 @@ Burada $K$ DC kazanç (girdiğimiz gerilime karşılık oturan hız), $\tau$ ise
 
 ### 10.2. Neden — Niçin Önce Modelleme?
 
-Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §6.4`) yapacaksak, motorun K (DC kazanç) ve τ (zaman sabiti) değerlerini bilmemiz gerekir:
-- **τ_cl = τ_ol / 5** kuralı (cascade) için τ_ol şart
-- **Kp = (τ · ω_n²) / K** formülü için K şart
-- Kazanç bilmeden kontrolcü = deneme-yanılma = akademik olmayan yaklaşım
+Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §6.4`) yapacaksak, motorun $K$ (DC kazanç) ve $\tau$ (zaman sabiti) değerlerini bilmemiz gerekir. Hız PI kazançları, kapalı-çevrim karakteristik denklemini istenen $(\zeta,\omega_n)$ ile eşitleyerek **analitik** türetilir (tam türetme → [`asama_2_kontrol.md`](../docs/asama_2_kontrol.md) §11.2):
+
+$$K_p = \frac{2\zeta\omega_n\tau - 1}{K}, \qquad K_i = \frac{\omega_n^2\,\tau}{K}$$
+
+- Bu iki formül de doğrudan $K$ ve $\tau$'ya bağlı → model olmadan kazanç hesaplanamaz.
+- Cascade'de (Aşama 2.5) ayrıca **iç döngü dış döngüden $\sim5\times$ daha hızlı** seçilir (`[Franklin2010] §6.4`); bu da iç döngünün $\tau$/bant genişliğini bilmeyi gerektirir.
+- Kazanç bilmeden kontrolcü = deneme-yanılma = akademik olmayan yaklaşım.
 
 ### 10.3. Nasıl — Yöntem
 
@@ -73,6 +76,8 @@ $$\omega_{ss} = K\cdot V_{eff} + b \quad\Rightarrow\quad V_{dead} = -\frac{b}{K}
 
 Burada $V_{eff} = V_{supply}\cdot\text{duty} - V_{sat} = 12.15\cdot\text{duty} - 0.5$ (sürücü kaybı çıkarılmış efektif gerilim). $V_{dead}$ motorun dönmeye başladığı eşik gerilimdir; CW/CCW için ayrı fit edilir.
 
+> **Kavram — dead-band:** Motorun *dönmeye başladığı* en küçük eşik gerilim. Burada motor **zaten dönerken** ölçtüğümüz için bulduğumuz "dinamik" dead-band'dir (soğuk-başlangıç statik eşiğinden farklı olabilir; statik sürtünme tartışması → Bulgu 1). **$R^2$ (determinasyon katsayısı):** regresyonun, verideki toplam değişkenliğin ne kadarını açıkladığını ölçer; $1$'e ne kadar yakınsa lineer uyum o kadar iyidir ($R^2=0.9998$ → neredeyse kusursuz doğrusal ilişki).
+
 **Adım 4 — Simetri analizi:** CW/CCW K karşılaştırması (`plot_results.m §06`)
 
 **Adım 5 — Model validation** (Test 1.T5, `validate_model.m`):
@@ -101,6 +106,8 @@ $$\text{NRMSE} = 100\times\frac{\sqrt{\frac{1}{N}\sum_k\big(\omega_{\text{meas}}
 | **Sonuçlar (PNG+JSON+MD)** | `matlab/asama_1_model/results/20260518_011926/` | hoca/jüri klasörü |
 
 ### 10.5. Ne Sonuç Çıktı — Sayısal Parametreler
+
+Her step'in kazanan fitinden bir $(K, \tau)$ çifti çıkar (18 step → 18 çift). **Final tek model** bunların agregesidir: $K$ = CW ve CCW ortalaması (yön simetrisi varsayımı, Test 1.T3 doğruladı), $\tau$ = tüm step'lerin **median**'ı (aykırı değerlere gürbüz; ortalama yerine median, çünkü düşük-duty step'lerinde τ saçılımı yüksek — Bulgu 3). Sayısal sonuç:
 
 ```json
 {

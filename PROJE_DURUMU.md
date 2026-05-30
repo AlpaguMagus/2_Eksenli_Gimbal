@@ -2,7 +2,7 @@
 
 > 5-10 satır özet. Detay → [`ROADMAP.md`](ROADMAP.md). Teknik el kitabı → [`README.md`](README.md). Akademik kaynaklar → [`KAYNAKCA.md`](KAYNAKCA.md). MATLAB workflow → [`matlab/README.md`](matlab/README.md).
 
-**Vizyon:** Tek motor model ✅ → tek motor kontrol 🟡 → iki motor MIMO → iki motor LQG/Kalman → gerçek 3D-print gimbal. MATLAB paralel araç, firmware C/STM32Cube HAL bare-metal. Her teknik karar **kaynaklı** (`KAYNAKCA.md` etiketli).
+**Vizyon:** Tek motor model ✅ → tek motor kontrol ✅ → iki motor MIMO → iki motor LQG/Kalman → gerçek 3D-print gimbal. MATLAB paralel araç, firmware C/STM32Cube HAL bare-metal. Her teknik karar **kaynaklı** (`KAYNAKCA.md` etiketli).
 
 **Şu an:** ✅ **Aşama 1 KAPALI**, ✅ **Aşama 2 KAPALI** (2.1→2.9: hız PI + cascade + IMU mirror, tüm testler PASS; 2.9 akademik kapanış docs §11.15). → main'e merge edildi (`fc0aefc`) + `asama-2-kapali` tag ✅. **Sıradaki: Aşama 3 (MIMO).** Aşama 1: `K=53.89 rad/s/V, τ_median=60.5 ms, V_dead≈0, V_supply=12.15V`. Aşama 2.1: 5 kontrolcü tasarım. Aşama 2.2: firmware Tustin PI + anti-windup + MODE/SP_W komutları.
 
