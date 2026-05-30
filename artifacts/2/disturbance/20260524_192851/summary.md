@@ -7,25 +7,26 @@
 - **Kazanç:** Kp=0.002, Ki=0.1
 - **Yöntem:** Motor sabit hızda dönerken çıkış mili elle yavaşlatıldı (2-3 kez)
 
-## Sonuçlar
+## Sonuçlar (ramp-sonrası pencere [1.5–3 s] ile düzeltilmiş)
 
 | Metrik | Değer |
 |---|---|
 | valid | True |
-| baseline_omega | 86.9 |
-| baseline_u | 0.168 |
-| min_omega_during_dist | 15.0 |
-| max_dip_pct | 82.8 |
-| max_u_response | 0.5 |
-| final_omega | 94.2 |
+| baseline_omega | **101.1** (= setpoint 100, PI sıfır ss-error) |
+| baseline_u | 0.186 |
+| min_omega_during_dist (aktif [3–14 s]) | 56.0 |
+| max_dip_pct | 44.0 |
+| max_u_response | 0.5 (saturation) |
 | recovered_to_setpoint | True |
 | stall_triggered | False |
 
+> **Düzeltme notu:** İlk otomatik özet baseline penceresini 0–3 s aldığından **slew ramp-up'ını** (0→100, ~1 s, başta ω=0) içine katıp yanıltıcı `baseline=86.9` vermişti. Ramp sonrası [1.5–3 s] gerçek baseline **101** (= setpoint). Benzer şekilde ilk "min 15.0 / %82.8" rakamı test sonu **bırakma transientini** (t≈17.8 s, motor serbest → ω→0) yakalamıştı; aktif disturbance penceresinde [3–14 s] gerçek dip **%44** (min 56). Ham otomatik metrikler `meta.json._raw_auto_metrics`'te saklı.
+
 ## Yorum
 
-🟢 PASS — Disturbance ile ω %82.8 düştü (min 15.0 rad/s), PI duty'yi 0.168→0.5'e çıkararak telafi etti, ω setpoint'e döndü (son 94.2 rad/s). İntegral aksiyon disturbance rejection sağlıyor.
+🟢 PASS — Baseline 101 rad/s (= setpoint; PI'nin integral aksiyonu DC'de sıfır kalıcı-hal hatası verdiğini doğrular). Elle yük ω'yı 56 rad/s'ye itti (%44 dip), PI duty'yi 0.186→0.50 saturation'a çıkararak telafi etti, ω her müdahale sonrası setpoint'e (~101) döndü. İntegral aksiyon disturbance rejection sağlıyor.
 
-`disturbance_plot.png`'de **7 net `u` piki** görülüyor — her elle yavaşlatmada PI çıkışı baseline 0.18'den 0.4-0.5'e fırlıyor (yük telafisi), müdahale bitince baseline'a dönüyor. Klasik döngü: yük → hız düşer → error artar → duty yükselir → hız toparlanır.
+`disturbance_plot.png`'de çoklu `u` piki görülüyor — her elle yavaşlatmada PI çıkışı baseline 0.186'dan 0.50'ye fırlıyor (yük telafisi), müdahale bitince baseline'a dönüyor. Klasik döngü: yük → hız düşer → error artar → duty yükselir → hız toparlanır.
 
 **Not:** 3 denemede geçerli. İlk 2 geçersizdi (el kaydı / motoru tam durdurma). 3. deneme eller-çekili başlangıç + hafif yavaşlatma ile temiz.
 

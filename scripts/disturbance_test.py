@@ -124,12 +124,14 @@ def analyze(SP, samples, stall):
     if len(samples)<20: return {"valid":False,"note":"az veri"}
     t=[s[0] for s in samples]; om=[s[1] for s in samples]; u=[s[2] for s in samples]
     omf=moving_avg(om,MA_WINDOW)
-    # Baseline: 0-3 sn ortalama
-    base=[omf[i] for i in range(len(t)) if t[i]<3.0]
+    # Baseline: RAMP SONRASI [1.5-3 s] — slew ramp-up'ı (0→SP, ~1 s) dışla,
+    # yoksa baseline yanıltıcı düşük çıkar (bkz. 20260524_192851 düzeltme notu).
+    BASE_LO, BASE_HI, DIST_HI = 1.5, 3.0, 14.0
+    base=[omf[i] for i in range(len(t)) if BASE_LO<=t[i]<BASE_HI]
     base_om=mean(base) if base else SP
-    base_u=mean([u[i] for i in range(len(t)) if t[i]<3.0]) if base else 0
-    # Disturbance penceresi (3 sn sonrası)
-    dist_idx=[i for i in range(len(t)) if t[i]>=3.0]
+    base_u=mean([u[i] for i in range(len(t)) if BASE_LO<=t[i]<BASE_HI]) if base else 0
+    # AKTİF disturbance penceresi [3-14 s] — test sonu bırakma transientini (ω→0) dışla
+    dist_idx=[i for i in range(len(t)) if BASE_HI<=t[i]<DIST_HI]
     if not dist_idx: return {"valid":False}
     dist_om=[omf[i] for i in dist_idx]
     dist_u=[u[i] for i in dist_idx]

@@ -8,7 +8,7 @@
 
 **Aşama 2.3 BÜYÜK BULGU (sim-to-real gap):** Conservative kazanç (Kp=0.1163) gerçek motorda **bang-bang limit cycle** verdi. Sistematik tanı → kök neden: ideal ölçüm varsayımı + serbest mil hızlı + encoder kuantize. **Ampirik çözüm: Kp=0.002, Ki=0.1.** 2b: gerçekçi Simulink teorik doğruladı. Test 2.T2 PASS (8/8 step).
 
-**Aşama 2.4 (disturbance) ✅:** Elle yük → ω %82 düştü, PI duty 0.18→0.5 telafi, setpoint'e döndü. Test 2.T4 PASS.
+**Aşama 2.4 (disturbance) ✅:** Baseline 101 rad/s (=setpoint, PI sıfır ss-error), elle yük ω'yı 56'ya itti (%44 dip), PI duty 0.186→0.50 telafi, setpoint'e döndü. Test 2.T4 PASS.
 
 **Aşama 2.5+2.6 (pozisyon cascade) ✅ 2026-05-24:** Cascade (poz P Kp_pos=2.0 → hız PI) + çıkış mili açısı. Gerçekçi sim limit-cycle uyarısı verdi (sürtünmesiz → kötümser) + **5V sim parametre hatası yakalanıp düzeltildi** (sadece bu oturumun sim scriptlerinde; firmware/doküman/geçmiş test etkilenmedi). Firmware `MODE:POS` + `POS_DEG:`/`KPP:` + watchdog güvenlik düzeltmesi (kapalı-döngü modlarında artık etkili). **Test 2.5 gerçek motorda PASS — 6/6 segment, ss_err<0.8°, OS<1°, limit-cycle YOK (sürtünme simdeki gezinmeyi söndürdü).** Build PASS (Flash 8.0%).
 

@@ -106,7 +106,8 @@ int main(void)
 
     /* Pozisyon dış döngü P kontrolcü (Aşama 2.5 — cascade).
      * Kp_pos=2.0 [1/s]: matlab/asama_2_kontrol/design_position_p.m
-     *   dış döngü ω_c≈1.93 rad/s = iç döngü ω_n 9.4'ten 5× yavaş [Franklin2010 §6.4]
+     *   dış döngü ω_c≈1.93 rad/s, cascade kuralı gereği iç döngüden ~5× yavaş [Franklin2010 §6.4]
+     *   (ilk tahmin iç ω_n≈9.4; Vsupply dahil gerçek ω_n≈33 → ayrım ~16×, docs §11.13.2b)
      *   PM 69.7°, tip-1 → P ile ss_error=0 [Franklin2010 §4.3]
      * Gerçekçi sim (verify_realistic_cascade.m): ss_err %1.75, OS %12.5.
      *   ⚠ simde küçük limit-cycle (iç hız döngüsü düşük hızda kuant. kör) —

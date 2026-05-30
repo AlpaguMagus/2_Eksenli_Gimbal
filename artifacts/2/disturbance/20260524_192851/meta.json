@@ -10,14 +10,19 @@
   },
   "result": {
     "valid": true,
-    "baseline_omega": 86.9,
-    "baseline_u": 0.168,
-    "min_omega_during_dist": 15.0,
-    "max_dip_pct": 82.8,
+    "_note": "Değerler ramp-sonrası pencerede [1.5-3s] yeniden hesaplandı; ilk otomatik özet baseline penceresine slew ramp-up'ını (0-1s) katarak yanıltıcı 86.9/82.8/15 vermişti.",
+    "baseline_omega": 101.1,
+    "baseline_u": 0.186,
+    "min_omega_during_dist": 56.0,
+    "max_dip_pct": 44.0,
     "max_u_response": 0.5,
-    "final_omega": 94.2,
     "recovered_to_setpoint": true,
-    "stall_triggered": false
+    "stall_triggered": false,
+    "_raw_auto_metrics": {
+      "baseline_omega": 86.9, "baseline_u": 0.168,
+      "min_omega_during_dist": 15.0, "max_dip_pct": 82.8, "final_omega": 94.2,
+      "_why_misleading": "baseline penceresi 0-3s slew ramp'ı; min 15 test sonu bırakma transienti (t~17.8s)"
+    }
   },
   "artifacts": [
     "data.csv"
