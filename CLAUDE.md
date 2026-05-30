@@ -87,6 +87,16 @@ Bu tuzaklar gerçek hatalara yol açtı; denklem/figür yazarken baştan uygula 
 - Görsel/dosya **taşınırsa** belgelerdeki linkler de güncellenir (path tutarlılığı — kırık link bırakma)
 - Kullanıcı söylemeden de yap; **commit ile birlikte** güncellensin
 
+#### İzlenebilirlik kod yorumlarını da kapsar + stale-sayı senkronu
+
+İzlenebilirlik (Kaynaklı ilerleme + Analitik-önce) yalnızca docs'u değil **firmware kod yorumlarını da** kapsar:
+
+- Bir **tasarım değeri** (kazanç, eşik, ω_n, T_t, kök konumu) docs'ta düzeltilince, o değere atıf veren **firmware yorumu** (`src/`, `include/`) da aynı commit'te güncellenir. (Geçmiş hata: docs iç ω_n 9.4→33 düzeltti ama `position_p.h`/`main.c` yorumları 9.4'te kaldı.)
+- **Terk edilen/eski değer** (örn. conservative kazanç, ilk analitik tahmin, kâğıt-üzeri seçim) docs/kodda **niteleyicisiz** bırakılmaz — "eski/terk edilen/ilk tahmin/conservative/§X'te değiştirildi" işareti taşır, yoksa okuyucu *güncel* sanır. (Geçmiş hata: §11.5 JSON `firmware_selected: conservative` derken firmware ampiriği kullanıyordu; §11.6 `T_t=28.75 ms` terk edilen kazançtandı.)
+- **Otomatik üretilen metrikler** (test artifact `summary`/`meta`) teoriyle çelişiyorsa (örn. integral kontrolde `baseline ≠ setpoint`, fizik-dışı değer) **pencere/hesap artefaktı** olabilir — ham veriyle el-doğrula, düzelt ve ham metrikleri sakla. (Geçmiş hata: disturbance baseline 86.9 — slew ramp-up'ı pencereye katmıştı; gerçek 101 = setpoint.)
+
+> Bu kontroller `/asama-kapat` §7c'de mekanik tarama (kod-yorum ↔ docs sabit çapraz-kontrolü + niteleyicisiz terk-edilen değer + otomatik-metrik akıl-süzgeci) olarak yürütülür.
+
 ## Donanım çalışmalarında datasheet'i incele
 
 Aşağıdaki **her** durumda — sadece kod değişikliği yaparken değil, **plan/öneri/tavsiye** üretirken de — datasheet'i `datasheet-reader` skill'i ile incele:

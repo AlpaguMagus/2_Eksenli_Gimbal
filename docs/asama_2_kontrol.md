@@ -113,7 +113,7 @@ Böylece istenen kapalı-çevrim davranışını ($\zeta, \omega_n$) seçip kaza
     "omega_n": 60,
     "tau_cl_s": 0.0167
   },
-  "firmware_selected": "pole_placement_conservative",
+  "firmware_selected_2_1": "pole_placement_conservative",
   "comparison": {
     "GM_dB":            "Inf  (1. derece plant + integrator → stabil)",
     "PM_deg":           80.8,
@@ -123,6 +123,8 @@ Böylece istenen kapalı-çevrim davranışını ($\zeta, \omega_n$) seçip kaza
   }
 }
 ```
+
+> ⚠ **Bu, Aşama 2.1'in kâğıt-üzeri tasarım seçimidir — firmware'de KULLANILMIYOR.** Conservative kazanç (Kp=0.1163) gerçek motorda **bang-bang** verdi; 2.3'te **ampirik Kp=0.002, Ki=0.1** ile değiştirildi (§11.12). Buradaki ideal-sim metrikleri (PM 80.8°, OS %6.7) sim-to-real gap'in tam da yanıltıcı tarafıdır (§11.12.8 margin analizi).
 
 **5 kontrolcü karşılaştırma tablosu:**
 
