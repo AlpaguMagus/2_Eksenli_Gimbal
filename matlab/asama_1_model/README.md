@@ -21,15 +21,18 @@ Parametreler: **K** (rad/s/V), **τ** (s), **V_dead** (V).
 
 **Kaynak:** `[Ljung1999] §3` (parametrik model yapıları), `[Franklin2010] §3` (1. derece motor modeli), `[TB6612_DS] §1` (Vsat).
 
-## Scriptler (planlı)
+## Scriptler
 
 | Script | Amaç | Girdi | Çıktı |
 |---|---|---|---|
-| `load_step_data.m` | artifacts CSV'lerini `iddata` formatına çevir | `artifacts/1/step_response/raw/*.csv.gz` | `data` (iddata) |
-| `fit_first_order.m` | Her step için `tfest`/`curve_fit` | `data` | step bazlı (K_i, τ_i) |
-| `fit_dead_band.m` | ω_ss vs V_eff lineer regresyon → V_dead = x-intercept | step bazlı (K_i, τ_i) | V_dead |
+| `run_pipeline.m` | **Orchestrator** — tüm adımları tek komutla çalıştırır (load→fit→dead-band→validate→plot) | — | `results/<test_id>/` |
+| `load_step_data.m` | artifacts CSV'lerini `iddata` formatına çevir, drive/coast segmentle | `artifacts/1/step_response/raw/*.csv.gz` | `data` (iddata) |
+| `fit_first_order.m` | Her step için `lsqcurvefit` vs `tfest` (en iyi NRMSE) | `data` | step bazlı (K_i, τ_i) |
+| `compute_dead_band.m` | ω_ss vs V_eff lineer regresyon → V_dead = x-intercept (CW/CCW) | step bazlı (K_i, τ_i) | V_dead |
 | `validate_model.m` | Simulink ile model çıktısı vs gerçek ölçüm | model params + raw data | RMSE, NRMSE |
-| `plot_results.m` | Üç panel: step fit, dead-band intercept, validation | her şey | `results/*.png` |
+| `plot_results.m` | 7 panel görsel: step fit, dead-band intercept, validation | her şey | `results/*.png` |
+| `create_block_diagram.m` | Açık-çevrim motor blok diyagramı + tek-kutup haritası | model params | `results/.../block_diagram.png` |
+| `create_simulink_model.m` | Programatik `.slx` (1. derece TF + step + scope) | model params | `results/.../*.slx` |
 
 > **Not:** `results/<test_id>/motor_model_asama1.slx` `create_simulink_model.m` ile **programatik üretilir** — el-yazımı kaynak değil, üretilen çıktıdır (PNG/JSON gibi), bu yüzden `results/`'ta. İki test-id (`20260518_011926` kanonik + `20260518_dogrulama` bağımsız teyit) reproducibility kanıtıdır (docs §10.5).
 

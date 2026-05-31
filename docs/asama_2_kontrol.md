@@ -535,7 +535,7 @@ $$\theta_{out} = EC \times \frac{360^\circ}{466} \quad (0.773^\circ/\text{count}
 
 #### 11.13.2. Neden — Cascade + P + Çıkış Mili (3 Sokratik Karar)
 
-1. **Cascade vs doğrudan pozisyon PID** → **cascade**. İç hız döngüsü Aşama 2.4'te disturbance rejection'ı kanıtlanmış; cascade bu yeteneği korur. Doğrudan PID'in tek integrali hem dead-band'i yenmeli hem pozisyonu getirmeli — gerçekçi simde `pidtune` konservatif kalıp ss_err %34.8 verdi (`design_position_direct_pid.m`). Cascade'de iç döngünün integrali dead-band'i halleder, dış P pozisyonu sıfır ss-error'a getirir. `[Franklin2010] §6.4`.
+1. **Cascade vs doğrudan pozisyon PID** → **cascade**. İç hız döngüsü Aşama 2.4'te disturbance rejection'ı kanıtlanmış; cascade bu yeteneği korur. Doğrudan PID'in tek integrali hem dead-band'i yenmeli hem pozisyonu getirmeli — gerçekçi simde `pidtune` konservatif kalıp ss_err %34.8 verdi (`design_position_direct_pid.m`). Cascade'de iç döngünün integrali dead-band'i halleder, dış P pozisyonu sıfır ss-error'a getirir. `[Franklin2010] §6.4`. *(Bu kararın iki kaynak betiği **bilinçli arşivdir** — `sweep_position_strategy.m` cascade-vs-PD kazanç taramasıyla salınımın kök-nedenini hız ölçüm kuantizasyonu olarak gösterdi, `design_position_direct_pid.m` kaybeden doğrudan-PID alternatifini (ss_err %34.8) türetti; çıktı dizini `2_5_strategy/` terk edildi ama betikler karar kaydı olarak kaynakta korunur — silinmedi.)*
 2. **P vs PI dış döngü** → **P**. Plant tip-1 (hız→pozisyon entegratörü) → P kontrolcü ile ss_error=0; PI gereksiz wind-up riski getirir. `[Franklin2010] §4.3`.
 3. **Çıkış mili vs motor şaftı açısı** → **çıkış mili** (gimbal eksen açısı fiziksel anlamlı).
 
