@@ -36,7 +36,8 @@
 typedef struct {
     float Kp;
     float Ki;
-    float Ts;        /* örnekleme süresi (s) — 0.005 (200 Hz) */
+    float Ts;        /* Tustin SABIT adımı (s) — 0.005 (5 ms = 200 Hz nominal).
+                      * Gerçek döngü ~7 ms/~140 Hz → efektif Ki ~0.71×; bkz main.c:101 notu */
     float duty_max;  /* saturation (0.50 = MOTOR_MAX_DUTY) */
     float T_t;       /* anti-windup tracking time (s) — tipik Kp/Ki */
 } SpeedPI_Config;

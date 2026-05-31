@@ -82,7 +82,7 @@ Her belge tek bir soruyu, tek bir okuyucu kitlesine cevaplar:
                     └───────────────────────┘
 ```
 
-**Bare-metal süper-loop:** RTOS yok. Ana döngü `sensör oku → filtrele → kontrol → USB I/O → tekrarla` (~200 Hz). Düşük gecikme, deterministik zamanlama. Mimari detay → [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md).
+**Bare-metal süper-loop:** RTOS yok. Ana döngü `sensör oku → filtrele → kontrol → USB I/O → tekrarla` (ölçülen ~140 Hz / ~7 ms; DWT ile). Düşük gecikme, deterministik zamanlama. Mimari detay → [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md).
 
 ---
 

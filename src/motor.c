@@ -177,9 +177,9 @@ void Motor_SetDutySigned(float duty)
 
 void Motor_Tick(void)
 {
-    /* Main loop'tan her iterasyonda (200 Hz @ 5 ms) çağrılır.
+    /* Main loop'tan her iterasyonda (~140 Hz, döngü ~7 ms) çağrılır.
      * current_duty → target_duty arasında 0.01 step ile yaklaşır.
-     * 30 step × 5 ms = 150 ms (büyük sıçrama için tipik rampa süresi). */
+     * ~30 step × ~7 ms ≈ 210 ms (büyük sıçrama için tipik rampa süresi). */
     if (current_duty == target_duty) return;
 
     if (current_duty < target_duty) {

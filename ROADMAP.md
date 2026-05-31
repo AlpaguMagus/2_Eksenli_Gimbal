@@ -123,7 +123,7 @@ V_eff = V_supply · duty − V_sat,   V_supply=12.15 V,  V_sat=0.5 V
 
 > Alt-aşama detayları (adımlar + testler) **her alt-aşama açılışında** sokratik tartışma sonrası eklenecek. Şu an iskelet:
 
-- **1.1 — Veri toplama altyapısı:** `scripts/step_response.py` Python tarafı (handshake_test.py temel alınarak). 6 duty × 2 yön = 12 step. 200 Hz örnekleme. Çıktı: `artifacts/1/step_response/<test_id>/raw/data.csv.gz` + meta.json + summary.md.
+- **1.1 — Veri toplama altyapısı:** `scripts/step_response.py` Python tarafı (handshake_test.py temel alınarak). 9 duty × 2 yön = 18 step (drive). USB telemetri ~36 Hz örnekleme (TX throttle 40 Hz nominal; gerçekleşen 4497 örnek / 126 s — aşağıdaki test tablosu). Çıktı: `artifacts/1/step_response/<test_id>/raw/data.csv.gz` + meta.json + summary.md.
 - **1.2 — Step bazlı 1. derece fit:** MATLAB'da her step için `tfest` veya `lsqcurvefit`. Her step → (K_i, τ_i, ω_ss_i).
 - **1.3 — Dead-band tespiti:** ω_ss vs V_eff lineer regresyon, x-intercept = V_dead. R6 (CW%20 değişkenliği) bu adımda nicelendirildi → V_dead ≈ 0, dead-band yok. (2026-05-18 stiction doğrulama testi ile bağımsız teyit edildi, R6 ölçüm artefaktı çıktı.)
 - **1.4 — CW/CCW simetri analizi:** K_cw vs K_ccw, V_dead_cw vs V_dead_ccw. Yön farkı kayıt altına alınır.
