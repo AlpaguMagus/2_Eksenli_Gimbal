@@ -247,7 +247,7 @@ Motor sürücü
 | 2.T3 (anti-windup recovery) | recovery iyileşmesi | sim: ON 235 vs OFF 715 ms; **gerçek motor 637 ms** (< sim OFF → anti-windup aktif) (§11.12.9) | ✅ PASS (sim + gerçek) |
 | 2.T4 (disturbance rejection) | yük sonrası setpoint'e dönüş | baseline 101 (=setpoint), el yükü ω'yı 56'ya itti (%44 dip), PI duty 0.186→0.50 telafi, setpoint'e döndü (§11.11) | ✅ PASS |
 | 2.T5 (cascade pozisyon step) | OS<%10, ss_err<1° | 6/6 segment, ss_err<0.8°, OS<1°, limit-cycle yok (§11.13.6) | ✅ PASS |
-| **2.T6 (mirror takip)** ⭐ | **RMS<5°** | gimbal-hızı RMS 4.68° (Kp_pos analitik Kv tasarımı, §11.13.8) | ✅ PASS |
+| **2.T6 (mirror takip)** ⭐ | **RMS<5°** | gimbal-hızı RMS 4.02° (Kp_pos=6 firmware default, gerçek motor, §11.13.8) | ✅ PASS |
 
 ### 11.10. Build Durumu
 
@@ -692,21 +692,23 @@ Gimbal-hızı hareket $\omega_{in}\approx30°$/s, hedef $e_{ss}<5°$ → $K_{p,p
 
 > 📊 **Üreten betik:** `matlab/asama_2_kontrol/design_mirror_tracking.m`
 
-**Ne sonuç çıktı — Test 2.T6:** Gerçek motorda mirror takip ölçüldü:
+**Ne sonuç çıktı — Test 2.T6:** Gerçek motorda mirror takip ölçüldü (serbest mil, yüksüz):
 
-| Hareket | Kp_pos | Takip RMS | Durum |
-|---|---|---|---|
-| Hızlı el (~80-100°/s) | 2 / 4 | ~10.6° | bant genişliği limiti |
-| Gimbal-hızı (~25-30°/s) | 5 | 4.68° | 🟢 PASS (analitik 5.56° ile tutarlı) |
-| Gimbal-hızı | **6 (analitik)** | 4.63° (analitik) | firmware default |
+| Hareket | Kp_pos | Takip RMS (gerçek) | Analitik | Durum |
+|---|---|---|---|---|
+| Hızlı el (~80-100°/s) | 2 / 4 | ~10.6° | — | bant genişliği limiti (beklenen) |
+| Gimbal-hızı (~25-30°/s) | 5 | 4.68° | 5.56° | 🟢 PASS (analitik eğriyle tutarlı) |
+| Gimbal-hızı (yavaş-orta, span 95.4°) | **6 — firmware default** | **4.02°** | 4.63° | 🟢 PASS |
 
-![Mirror takip — gerçek motor (Kp_pos=5)](../artifacts/2/mirror/20260526_204240/mirror_plot.png)
+Firmware-default kazanç ($K_{p,pos}=6$, MODE:MIRROR otomatik atar — `src/cmd_parser.c:76`) gerçek motorda **ilk kez** ölçüldü: ±48° canlı IMU referansını (span 95.4°, 1036 örnek, ~30 s) takip hatası **RMS 4.02° < 5°** ile izledi; max hata 9.08° (yalnız dönüş tepe anlarında), stall yok. Ölçülen 4.02°, analitik tahmin 4.63°'nin **altında** kaldı — yani §11.13.8 sensitivite tasarımı **konservatif bir üst sınırdı**, gerçek takip daha iyi çıktı.
 
-**Şekil 11.19 —** θ_out (mavi) θ_ref'i (kırmızı) faz gecikmesiyle izliyor. Hata düz bölümlerde küçük, dönüş noktalarında büyür (lag ≈ ω_in × cascade_zaman_sabiti). RMS 4.68° < 5° PASS.
+![Mirror takip — gerçek motor, firmware default Kp_pos=6 (Test 2.T6, 2026-05-31)](../artifacts/2/mirror/20260531_174740/mirror_plot.png)
 
-> 📊 **Üreten betik:** `scripts/mirror_test.py` (gerçek motor testi 2.T6)
+**Şekil 11.19 —** Firmware-default $K_{p,pos}=6$ ile mirror takip (Test 2.T6, gerçek motor). Üst: $\theta_{out}$ (mavi, motor) $\theta_{ref}$'i (kırmızı, canlı IMU pitch) ±48° boyunca neredeyse üst üste izliyor; alt: takip hatası çoğunlukla ±5° bandında (kırmızı kesik çizgi), yalnız keskin dönüş noktalarında ±7-9° (gecikme $\approx \omega_{in}\,\tau_{casc}$). RMS 4.02° < 5° → PASS.
 
-**Öğrenilen ders (kullanıcı eleştirisiyle düzeltildi):** Kp_pos önce deneme-yanılma ile (2→4→5) arandı — bu bir kontrol mühendisinin yöntemi **değil** ve projenin "kaynaklı ilerleme" disiplinine aykırı. Doğrusu: **takip görevi → tip-1 hız hata sabiti Kv → Kp_pos = ω_in/e_ss = 6** (`[Franklin2010] §4.2`). Deney (4.68°) analizi **doğrular, üretmez**. İki ders: (1) step (Kp_pos=2, overshootsuz) ve takip (Kp_pos=6, düşük-lag) farklı görevlerdir, farklı kazanç gerektirir; (2) **bant genişliği limiti** — hızlı el (~80°/s, ~0.5 Hz) cascade'in ~0.3 Hz bandını aşar, bu beklenen (gimbal yavaş-orta hareket için).
+> 📊 **Üreten betik:** `scripts/mirror_test.py` (gerçek motor testi 2.T6); ham veri `artifacts/2/mirror/20260531_174740/raw/`
+
+**Öğrenilen ders (kullanıcı eleştirisiyle düzeltildi):** Kp_pos önce deneme-yanılma ile (2→4→5) arandı — bu bir kontrol mühendisinin yöntemi **değil** ve projenin "kaynaklı ilerleme" disiplinine aykırı. Doğrusu: **takip görevi → tip-1 hız hata sabiti Kv → Kp_pos = ω_in/e_ss = 6** (`[Franklin2010] §4.2`). Deney analizi **doğrular, üretmez**: Kp=5 sweep'i (4.68°) ve firmware-default Kp=6'nın gerçek ölçümü (4.02°, analitik 4.63° üst sınırının altında) tasarımı doğruladı. İki ders: (1) step (Kp_pos=2, overshootsuz) ve takip (Kp_pos=6, düşük-lag) farklı görevlerdir, farklı kazanç gerektirir; (2) **bant genişliği limiti** — hızlı el (~80°/s, ~0.5 Hz) cascade'in ~0.3 Hz bandını aşar, bu beklenen (gimbal yavaş-orta hareket için).
 
 ### 11.14. Tartışma / Öğrenilen Dersler
 
@@ -758,7 +760,7 @@ Aşama 2, Aşama 1'in motor modeli (`G(s)=K/(τs+1)`, K=53.89 rad/s/V, τ=60.5 m
 | 2.4 | Disturbance rejection | **2.T4** | ✅ PASS (baseline 101=setpoint, %44 dip → recovery) |
 | 2.5/2.6 | Pozisyon cascade (poz P → hız PI) firmware | **2.T5** | ✅ PASS (ss<0.8°, limit-cycle yok) |
 | 2.6.5 | Cascade Simulink + sürtünme modeli | — | sim-to-real gap kapandı |
-| 2.7/2.8 | IMU mirror (canlı takip) | **2.T6** | ✅ PASS (gimbal-hızı RMS 4.68°) |
+| 2.7/2.8 | IMU mirror (canlı takip) | **2.T6** | ✅ PASS (gimbal-hızı RMS 4.02° @ Kp_pos=6 firmware default) |
 
 #### Firmware kontrolcü kazançları (kalıcı, kaynaklı)
 

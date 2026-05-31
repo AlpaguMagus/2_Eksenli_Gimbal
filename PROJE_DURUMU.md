@@ -23,7 +23,7 @@
 - Encoder hız ölçümü kuantizasyon (18.7 rad/s) — cascade'de sürtünme söndürdüğü için sorun olmadı; gerekirse T-metodu/pencere büyütme kenarda referans.
 - İzleme: 2.4'te motor tam durunca u=0.026 anomalisi (edge-case).
 
-**Aşama 2.7/2.8 (IMU mirror) ✅ 2026-05-26:** MODE:MIRROR — motor fused_pitch'i takip eder (cascade). Kp_pos=6 **ANALİTİK** (deneme-yanılma değil): tip-1 hız hata sabiti Kv=Kp_pos, e_ss=ω_in/Kv, ω_in=30°/s, <5° → Kp_pos≥6 ([Franklin2010] §4.2). **Test 2.T6 PASS** — gimbal-hızı RMS 4.68° (Kp=5, analitik doğruladı); hızlı el (~80°/s) bant-genişliği limiti (~10°, beklenen). Detay: docs §11.13.8.
+**Aşama 2.7/2.8 (IMU mirror) ✅ 2026-05-26:** MODE:MIRROR — motor fused_pitch'i takip eder (cascade). Kp_pos=6 **ANALİTİK** (deneme-yanılma değil): tip-1 hız hata sabiti Kv=Kp_pos, e_ss=ω_in/Kv, ω_in=30°/s, <5° → Kp_pos≥6 ([Franklin2010] §4.2). **Test 2.T6 PASS** — gimbal-hızı RMS 4.02° (Kp_pos=6 firmware default, 05-31 gerçek-motor ölçümü; analitik 4.63° üst sınırını doğruladı), Kp=5 sweep 4.68°; hızlı el (~80°/s) bant-genişliği limiti (~10°, beklenen). Detay: docs §11.13.8.
 
 **Sıradaki:** **Aşama 3 — İki Motor MIMO Model.** main'den `feature/asama-3-mimo-model` branch'i açılacak: iki motor kuplajı + decoupling (RGA / condition number, `[Skogestad2005] §10`). ⚠ Aşama 2 kazançları serbest-mil için — Aşama 5'te gerçek gimbalda yük altında yeniden ayarlanacak.
 

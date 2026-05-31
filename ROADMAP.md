@@ -292,7 +292,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
   - Güvenlik: STOP/RESET→DUTY, watchdog hedef sıfırla; complementary filter mod sürüşü öncesine taşındı
 
 - **2.8 — Mirror takip testi** ✅ (Test 2.T6, 2026-05-26)
-  - Gimbal-hızı (~25-30°/s): RMS 4.68° (Kp=5) PASS; Kp_pos=6 analitik 4.63°
+  - Gimbal-hızı: Kp_pos=6 firmware default RMS 4.02° (gerçek motor, span 95.4°) PASS — analitik 4.63° üst sınırını doğruladı; Kp=5 sweep 4.68°
   - Hızlı el (~80°/s): bant genişliği limiti (~10° RMS, beklenen — cascade ~0.3 Hz)
   - Detay: docs/asama_2_kontrol.md §11.13.8
 
@@ -309,7 +309,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 | 2.T3 | Anti-windup recovery | recovery iyileşmesi | ✅ **PASS (sim + gerçek)** — sim: anti-windup ON 235 vs OFF 715 ms (3× hızlı), integratör 32× az şişme. **Gerçek motor: 637 ms** (450→50 saturation, < sim OFF 715 → anti-windup aktif; sim ON'dan yavaşlık = sim-to-real gap, coast+kuantizasyon). `docs §11.12.9`, `artifacts/2/antiwindup/20260528_203803/` |
 | 2.T4 | Disturbance rejection | Yük sonrası setpoint'e dönüş | ✅ PASS — baseline 101 rad/s (=setpoint, PI sıfır ss-error), elle yük ω'yı 56'ya itti (%44 dip), PI duty 0.186→0.50 telafi, setpoint'e döndü. `artifacts/2/disturbance/20260524_192851/`. Recovery metriği encoder kuantizasyonu ile sınırlı. |
 | 2.T5 | Cascade pozisyon step | Overshoot < %10, ss_error < 1° | ✅ PASS — 6/6 segment (30/90/45/0/-45/0°), ss_err <0.8°, OS <1°, **limit-cycle yok** (θ_std <0.7°). Gerçekçi sim limit-cycle öngördü ama gerçek motor sürtünmesi söndürdü (sim kötümserdi). `artifacts/2/position_step/20260524_212456/` |
-| 2.T6 | Mirror takip (KRİTİK) | RMS < 5° | ✅ PASS — gimbal-hızı (~25-30°/s) RMS **4.68°** (Kp_pos=5), analitik Kv tasarımı Kp_pos=6→4.63° doğruladı. Hızlı el (~80°/s) bant-genişliği limiti (~10°, beklenen). `artifacts/2/mirror/20260526_204240/` |
+| 2.T6 | Mirror takip (KRİTİK) | RMS < 5° | ✅ PASS — gimbal-hızı RMS **4.02°** (Kp_pos=6 firmware default, gerçek motor, span 95.4°; analitik 4.63° üst sınırını doğruladı). Kp=5 sweep 4.68°. Hızlı el (~80°/s) bant-genişliği limiti (~10°, beklenen). `artifacts/2/mirror/20260531_174740/` |
 
 ### Açık Sorular (alt-aşama açılışlarında)
 
