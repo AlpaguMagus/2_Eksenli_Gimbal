@@ -96,7 +96,9 @@ int main(void)
      * Runtime KP:/KI:/SLEW: komutlarıyla flash'sız ayarlanabilir (test için).
      * Kaynaklar: [AstromMurray2008] §10.2 (Tustin), §10.4 (back-calculation) */
     static const SpeedPI_Config SPEED_PI_CFG = {
-        .Kp       = 0.002f,           /* ampirik (2.3); 2.1 conservative çok yüksekti */
+        .Kp       = 0.002f,           /* analitik: doyum-kısıtı Kp≈duty_max/ω_max
+                                       * (design_speed_pi_corrected.m, docs §11.12.3);
+                                       * 2.1 conservative 58× yüksekti (P-term doyar → bang-bang) */
         .Ki       = 0.1f,
         .Ts       = 0.005f,           /* Tustin SABIT adımı (5 ms = 200 Hz NOMINAL).
                                        * DİKKAT: gerçek ana döngü ~7 ms (~140 Hz, docs

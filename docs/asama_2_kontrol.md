@@ -4,7 +4,7 @@
 
 ## Özet
 
-Hız iç döngüsü Tustin PI + anti-windup ile tasarlandı; Aşama 2.3'te ideal-sim kazancı (Kp=0.1163) gerçek motorda bang-bang verdi → **sim-to-real gap** sistematik tanı ile çözüldü (ampirik Kp=0.002, Ki=0.1), gerçekçi Simulink teorik doğruladı. Disturbance rejection (Test 2.T4) ve pozisyon cascade (poz P → hız PI, Test 2.5) PASS. Cascade'de gerçekçi sim limit-cycle öngördü ama gerçek motor sürtünmesi söndürdü (ss<0.8°). Tüm kazançlar serbest mil içindir.
+Hız iç döngüsü Tustin PI + anti-windup ile tasarlandı; Aşama 2.1'in conservative kazancı (Kp=0.1163) iki analitik hata (yanlış plant 12× + doyum kısıtı yok sayıldı) yüzünden gerçek motorda bang-bang verdi → **sim-to-real gap**; düzeltilmiş **analitik** tasarım (doyum-kısıtı + doğru-plant pole placement, §11.12.3) çalışan Kp=0.002, Ki=0.1'i verdi, donanım taraması + gerçekçi Simulink doğruladı. Disturbance rejection (Test 2.T4) ve pozisyon cascade (poz P → hız PI, Test 2.5) PASS. Cascade'de gerçekçi sim limit-cycle öngördü ama gerçek motor sürtünmesi söndürdü (ss<0.8°). Tüm kazançlar serbest mil içindir.
 
 ---
 
@@ -124,7 +124,7 @@ Böylece istenen kapalı-çevrim davranışını ($\zeta, \omega_n$) seçip kaza
 }
 ```
 
-> ⚠ **Bu, Aşama 2.1'in kâğıt-üzeri tasarım seçimidir — firmware'de KULLANILMIYOR.** Conservative kazanç (Kp=0.1163) gerçek motorda **bang-bang** verdi; 2.3'te **ampirik Kp=0.002, Ki=0.1** ile değiştirildi (§11.12). Buradaki ideal-sim metrikleri (PM 80.8°, OS %6.7) sim-to-real gap'in tam da yanıltıcı tarafıdır (§11.12.8 margin analizi).
+> ⚠ **Bu, Aşama 2.1'in kâğıt-üzeri tasarım seçimidir — firmware'de KULLANILMIYOR.** Conservative kazanç (Kp=0.1163) gerçek motorda **bang-bang** verdi; 2.3'te **analitik düzeltilmiş Kp=0.002, Ki=0.1** ile değiştirildi (doyum-kısıtı + doğru-plant pole placement, §11.12.3). Buradaki ideal-sim metrikleri (PM 80.8°, OS %6.7) sim-to-real gap'in tam da yanıltıcı tarafıdır (§11.12.8 margin analizi).
 
 **5 kontrolcü karşılaştırma tablosu:**
 
@@ -169,7 +169,7 @@ $$u_{sat} = \text{clamp}(u, \pm u_{max}), \quad e_{aw} = u_{sat} - u, \quad i[k]
 
 Saturation yokken $e_{aw}=0$ → düzeltme sıfır. Saturation girince integrator "doygunluk tarafına çekilir", lockout sonrası ani patlama önlenir ($T_t$: tracking time sabiti).
 
-> $T_t$ **değeri:** Klasik seçim $T_t = T_i = K_p/K_i$ ([AstromMurray2008] §10.4). **Çalışan firmware** (ampirik $K_p=0.002, K_i=0.1$, Aşama 2.3) → $T_t = 0.02 = 20$ ms (`main.c`: `.T_t = 0.02f`). (Aşama 2.1'in terk edilen conservative kazancı $0.1163/4.0447$ ile $T_t=28.75$ ms olurdu — ama o kazanç bang-bang verdiği için kullanılmıyor; §11.12.)
+> $T_t$ **değeri:** Klasik seçim $T_t = T_i = K_p/K_i$ ([AstromMurray2008] §10.4). **Çalışan firmware** (analitik düzeltilmiş $K_p=0.002, K_i=0.1$, Aşama 2.3, §11.12.3) → $T_t = 0.02 = 20$ ms (`main.c`: `.T_t = 0.02f`). (Aşama 2.1'in terk edilen conservative kazancı $0.1163/4.0447$ ile $T_t=28.75$ ms olurdu — ama o kazanç bang-bang verdiği için kullanılmıyor; §11.12.)
 
 #### Mode-tabanlı komut seti (Aşama 2.2.C — kullanıcı onaylı A: açık MODE)
 
@@ -242,7 +242,7 @@ Motor sürücü
 
 | Test | Beklenen | Ölçülen / Sonuç | Durum |
 |---|---|---|---|
-| 2.T1 (kararlılık marjı) | GM≥6 dB, PM≥45° | ampirik (çalışan) PM=60.2°, GM=∞ — firmware plant'ta analitik+`margin` (§11.12.8) | ✅ PASS |
+| 2.T1 (kararlılık marjı) | GM≥6 dB, PM≥45° | çalışan kazanç PM=60.2°, GM=∞ — firmware plant'ta analitik+`margin` (§11.12.8) | ✅ PASS |
 | 2.T2 (hız step response) | T_set<5τ_ol≈300 ms, OS<%10, ss_err<%2 | gerçek motorda 8/8 step temiz, ss_err çoğunlukla <%2, bang-bang yok (§11.12.3-4) | ✅ PASS |
 | 2.T3 (anti-windup recovery) | recovery iyileşmesi | sim: ON 235 vs OFF 715 ms; **gerçek motor 637 ms** (< sim OFF → anti-windup aktif) (§11.12.9) | ✅ PASS (sim + gerçek) |
 | 2.T4 (disturbance rejection) | yük sonrası setpoint'e dönüş | baseline 101 (=setpoint), el yükü ω'yı 56'ya itti (%44 dip), PI duty 0.186→0.50 telafi, setpoint'e döndü (§11.11) | ✅ PASS |
@@ -300,7 +300,7 @@ Aşama 2.1'in conservative kazancı (Kp=0.1163, Ki=4.0447) gerçek motorda **ban
 
 Setpoint arttıkça bang-bang azalıyor, 280'de (≈saturation duty) oturuyor.
 
-**Düşük kazanç taraması — çözüm:**
+**Düşük kazanç taraması** — analitik $K_p{=}0.002$'yi donanımda doğrular (türetme §11.12.3):
 
 | Kp | Ki | ω_ss | ω_std | U_std | durum |
 |---|---|---|---|---|---|
@@ -308,14 +308,27 @@ Setpoint arttıkça bang-bang azalıyor, 280'de (≈saturation duty) oturuyor.
 | 0.005 | 0.25 | +46.8 | 84.8 | 0.331 | 🔴 BANG |
 | **0.002** | **0.1** | **+50.1** | **8.7** | **0.003** | **🟢 OTURDU (hata %0)** |
 
-#### 11.12.3. Kök Neden — Sim-to-Real Gap
+#### 11.12.3. Kök Neden — Sim-to-Real Gap + ANALİTİK Düzeltme
 
-Aşama 2.1 Simulink modeli **ideal, gürültüsüz, gecikmesiz** hız ölçümü + ideal plant varsaydı → conservative Kp=0.1163 mükemmel görünüyordu. Gerçek sistem:
-- **Serbest mil (yüksüz)** çok hızlı/hafif → 0.5 duty ≈ 280 rad/s no-load
-- **Encoder kuantize** (1 count ≈ 18.7 rad/s @ 7 ms)
-- **Yüksek Kp:** error=50 → P-term = 0.1163×50 = **5.8 >> saturation 0.5** → motor full power → devasa overshoot → limit cycle
+Aşama 2.1 Simulink modeli **ideal, gürültüsüz, gecikmesiz** hız ölçümü + ideal plant varsaydı → conservative Kp=0.1163 mükemmel görünüyordu. Tasarımda **iki analitik hata** vardı:
 
-**Doğru kazanç ~58× daha düşük (Kp=0.002).** Bu, P-term'in error=50'de 0.1 kalmasını (saturation'ı aşmamasını) sağlıyor.
+**(H1) Yanlış plant.** 2.1 pole placement plant'ı $K=53.89$ (V_eff→ω) aldı; ama firmware PI çıkışı **duty**'dir. Gerçek plant duty→ω: $K_g = K\,V_s = 654.8$ — yani **12.2× daha yüksek kazanç.** Conservative bu yüzden gerçek plant'ta devasa loop kazancı → $\omega_c = 1259$ rad/s (Nyquist üstü, §11.12.8).
+
+**(H2) Doyum kısıtı yok sayıldı.** P-terimi $K_p\,e$ duty doyumunu (±0.5) aşmamalı. Conservative $K_p=0.1163$ → $e = 0.5/0.1163 = 4.3$ rad/s'lik minik hatada bile P-terimi doyar → motor full power → bang-bang. Serbest mil (0.5 duty ≈ 280 rad/s) + encoder kuantizasyon (18.7 rad/s) bunu pekiştirdi.
+
+**Analitik düzeltme** (`design_speed_pi_corrected.m`) — iki hatayı da gideren ileri tasarım:
+- **Doyum kısıtı** ($K_p$): P-terimi serbest-mil $\omega_{max}\approx300$ rad/s aralığında doyumu aşmasın → $K_p \approx 0.5/\omega_{max} \approx 0.002$ (≈250 rad/s'e kadar lineer; conservative'in 58× altı).
+- **Bant genişliği** ($\omega_n$): kapalı-çevrim = 2× plant kutbu → $\omega_n = 2/\tau = 33$ rad/s (Nyquist 449'un 14× altı, ayrık-güvenli).
+- **Doğru-plant pole placement** ($K_i$): $K_i = \omega_n^2\,\tau / K_g = 0.10$.
+- **Sönüm doğar** ($\zeta$): $\zeta = (1+K_g K_p)/(2\sqrt{K_g K_i \tau}) = 0.58$; `margin` PM=60.0° verir (§11.12.8 ile birebir).
+
+![Hız PI analitik türetme — doyum kısıtı + kapalı-çevrim step](../matlab/asama_2_kontrol/results/2_1_speed_pi/06b_speed_pi_analytic_derivation.png)
+
+**Şekil 11.12c —** Sol: doyum kısıtı — düzeltilmiş $K_p=0.002$'nin P-terimi 250 rad/s'e kadar lineer; conservative $K_p=0.116$ daha 4.3 rad/s'te doyuma çarpar (bang-bang'in kökü). Sağ: doğru-plant kapalı-çevrim step ($\zeta=0.58$, $\omega_n=33$ rad/s). Conservative'in iki hatası (yanlış plant 12× + doyum) düzeltilince çalışan kazançlar **analitik olarak** çıkar.
+
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/design_speed_pi_corrected.m`
+
+Yani $K_p=0.002,\ K_i=0.1$ keyfi değil — **doyum-kısıtlı, doğru-plant pole placement** sonucudur. §11.12.2'deki düşük-kazanç taraması bu analitik tasarımı **donanımda doğrular** (kronoloji + öğrenilen ders: §11.14).
 
 #### 11.12.4. Çok-setpoint doğrulama (Kp=0.002, Ki=0.1)
 
@@ -366,21 +379,21 @@ Ampirik Kp=0.002'yi **teorik temellendirmek** için Aşama 2.1 Simulink modeline
 | Kazanç | ω_std | u_std | Sonuç | Gerçek motorla |
 |---|---|---|---|---|
 | conservative (Kp=0.1163) | 46.3 | 0.486 | 🔴 BANG-BANG | ✅ aynı |
-| ampirik (Kp=0.002) | 3.2 | 0.018 | 🟢 STABİL | ✅ aynı |
+| düzeltilmiş (Kp=0.002) | 3.2 | 0.018 | 🟢 STABİL | ✅ aynı |
 
-**Sonuç:** İdeal model (Aşama 2.1) conservative'i önerdi — yanıltıcıydı. Gerçekçi model (kuantizasyon + gecikme + saturation) ampirik düşük kazancı **doğruluyor**. Sim-to-real gap'in kaynağı **ideal ölçüm varsayımı** olarak teorik kanıtlandı.
+**Sonuç:** İdeal model (Aşama 2.1) conservative'i önerdi — yanıltıcıydı. Gerçekçi model (kuantizasyon + gecikme + saturation) **analitik düzeltilmiş** düşük kazancı (§11.12.3) **doğruluyor**. Sim-to-real gap'in kaynağı **ideal ölçüm varsayımı + ihmal edilen doyum** olarak teorik kanıtlandı.
 
-![Sim-to-real doğrulama — conservative bang-bang vs ampirik stabil](../matlab/asama_2_kontrol/results/2_3_realistic_sim/realistic_sim_verification.png)
+![Sim-to-real doğrulama — conservative bang-bang vs düzeltilmiş stabil](../matlab/asama_2_kontrol/results/2_3_realistic_sim/realistic_sim_verification.png)
 
-**Şekil 11.12 —** Gerçekçi model (kuantizasyon + WINDOW=5 MA filtre + ±0.5 saturation + slew + V_sat) altında iki kazancın karşılaştırması. **Sol:** conservative (Kp=0.1163) — $\omega$ ±100 rad/s salınır, kontrol çıkışı ±0.5 arası bang-bang ($u_{std}=0.486$). **Sağ:** ampirik (Kp=0.002) — $\omega$ setpoint 50'ye temiz oturur, kontrol düzgün ~0.1 ($u_{std}=0.018$). İdeal-sim (Aşama 2.1) conservative'i "iyi" gösterirken gerçekçi-sim ampirik düşük kazancı doğrular — sim-to-real gap'in görsel kanıtı.
+**Şekil 11.12 —** Gerçekçi model (kuantizasyon + WINDOW=5 MA filtre + ±0.5 saturation + slew + V_sat) altında iki kazancın karşılaştırması. **Sol:** conservative (Kp=0.1163) — $\omega$ ±100 rad/s salınır, kontrol çıkışı ±0.5 arası bang-bang ($u_{std}=0.486$). **Sağ:** düzeltilmiş (Kp=0.002) — $\omega$ setpoint 50'ye temiz oturur, kontrol düzgün ~0.1 ($u_{std}=0.018$). İdeal-sim (Aşama 2.1) conservative'i "iyi" gösterirken gerçekçi-sim analitik düzeltilmiş düşük kazancı doğrular — sim-to-real gap'in görsel kanıtı.
 
 > 📊 **Üreten betik:** `matlab/asama_2_kontrol/verify_realistic_sim.m`
 
-**Akademik kapanış:** *"Modelle → test et → gerçekte çalışmadı → kök nedeni bul → çöz (ampirik) → modeli gerçekçi yap → teorik temellendirir."* — `[Ljung1999] §16` iteratif model validation'ın tam döngüsü.
+**Akademik kapanış:** **Modelle → test et → gerçekte çalışmadı → kök nedeni bul (yanlış plant + doyum) → analitik düzelt → modeli gerçekçi yap → teorik temellendir.** `[Ljung1999] §16` iteratif model validation'ın tam döngüsü; tasarım her adımda **analitik** kaldı (deneme-yanılma değil).
 
 #### 11.12.8. Margin-Düzeyi Doğrulama — Test 2.T1 (Analitik-Önce)
 
-Sim-to-real gap'i **kararlılık marjı** düzeyinde de inceleyelim — hem ampirik kazancın güvenliğini belgelemek hem conservative'in neden battığını margin ile göstermek için. Analitik-önce: faz payını analitik tahmin et, `margin()` ile doğrula. İkisi de **firmware'in gerçek plant'ında** (PI çıkışı duty → ω, kazanç $K V_s = 654.8$) değerlendirilir:
+Sim-to-real gap'i **kararlılık marjı** düzeyinde de inceleyelim — hem çalışan kazancın güvenliğini belgelemek hem conservative'in neden battığını margin ile göstermek için. Analitik-önce: faz payını analitik tahmin et, `margin()` ile doğrula. İkisi de **firmware'in gerçek plant'ında** (PI çıkışı duty → ω, kazanç $K V_s = 654.8$) değerlendirilir:
 
 | Kazanç | PM (`margin`) | $\omega_c$ | GM | Sonuç |
 |---|---|---|---|---|
@@ -391,7 +404,7 @@ Sim-to-real gap'i **kararlılık marjı** düzeyinde de inceleyelim — hem ampi
 
 **Conservative'in tuzağı — lineer margin neden yanıltıcı:** Sürekli-zaman margin conservative'i "güvenli" gösteriyor (PM=89°!). Ama $\omega_c = 1259$ rad/s, **örnekleme Nyquist frekansını** (gerçek döngü ~140 Hz → $\omega_{Nyq}\approx440$ rad/s; nominal $T_s=5$ ms olsa 200 Hz → 628 rad/s) kat kat aşıyor. (**Nyquist frekansı** $f_{Nyq}=f_s/2$: bir ayrık sistemin temsil edebileceği en yüksek frekans; üstündeki dinamik aliasing'e uğrar, kontrol edilemez.) Ayrık sistemde bu bant genişliğinde kontrol fiziksel olarak imkansız → sürekli-zaman lineer analiz çöker, gerçekte bang-bang. **Ders:** kararlılık marjı tek başına yetmez; $\omega_c$ daima örnekleme frekansına göre değerlendirilir ($\omega_c \ll \omega_{Nyq}$ olmalı). Bu, sim-to-real gap'in (§11.12.3) **margin-düzeyi kök nedenidir** — 2.T1 sadece "PASS" değil, *neden* sorusunun cevabıdır.
 
-![Test 2.T1 — ampirik vs conservative margin](../matlab/asama_2_kontrol/results/2_1_speed_pi/05_margin_empirical_vs_conservative.png)
+![Test 2.T1 — çalışan vs conservative margin](../matlab/asama_2_kontrol/results/2_1_speed_pi/05_margin_empirical_vs_conservative.png)
 
 **Şekil 11.12a —** Firmware plant'ında (duty→ω) açık-çevrim Bode. Ampirik (mavi) $\omega_c=34$ rad/s'de 0 dB keser (örnekleme altında, güvenli). Conservative (kırmızı kesikli) $\omega_c=1259$ rad/s — Nyquist'in 2× üstü, sürekli margin (PM=89°) yanıltıcı. İkisinin de fazı $-180°$'ye ulaşmaz (GM=∞), ama bu lineer-sürekli resimde; gerçek ayrık + saturasyonlu sistemde conservative bang-bang verdi.
 
@@ -418,7 +431,7 @@ Bu açık konuyu **tam ayrık margin** hesabıyla kapattık (`verify_speed_margi
 
 > 📊 **Üreten betik:** `matlab/asama_2_kontrol/verify_speed_margin_discrete.m`
 
-**Yorum (C1 + C2 ayrışımı):** C1 (efektif $K_i$ düşük, $T_s/\Delta t\approx0.71$) loop kazancını düşürüp $\omega_c$'yi $34.4\to29.6$'ya indirir ve baz marjı $62.9°$'ye **yükseltir** (düşük bant genişliği = yüksek faz payı). C2 (MA grup gecikmesi) bu düşük $\omega_c$'de $\approx 23°$ götürür → **tam ayrık PM** $\approx 40°$. Yani naif el-hesabı (33°) fazla kötümserdi; gerçek faz payı $\approx 40°$ — $\geq 45°$ spec'in hâlâ **marjinal altında** ama el-tahminden sağlam. **Fonksiyonel risk değildir** (Test 2.T2 8/8 temiz, 2.T5 cascade PASS; gerçek motorda sürtünme ek sönüm sağlar). İlginç içgörü: C1 "latent kuplaj" tek yönlü kötü değil — efektif $K_i$'yi düşürerek bandı daraltıp marjı artırıyor, ampirik tuning bunu zaten soğurmuş.
+**Yorum (C1 + C2 ayrışımı):** C1 (efektif $K_i$ düşük, $T_s/\Delta t\approx0.71$) loop kazancını düşürüp $\omega_c$'yi $34.4\to29.6$'ya indirir ve baz marjı $62.9°$'ye **yükseltir** (düşük bant genişliği = yüksek faz payı). C2 (MA grup gecikmesi) bu düşük $\omega_c$'de $\approx 23°$ götürür → **tam ayrık PM** $\approx 40°$. Yani naif el-hesabı (33°) fazla kötümserdi; gerçek faz payı $\approx 40°$ — $\geq 45°$ spec'in hâlâ **marjinal altında** ama el-tahminden sağlam. **Fonksiyonel risk değildir** (Test 2.T2 8/8 temiz, 2.T5 cascade PASS; gerçek motorda sürtünme ek sönüm sağlar). İlginç içgörü: C1 "latent kuplaj" tek yönlü kötü değil — efektif $K_i$'yi düşürerek bandı daraltıp marjı artırıyor, çalışan tasarım bunu zaten soğurmuş.
 
 #### 11.12.9. Anti-Windup Doğrulama — Test 2.T3 (sim)
 
@@ -481,7 +494,7 @@ Burada $S(s)$ **duyarlılık (sensitivity) fonksiyonudur** (§11.13.8'de mirror 
 
 #### 11.11.3. Nasıl — Test 2.T4 (gerçek motor, `disturbance_test.py`)
 
-Motor 100 rad/s setpoint'te sabit dönerken (ampirik Kp=0.002, Ki=0.1), çıkış mili **elle 2-3 kez yavaşlatıldı** (kontrollü yük). ω ve kontrol çıkışı $u$ zaman serisi kaydedildi. Eller-çekili temiz başlangıç + hafif yavaşlatma ile geçerli ölçüm alındı.
+Motor 100 rad/s setpoint'te sabit dönerken (çalışan Kp=0.002, Ki=0.1), çıkış mili **elle 2-3 kez yavaşlatıldı** (kontrollü yük). ω ve kontrol çıkışı $u$ zaman serisi kaydedildi. Eller-çekili temiz başlangıç + hafif yavaşlatma ile geçerli ölçüm alındı.
 
 #### 11.11.4. Ne Sonuç Çıktı
 
@@ -739,9 +752,9 @@ Aşama 2, Aşama 1'in motor modeli (`G(s)=K/(τs+1)`, K=53.89 rad/s/V, τ=60.5 m
 
 | Alt-aşama | İş | Test | Sonuç |
 |---|---|---|---|
-| 2.1 | Hız PI tasarımı (pole placement + pidtune, 5 kontrolcü) | **2.T1** | ✅ PASS (ampirik PM=60.2°, GM=∞ analitik+margin, §11.12.8) |
+| 2.1 | Hız PI tasarımı (pole placement + pidtune, 5 kontrolcü) | **2.T1** | ✅ PASS (çalışan PM=60.2°, GM=∞ analitik+margin, §11.12.8) |
 | 2.2 | Firmware hız PI (Tustin + anti-windup + MODE/SP_W) | **2.T3** | ✅ PASS (sim ON 235 vs OFF 715 ms; gerçek motor 637 ms, §11.12.9) |
-| 2.3 | Sim-to-real gap + ampirik tuning | **2.T2** | ✅ PASS (8/8 step) |
+| 2.3 | Sim-to-real gap + analitik düzeltme (doyum + doğru plant) | **2.T2** | ✅ PASS (8/8 step) |
 | 2.4 | Disturbance rejection | **2.T4** | ✅ PASS (baseline 101=setpoint, %44 dip → recovery) |
 | 2.5/2.6 | Pozisyon cascade (poz P → hız PI) firmware | **2.T5** | ✅ PASS (ss<0.8°, limit-cycle yok) |
 | 2.6.5 | Cascade Simulink + sürtünme modeli | — | sim-to-real gap kapandı |
@@ -758,7 +771,7 @@ Aşama 2, Aşama 1'in motor modeli (`G(s)=K/(τs+1)`, K=53.89 rad/s/V, τ=60.5 m
 #### Ana akademik bulgular
 
 1. **Sim-to-real gap iki yönlüdür.** Model, dahil etmediği fiziğe göre *her iki yönde* yanılır: Aşama 2.3'te eksik kuantizasyon ideal simi **iyimser** yaptı (bang-bang öngöremedi); 2.6.5'te eksik sürtünme gerçekçi simi **kötümser** yaptı (yapay limit-cycle). İkisi de gerçek testle düzeltildi → simülasyona ne körü körüne güven, ne de güvensizlik (`[Ljung1999] §16`).
-2. **Ampirik ve analitik birbirini doğrular.** Hız PI ampirik bulundu, sonra gerçekçi Simulink teorik temellendirdi (2b). Tersine, mirror Kp_pos analitik hesaplandı (Kv), deney doğruladı. Sağlam mühendislik ikisini de kullanır.
+2. **Analitik tasarım + deneysel doğrulama (deneme-yanılma değil).** Hız PI'nin çalışan kazançları doyum-kısıtlı doğru-plant analitik tasarımdan çıkar (§11.12.3). **Dürüst kronoloji:** bu değerler 2.3'te önce donanım taramasıyla bulundu, analitik çerçeve sonradan formalize etti — yani deney burada *üretmedi, doğruladı* (donanım + gerçekçi Simulink). Mirror Kp_pos baştan analitik hesaplandı (Kv), deney doğruladı. İkisinde de yöntem: **analitik tasarla, deneyle doğrula** (Analitik-Önce, CLAUDE.md).
 3. **Kazanç tasarımı göreve özeldir.** Pozisyon **step** (konum hata sabiti, overshootsuz → Kp_pos=2) ve **takip** (hız hata sabiti, düşük-lag → Kp_pos=6) farklı kriterlerle tasarlanır — aynı plant, farklı görev, farklı kazanç.
 4. **Bant genişliği fiziksel bir limittir.** Cascade ~0.3 Hz bandı, hızlı el hareketini (~80°/s) takip edemez; gimbal yavaş-orta hareket (kamera) için tasarlanır. Encoder kuantizasyonu (18.7 rad/s) düşük-hız ölçümünü, redüktör sürtünmesi ise mikro-düzeltmeyi belirler.
 
