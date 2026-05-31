@@ -1,0 +1,18 @@
+{
+  "PM_continuous_deg": 60.193633988684951,
+  "wc_continuous": 34.413696686756808,
+  "PM_discrete_noMA_deg": 62.881221630693588,
+  "wc_discrete_noMA": 29.610937982364074,
+  "PM_discrete_withMA_deg": 39.905669980817528,
+  "wc_discrete_withMA": 28.727866667778549,
+  "Tloop_s": 0.007,
+  "Ts_pi_s": 0.005,
+  "N_window": 5,
+  "MA_group_delay_ms": 14,
+  "phase_loss_anal_deg": 27.604634086323138,
+  "spec_PM_deg": 45,
+  "kaynak": [
+    "Franklin2010 §6",
+    "AstromMurray2008 §10"
+  ]
+}

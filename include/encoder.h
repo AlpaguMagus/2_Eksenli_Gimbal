@@ -40,8 +40,9 @@ float   Encoder_GetSpeed(float dt_sec);  /* MOTOR ŞAFTI rad/s (ham). Çıkış 
  *   hem yüksek frekans gürültüyü bastırır (A: filtre).
  *   WINDOW=5 → efektif çözünürlük 18.7/5 ≈ 3.74 rad/s, gecikme ~(N-1)/2·Δt ≈ 14 ms.
  * Kontrolcü faz marjına etkisi (ÇALIŞAN ampirik döngü Kp=0.002):
- *   MA-hariç PM≈60° (docs §11.12.8); MA grup gecikmesi ~14 ms (döngü ~7 ms) ωc≈34 rad/s'te
- *   ~28° faz kaybı → MA-dahil PM≈33° (kararlı, spec ≥45°'nin marjinal altında, docs §11.12.8).
+ *   MA-hariç sürekli PM≈60°; MA grup gecikmesi ~14 ms (döngü ~7 ms). TAM AYRIK margin
+ *   (ZOH + Tustin PI + MA; verify_speed_margin_discrete.m): PM≈40°, ωc≈29 rad/s — kararlı,
+ *   spec ≥45°'nin marjinal altında (C1 efektif-Ki düşüklüğü ωc'yi indirip kısmen telafi eder; docs §11.12.8).
  *   [Eski conservative Kp=0.1163 PM=80.8° KULLANILMIYOR — ωc=1259'da MA fazı zaten battırır.]
  * Ham Encoder_GetSpeed korunur (Aşama 1 reproducibility + stall check için). */
 #define ENCODER_SPEED_WINDOW  5
