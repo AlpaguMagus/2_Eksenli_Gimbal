@@ -17,6 +17,12 @@
 
 clear; close all; clc;
 
+% Beyaz tema zorla — dark MATLAB session'da axes panelleri siyah kalıyordu
+% (figure 'Color','w' yetmiyor; axes/text de zorlanmalı). CLAUDE.md figür disiplini.
+set(groot,'defaultFigureColor','w','defaultAxesColor','w', ...
+    'defaultAxesXColor','k','defaultAxesYColor','k','defaultTextColor','k', ...
+    'defaultAxesGridColor',[0.15 0.15 0.15]);
+
 % ── İç döngü (ampirik kazanç) ─────────────────────────────────────
 K   = 53.89;   tau = 0.0605;       % Aşama 1 motor modeli
 Kp_i = 0.002;  Ki_i = 0.1;         % Aşama 2.3 ampirik hız PI
@@ -72,9 +78,7 @@ grid on; xlabel('t (s)'); ylabel('\theta / \theta_{ref}');
 title(sprintf('Pozisyon step — Kp_{pos}=%.2f, settling=%.1fs, OS=%.1f%%', ...
     Kp_pos, info.SettlingTime, info.Overshoot));
 subplot(1,2,2);
-margin(L); grid on;
-title(sprintf('Açık döngü Bode — PM=%.0f°, ω_c=%.1f rad/s', Pm, Wcp));
-sgtitle('Aşama 2.5 — Pozisyon dış döngü P (cascade)');
+margin(L); grid on;   % margin() Gm/Pm oto-başlığı yeterli — ek title + sgtitle çakışıyordu
 
 out = fullfile(fileparts(mfilename('fullpath')), 'results', '2_5_cascade');
 if ~exist(out,'dir'), mkdir(out); end

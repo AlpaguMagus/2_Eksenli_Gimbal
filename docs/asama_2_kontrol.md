@@ -370,7 +370,11 @@ Ampirik Kp=0.002'yi **teorik temellendirmek** için Aşama 2.1 Simulink modeline
 
 **Sonuç:** İdeal model (Aşama 2.1) conservative'i önerdi — yanıltıcıydı. Gerçekçi model (kuantizasyon + gecikme + saturation) ampirik düşük kazancı **doğruluyor**. Sim-to-real gap'in kaynağı **ideal ölçüm varsayımı** olarak teorik kanıtlandı.
 
-Görsel: `matlab/asama_2_kontrol/results/2_3_realistic_sim/realistic_sim_verification.png` (sol: conservative bang-bang, sağ: ampirik stabil).
+![Sim-to-real doğrulama — conservative bang-bang vs ampirik stabil](../matlab/asama_2_kontrol/results/2_3_realistic_sim/realistic_sim_verification.png)
+
+**Şekil 11.12 —** Gerçekçi model (kuantizasyon + WINDOW=5 MA filtre + ±0.5 saturation + slew + V_sat) altında iki kazancın karşılaştırması. **Sol:** conservative (Kp=0.1163) — $\omega$ ±100 rad/s salınır, kontrol çıkışı ±0.5 arası bang-bang ($u_{std}=0.486$). **Sağ:** ampirik (Kp=0.002) — $\omega$ setpoint 50'ye temiz oturur, kontrol düzgün ~0.1 ($u_{std}=0.018$). İdeal-sim (Aşama 2.1) conservative'i "iyi" gösterirken gerçekçi-sim ampirik düşük kazancı doğrular — sim-to-real gap'in görsel kanıtı.
+
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/verify_realistic_sim.m`
 
 **Akademik kapanış:** *"Modelle → test et → gerçekte çalışmadı → kök nedeni bul → çöz (ampirik) → modeli gerçekçi yap → teorik temellendirir."* — `[Ljung1999] §16` iteratif model validation'ın tam döngüsü.
 
@@ -536,6 +540,12 @@ Analitik tahmin ($-2.1$) tam modelle ($-2.06$) **%2 uyum** — el-hesabı doğru
 **Şekil 11.13b —** Cascade dış döngü root locus. Açık-çevrim kutupları (×): integratör $s=0$ ve iç döngü çifti $-18\pm j27$; sıfır (○) $s=-50$. $K_{p,pos}$ arttıkça baskın kutup orijinden reel eksende sola yürür (salınımsız), $K_{p,pos}\approx 7.1$'de breakaway. Seçilen $K_{p,pos}=2$ (mavi kare) baskın kutbu $-2.06$'ya koyar — geniş kararlılık marjı.
 
 > 📊 **Üreten betik:** `matlab/asama_2_kontrol/design_position_rootlocus.m`
+
+![Pozisyon P tasarım doğrulama — kapalı-çevrim step + açık-çevrim Bode](../matlab/asama_2_kontrol/results/2_5_cascade/position_p_design.png)
+
+**Şekil 11.13c —** Pozisyon dış döngü P ($K_{p,pos}=2$) tasarım doğrulaması. **Sol:** kapalı-çevrim step yanıtı — $\theta$ referansa salınımsız oturur (settling $\approx 1.2$ s, overshoot %0.6, tip-1 sistem → $ss_{error}=0$). **Sağ:** açık-çevrim Bode — $\omega_c = 1.93$ rad/s, PM $= 69.7°$, GM $= 23.2$ dB (geniş kararlılık marjı). Root locus (Şekil 11.13b) ile birlikte cascade dış döngü tasarımının analitik + frekans-düzeyi kanıtı.
+
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/design_position_p.m`
 
 #### 11.13.3. Sokratik Süreç — Gerçekçi Sim, 5V Hatası, Sürtünme
 
