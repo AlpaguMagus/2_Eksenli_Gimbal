@@ -178,8 +178,18 @@ def main():
 
     # summary + meta
     valid=[r for r in results if r.get("valid")]
-    n_ok=sum(1 for r in valid if not r["bang_bang"])
-    status="PASS" if n_ok==len(valid) and valid else "PARTIAL"
+    # FALSE-PASS bug fix: eskiden yalnızca bang_bang'e bakıyordu → motor hiç dönmese de
+    # (ω≈0, salınım yok, settle=None) "PASS" verirdi. Hedefe ulaşma (±%5 banda oturma) da şart.
+    reached = lambda r: (not r["bang_bang"]) and r.get("settling_s") is not None
+    n_ok=sum(1 for r in valid if reached(r))
+    if valid and n_ok==len(valid):
+        status="PASS"
+    elif any(r["bang_bang"] for r in valid):
+        status="BANG_BANG"
+    elif any(not reached(r) for r in valid):
+        status="NO_REACH"
+    else:
+        status="PARTIAL"
     write_summary(out, test_id, args, results, status, raw_final)
     write_meta(out, test_id, args, results, status, raw_final)
     print(f"\n[{ts()}] Durum: {status}  ({n_ok}/{len(valid)} step temiz)")

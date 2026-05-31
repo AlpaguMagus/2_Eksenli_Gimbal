@@ -169,7 +169,19 @@ def main():
     plot_path = make_plot(out, raw_final, args.targets)
     valid=[r for r in results if r.get("valid")]
     n_lc=sum(1 for r in valid if r["limit_cycle"])
-    status = "PASS" if valid and n_lc==0 else ("LIMIT_CYCLE" if n_lc else "PARTIAL")
+    # Bir segment "temiz": hedefe ULAŞTI (ss_err ≤ band) + oturdu + limit-cycle yok.
+    # FALSE-PASS bug fix: eski mantık yalnızca limit-cycle'a bakıyordu → motor hiç dönmese
+    # bile (ss_err≈span, settle=None) "PASS" verirdi (2026-05-31 güç-kablo arızası bunu açığa çıkardı).
+    reached = lambda r: r["ss_err_deg"] <= SETTLE_BAND_DEG and r["settling_s"] is not None
+    n_noreach = sum(1 for r in valid if not reached(r))
+    if valid and n_lc==0 and n_noreach==0:
+        status = "PASS"
+    elif n_lc:
+        status = "LIMIT_CYCLE"
+    elif n_noreach:
+        status = "NO_REACH"   # hedefe ulaşılmadı (motor dönmedi / güç / mekanik) — FAIL
+    else:
+        status = "PARTIAL"
     write_artifacts(out, test_id, args, results, status, raw_final, plot_path, stall)
 
     print(f"\n[{ts()}] ── ÖZET ──  Durum: {status}  ({len(valid)-n_lc}/{len(valid)} segment temiz)")
