@@ -612,15 +612,19 @@ htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
 
 **12V hattı (Mervesan 12V/3A 36W duvar adaptörü):**
 
-| Tüketici | Akım |
-|---|---|
-| TB6612FNG VM (lojik akım) | ~0.5 mA |
-| Pololu motor — yüksüz | 75 mA |
-| Pololu motor — stall (12V, açık döngü) | 1.6 A |
-| Pololu motor — stall **duty cap %50** ile | **~0.8 A** |
-| **Adaptör nominal kapasite** | **3.0 A** |
+| Tüketici / Limit | Akım | Kaynak |
+|---|---|---|
+| TB6612FNG VCC (lojik) | ~0.5 mA | — |
+| Pololu motor — yüksüz @12V | 100 mA | `[Pololu_25D]` Page 1 |
+| Pololu motor — stall @ duty cap %50 (~6V eşdeğer) | ~0.55 A (kons. üst ~0.8 A) | `[Pololu_25D]` (6V stall 550 mA) |
+| Pololu motor — stall @ tam 12V (duty %100) | **1.1 A** | `[Pololu_25D]` Page 1 |
+| **TB6612 sürekli limit (operating, VM≥5V)** | **1.0 A** | `[TB6612_DS]` sf 3 |
+| TB6612 tepe (10 ms tek pulse) | 3.2 A | `[TB6612_DS]` sf 3 |
+| **Adaptör nominal kapasite** | **3.0 A** | Mervesan 12V/3A |
 
-> **Donanım sigortası henüz yok.** Stall durumunda motor akımı yazılım katmanlarıyla sınırlanır (duty hard cap %50, stall detection 200 ms içinde STBY=L). Detaylı emniyet planı → `ROADMAP.md`.
+> **Bütçe yorumu (datasheet-doğrulanmış, `[Pololu_25D]` + `[TB6612_DS]`):** Duty cap %50'de stall akımı (~0.55–0.8 A) hem TB6612 sürekli limitinin (1.0 A) hem adaptörün (3.0 A) altındadır → mevcut rejimde stall **elektriksel olarak güvenli** (TB6612 disipasyon ~0.4 W < 0.78 W IC limiti). **Donanım sigortası yok** ve **TB6612'de ayrık aşırı-akım koruması (OCP) yok** — yalnız termal shutdown (TSD ~175°C). Bu yüzden stall akımını **yazılım** sınırlar: duty hard cap %50 + stall detection 200 ms içinde STBY=L. ⚠ **Duty cap %100'e gevşetilirse** stall 1.1 A > TB6612 sürekli 1.0 A → o noktada gerçek akım-kesme (donanım sigortası veya ACS712 akım sensörü) gerekli olur. Detaylı emniyet planı → `ROADMAP.md`.
+
+> 📝 *Düzeltme (2026-05-31, datasheet denetimi): önceki tablo motor yüksüz 75 mA / stall 1.6 A diyordu — `[Pololu_25D]` Page 1 bu LP 12V 9.68:1 varyant için **100 mA / 1.1 A** veriyor; ayrıca bağlayıcı kısıt olan TB6612 sürekli 1.0 A limiti eksikti, eklendi.*
 
 ### 8.6. Donanım Kurulum Notları
 
