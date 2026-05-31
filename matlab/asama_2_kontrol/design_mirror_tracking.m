@@ -18,6 +18,12 @@
 
 clear; close all; clc;
 
+% Beyaz tema zorla — dark MATLAB session'da axes panelleri siyah kalıyordu
+% (figure 'Color','w' yetmiyor; axes/text de zorlanmalı). CLAUDE.md figür disiplini.
+set(groot,'defaultFigureColor','w','defaultAxesColor','w', ...
+    'defaultAxesXColor','k','defaultAxesYColor','k','defaultTextColor','k', ...
+    'defaultAxesGridColor',[0.15 0.15 0.15]);
+
 % ── İç döngü + cascade (design_position_p ile aynı) ───────────────
 K=53.89; tau=0.0605; Kp_i=0.002; Ki_i=0.1;
 G = tf(K,[tau 1]); C = pid(Kp_i,Ki_i); T_inner = feedback(G*C,1);
@@ -70,14 +76,15 @@ for i=1:numel(kps)
 end
 xline(f_hz,'k--','HandleVisibility','off'); grid on; set(gca,'XScale','log');
 xlabel('frekans (Hz)'); ylabel('|S(j\omega)| = |hata/ref| (dB)');
-title('Takip hatası sensitivitesi — düşük |S| = iyi takip'); legend('Location','southeast');
+title('Takip hatası sensitivitesi — düşük |S| = iyi takip');
+lg=legend('Location','southeast'); set(lg,'Color','w','TextColor','k');
 subplot(1,2,2);
 plot(kps, err_rms,'bo-','LineWidth',1.5,'MarkerFaceColor','b'); hold on
 yline(ess_target,'r--','hedef 5°'); plot(5, 4.68,'rp','MarkerSize',14,'MarkerFaceColor','r');
 text(5.2,4.68,' deney 4.68°','Color','r'); grid on
 xlabel('Kp_{pos}'); ylabel('sinüs takip hatası RMS (°)');
 title(sprintf('Takip hatası vs Kp_{pos} (A=%d°, f=%.1f Hz)',A_deg,f_hz));
-sgtitle('Aşama 2.7 — Mirror takip Kp_{pos} analitik tasarım ([Franklin2010] §4.2)');
+sgtitle('Aşama 2.7 — Mirror takip Kp_{pos} analitik tasarım ([Franklin2010] §4.2)','Color','k');
 
 out=fullfile(fileparts(mfilename('fullpath')),'results','2_7_mirror');
 if ~exist(out,'dir'), mkdir(out); end
