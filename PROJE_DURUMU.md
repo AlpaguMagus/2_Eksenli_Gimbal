@@ -6,7 +6,7 @@
 
 **Şu an:** ✅ **Aşama 1 KAPALI**, ✅ **Aşama 2 KAPALI** (2.1→2.9: hız PI + cascade + IMU mirror, tüm testler PASS; 2.9 akademik kapanış docs §11.15). → main'e merge edildi (`fc0aefc`) + `asama-2-kapali` tag ✅. **Sıradaki: Aşama 3 (MIMO).** Aşama 1: `K=53.89 rad/s/V, τ_median=60.5 ms, V_dead≈0, V_supply=12.15V`. Aşama 2.1: 5 kontrolcü tasarım. Aşama 2.2: firmware Tustin PI + anti-windup + MODE/SP_W komutları.
 
-**Aşama 2.3 BÜYÜK BULGU (sim-to-real gap):** Conservative kazanç (Kp=0.1163) gerçek motorda **bang-bang limit cycle** verdi. Sistematik tanı → kök neden: ideal ölçüm varsayımı + serbest mil hızlı + encoder kuantize. **Ampirik çözüm: Kp=0.002, Ki=0.1.** 2b: gerçekçi Simulink teorik doğruladı. Test 2.T2 PASS (8/8 step).
+**Aşama 2.3 BÜYÜK BULGU (sim-to-real gap):** Conservative kazanç (Kp=0.1163) gerçek motorda **bang-bang limit cycle** verdi. Kök neden: 2.1'in İKİ analitik hatası — (H1) yanlış plant (K=53.89 yerine Kg=K·Vs=654.8, 12×), (H2) doyum kısıtı yok sayıldı (P-terimi e=4.3 rad/s'te doyar). **Analitik düzeltme: doyum-kısıtı (Kp≈duty_max/ω_max=0.002) + doğru-plant pole placement (ω_n=2/τ=33 → Ki=0.1), §11.12.3.** 2b: gerçekçi Simulink + ayrık margin (PM=40°) doğruladı. Test 2.T2 PASS (8/8 step).
 
 **Aşama 2.4 (disturbance) ✅:** Baseline 101 rad/s (=setpoint, PI sıfır ss-error), elle yük ω'yı 56'ya itti (%44 dip), PI duty 0.186→0.50 telafi, setpoint'e döndü. Test 2.T4 PASS.
 

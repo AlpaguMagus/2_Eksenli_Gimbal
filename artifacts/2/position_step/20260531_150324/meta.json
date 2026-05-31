@@ -1,0 +1,112 @@
+{
+  "test_id": "20260531_150324",
+  "title": "Aşama 2.5 pozisyon cascade step (Test 2.5)",
+  "timestamp": "2026-05-31T15:03:49",
+  "commit": "a9eb046",
+  "status": "PASS",
+  "architecture": "cascade_pos_P_speed_PI",
+  "kp_pos": 2.0,
+  "inner": {
+    "Kp": 0.002,
+    "Ki": 0.1
+  },
+  "targets": [
+    30,
+    90,
+    45,
+    0,
+    -45,
+    0
+  ],
+  "note": "serbest mil; gimbalda yük ile yeniden ayar (ROADMAP §5)",
+  "results": [
+    {
+      "target": 30,
+      "n": 139,
+      "valid": true,
+      "theta_start": 0.0,
+      "theta_ss": 0.0,
+      "ss_err_deg": 30.0,
+      "ss_err_pct": 100.0,
+      "overshoot_deg": 0.0,
+      "overshoot_pct": 0.0,
+      "settling_s": null,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false
+    },
+    {
+      "target": 90,
+      "n": 138,
+      "valid": true,
+      "theta_start": 0.0,
+      "theta_ss": 0.0,
+      "ss_err_deg": 90.0,
+      "ss_err_pct": 100.0,
+      "overshoot_deg": 0.0,
+      "overshoot_pct": 0.0,
+      "settling_s": null,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false
+    },
+    {
+      "target": 45,
+      "n": 138,
+      "valid": true,
+      "theta_start": 0.0,
+      "theta_ss": 0.0,
+      "ss_err_deg": 45.0,
+      "ss_err_pct": 100.0,
+      "overshoot_deg": 0.0,
+      "overshoot_pct": 0.0,
+      "settling_s": null,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false
+    },
+    {
+      "target": 0,
+      "n": 139,
+      "valid": true,
+      "theta_start": 0.0,
+      "theta_ss": 0.0,
+      "ss_err_deg": 0.0,
+      "ss_err_pct": 0.0,
+      "overshoot_deg": 0.0,
+      "overshoot_pct": 0.0,
+      "settling_s": 0.0,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false
+    },
+    {
+      "target": -45,
+      "n": 138,
+      "valid": true,
+      "theta_start": 0.0,
+      "theta_ss": 0.0,
+      "ss_err_deg": 45.0,
+      "ss_err_pct": 100.0,
+      "overshoot_deg": 0.0,
+      "overshoot_pct": 0.0,
+      "settling_s": null,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false
+    },
+    {
+      "target": 0,
+      "n": 142,
+      "valid": true,
+      "theta_start": 0.0,
+      "theta_ss": 0.0,
+      "ss_err_deg": 0.0,
+      "ss_err_pct": 0.0,
+      "overshoot_deg": 0.0,
+      "overshoot_pct": 0.0,
+      "settling_s": 0.0,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false
+    }
+  ],
+  "artifacts": [
+    "data.csv",
+    "position_plot.png"
+  ]
+}

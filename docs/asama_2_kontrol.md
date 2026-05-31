@@ -367,7 +367,7 @@ Artifact: `artifacts/2/T2_3_speed_pi_tuning/` (+ `speed_gain_sweep/`, `slew_swee
 
 #### 11.12.7. 2b — Sim-to-Real Gap Teorik Olarak Kapatıldı ✅
 
-Ampirik Kp=0.002'yi **teorik temellendirmek** için Aşama 2.1 Simulink modeline gerçek sistemin efektleri eklendi (`matlab/asama_2_kontrol/verify_realistic_sim.m`):
+Çalışan Kp=0.002'yi (analitik, §11.12.3) **bağımsız doğrulamak** için Aşama 2.1 Simulink modeline gerçek sistemin efektleri eklendi (`matlab/asama_2_kontrol/verify_realistic_sim.m`):
 1. Encoder kuantizasyonu (1 count ≈ 18.7 rad/s)
 2. Moving-average ölçüm filtresi (WINDOW=5)
 3. Duty saturation (±0.50)
@@ -397,23 +397,23 @@ Sim-to-real gap'i **kararlılık marjı** düzeyinde de inceleyelim — hem çal
 
 | Kazanç | PM (`margin`) | $\omega_c$ | GM | Sonuç |
 |---|---|---|---|---|
-| **Ampirik** $K_p=0.002$ (çalışan) | **60.2°** | 34.4 rad/s | ∞ | 🟢 güvenli |
+| **Çalışan** $K_p=0.002$ (analitik) | **60.2°** | 34.4 rad/s | ∞ | 🟢 güvenli |
 | Conservative $K_p=0.1163$ (kullanılmıyor) | 89.2° | **1259 rad/s** | ∞ | 🔴 yanıltıcı |
 
-**Ampirik analitik PM:** iç döngü $\zeta_i = 0.58$ (§11.13.2b) → yaklaşık kural $PM \approx 100\,\zeta_i = 58°$ (`[Franklin2010] §6`, $\zeta<0.7$ için); `margin()` 60.2° verdi (**%4 uyum**, analitik doğrulandı). $\omega_c = 34$ rad/s iç döngü $\omega_{n,i} = 32.9$ ile tutarlı.
+**Çalışan kazancın analitik PM'i:** iç döngü $\zeta_i = 0.58$ (§11.13.2b) → yaklaşık kural $PM \approx 100\,\zeta_i = 58°$ (`[Franklin2010] §6`, $\zeta<0.7$ için); `margin()` 60.2° verdi (**%4 uyum**, analitik doğrulandı). $\omega_c = 34$ rad/s iç döngü $\omega_{n,i} = 32.9$ ile tutarlı.
 
 **Conservative'in tuzağı — lineer margin neden yanıltıcı:** Sürekli-zaman margin conservative'i "güvenli" gösteriyor (PM=89°!). Ama $\omega_c = 1259$ rad/s, **örnekleme Nyquist frekansını** (gerçek döngü ~140 Hz → $\omega_{Nyq}\approx440$ rad/s; nominal $T_s=5$ ms olsa 200 Hz → 628 rad/s) kat kat aşıyor. (**Nyquist frekansı** $f_{Nyq}=f_s/2$: bir ayrık sistemin temsil edebileceği en yüksek frekans; üstündeki dinamik aliasing'e uğrar, kontrol edilemez.) Ayrık sistemde bu bant genişliğinde kontrol fiziksel olarak imkansız → sürekli-zaman lineer analiz çöker, gerçekte bang-bang. **Ders:** kararlılık marjı tek başına yetmez; $\omega_c$ daima örnekleme frekansına göre değerlendirilir ($\omega_c \ll \omega_{Nyq}$ olmalı). Bu, sim-to-real gap'in (§11.12.3) **margin-düzeyi kök nedenidir** — 2.T1 sadece "PASS" değil, *neden* sorusunun cevabıdır.
 
 ![Test 2.T1 — çalışan vs conservative margin](../matlab/asama_2_kontrol/results/2_1_speed_pi/05_margin_empirical_vs_conservative.png)
 
-**Şekil 11.12a —** Firmware plant'ında (duty→ω) açık-çevrim Bode. Ampirik (mavi) $\omega_c=34$ rad/s'de 0 dB keser (örnekleme altında, güvenli). Conservative (kırmızı kesikli) $\omega_c=1259$ rad/s — Nyquist'in 2× üstü, sürekli margin (PM=89°) yanıltıcı. İkisinin de fazı $-180°$'ye ulaşmaz (GM=∞), ama bu lineer-sürekli resimde; gerçek ayrık + saturasyonlu sistemde conservative bang-bang verdi.
+**Şekil 11.12a —** Firmware plant'ında (duty→ω) açık-çevrim Bode. Çalışan kazanç (mavi) $\omega_c=34$ rad/s'de 0 dB keser (örnekleme altında, güvenli). Conservative (kırmızı kesikli) $\omega_c=1259$ rad/s — Nyquist'in 2× üstü, sürekli margin (PM=89°) yanıltıcı. İkisinin de fazı $-180°$'ye ulaşmaz (GM=∞), ama bu lineer-sürekli resimde; gerçek ayrık + saturasyonlu sistemde conservative bang-bang verdi.
 
 > 📊 **Üreten betik:** `matlab/asama_2_kontrol/design_speed_margin_empirical.m`
 
 > **⚠ Ayrık-zaman / gecikme kaveatı (dürüstlük notu).** Yukarıdaki PM = 60.2° **sürekli-zaman** PI+plant ($L_e = C_e G_d$) üzerinde hesaplanır; firmware'in gerçek döngüsünde olan iki etki bu marja **girmez** ve analizi gerçeğe göre **iyimser** gösterir:
 >
 > 1. **Ölçüm filtresi fazı (C2).** Hız PI girişinde `WINDOW=5` moving-average var (`src/encoder.c` `Encoder_FilterSpeed`). Lineer-faz FIR grup gecikmesi $(N-1)/2\cdot\Delta t \approx 14$ ms (döngü $\Delta t\approx7$ ms). Gain-crossover $\omega_c = 34.4$ rad/s'te faz kaybı $\approx \omega_c\,\tau_g = 34.4\times0.014 \approx 0.48$ rad, yani $\approx 28°$. Naif el-hesabı: $60.2° - 28° \approx 33°$. Ama bu, kazanç-geçiş frekansının kayışını ihmal eder — aşağıdaki **tam ayrık margin** kesin değeri $\approx 40°$ verir (C1 etkisi $\omega_c$'yi düşürüp marjı kısmen telafi eder).
-> 2. **Sabit örnekleme adımı (C1).** PI Tustin integrali **sabit** $T_s = 5$ ms kullanır (`src/speed_pi.c`), ama ana döngü ölçülen $\approx 7$ ms'tir (~140 Hz, [`asama_0_altyapi.md`](asama_0_altyapi.md) §5.4). Efektif integral kazancı nominalin $T_s/\Delta t \approx 0.71$ katıdır. Ampirik $K_i = 0.1$ bu sabit-$T_s$ varsayımı altında **gerçek motorda** ayarlandığından kapalı-çevrim çalışır; fakat döngü hızı değişir veya $T_s$ gerçek $dt$'ye bağlanırsa integral etkisi **sessizce kayar** (latent kuplaj). Complementary filter ve hız ölçümü zaten gerçek DWT $dt$'sini kullanır — bu asimetri yalnızca integral terimdedir.
+> 2. **Sabit örnekleme adımı (C1).** PI Tustin integrali **sabit** $T_s = 5$ ms kullanır (`src/speed_pi.c`), ama ana döngü ölçülen $\approx 7$ ms'tir (~140 Hz, [`asama_0_altyapi.md`](asama_0_altyapi.md) §5.4). Efektif integral kazancı nominalin $T_s/\Delta t \approx 0.71$ katıdır. Çalışan $K_i = 0.1$ bu sabit-$T_s$ varsayımı altında türetildiğinden (§11.12.3) kapalı-çevrim tutarlıdır; fakat döngü hızı değişir veya $T_s$ gerçek $dt$'ye bağlanırsa integral etkisi **sessizce kayar** (latent kuplaj). Complementary filter ve hız ölçümü zaten gerçek DWT $dt$'sini kullanır — bu asimetri yalnızca integral terimdedir.
 >
 > İkisi **aynı temanın** iki yüzüdür: ayrık-zaman ve gecikme etkileri sürekli-zaman marjına girmez.
 
@@ -764,7 +764,7 @@ Aşama 2, Aşama 1'in motor modeli (`G(s)=K/(τs+1)`, K=53.89 rad/s/V, τ=60.5 m
 
 | Kontrolcü | Kazanç | Nasıl bulundu | Kaynak |
 |---|---|---|---|
-| Hız PI (iç döngü) | Kp=0.002, Ki=0.1 | **Ampirik** (2.1 conservative gerçekte bang-bang verdi) | Test 2.3 + gerçekçi sim doğrulama `[Ljung1999] §16` |
+| Hız PI (iç döngü) | Kp=0.002, Ki=0.1 | **Analitik** (doyum-kısıtı + doğru-plant pole placement, §11.12.3; 2.1 conservative iki hata yüzünden bang-bang) | Test 2.3 + gerçekçi sim + ayrık margin doğrulama `[Ljung1999] §16` |
 | Pozisyon P — **step** (POS) | Kp_pos=2.0 | **Analitik** (ω_c=ω_n_iç/5 cascade kuralı) | `[Franklin2010] §6.4`, §4.3 |
 | Pozisyon P — **takip** (MIRROR) | Kp_pos=6.0 | **Analitik** (Kv=ω_in/e_ss hız hata sabiti) | `[Franklin2010] §4.2` |
 

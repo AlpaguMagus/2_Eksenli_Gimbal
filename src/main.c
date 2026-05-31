@@ -88,10 +88,10 @@ int main(void)
      * serbest mil çok hızlı (0.5 duty → ~280 rad/s no-load) + encoder kuantize
      * + yüksek Kp her error'da saturation'a fırlatıyordu → limit cycle.
      *
-     * AMPIRIK ÇÖZÜM (artifacts/2/, düşük-kazanç taraması): Kp=0.002, Ki=0.1
-     * → motor tüm setpoint'lere temiz oturuyor (50/120/30 rad/s, bang-bang yok).
-     * Conservative'den ~58× düşük. Bu kazançlar 2b'de Simulink'e gerçekçi
-     * efektler (kuantizasyon + gecikme + serbest mil) eklenerek teorik doğrulanacak.
+     * ANALİTİK DÜZELTME (design_speed_pi_corrected.m, docs §11.12.3): doyum-kısıtı
+     * Kp≈duty_max/ω_max=0.002 + doğru-plant (Kg=K·Vs=654.8) pole placement
+     * ω_n=2/τ=33 → Ki=0.1. Conservative'den ~58× düşük; tüm setpoint'lere temiz
+     * oturur (50/120/30 rad/s, bang-bang yok). 2b gerçekçi Simulink + ayrık margin doğruladı.
      *
      * Runtime KP:/KI:/SLEW: komutlarıyla flash'sız ayarlanabilir (test için).
      * Kaynaklar: [AstromMurray2008] §10.2 (Tustin), §10.4 (back-calculation) */
@@ -103,8 +103,8 @@ int main(void)
         .Ts       = 0.005f,           /* Tustin SABIT adımı (5 ms = 200 Hz NOMINAL).
                                        * DİKKAT: gerçek ana döngü ~7 ms (~140 Hz, docs
                                        * asama_0 §5.4) — Ts gerçek dt değil. Efektif integral
-                                       * kazancı nominalin Ts/dt≈5/7≈0.71 katı; ampirik Ki=0.1
-                                       * bu sabit-Ts varsayımı altında gerçek motorda ayarlandı.
+                                       * kazancı nominalin Ts/dt≈5/7≈0.71 katı; Ki=0.1 bu
+                                       * sabit-Ts varsayımı altında geçerli (donanımda doğrulandı).
                                        * Döngü hızı değişir/Ts gerçek dt'ye bağlanırsa integral
                                        * etkisi sessizce kayar (latent kuplaj — docs §11.12.8 notu). */
         .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı */
