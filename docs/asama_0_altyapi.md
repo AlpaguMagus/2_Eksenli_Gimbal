@@ -227,7 +227,7 @@ $$\theta_{fused}[k] = \underbrace{\alpha\,\big(\theta_{fused}[k-1] + \omega_{gyr
 
 ![Complementary filter blok diyagramı](../matlab/asama_0_altyapi/results/complementary_filter_blockdiagram.png)
 
-*Şekil 5.1 — Complementary filter ayrık blok diyagramı. Üst kol: gyro hızı entegre edilir ($\times\Delta t$) ve önceki füzyon çıktısıyla toplanıp $\alpha$ ile ölçeklenir (yüksek geçiren). Alt kol: ivmeölçer açısı $(1-\alpha)$ ile ölçeklenir (alçak geçiren). $z^{-1}$ bir örnek gecikmedir ($\theta_{fused}[k-1]$ geri besleme). Bu yapı [`00_genel_bakis.md`](00_genel_bakis.md) §2.8'deki ayrık-zaman ($z$) operatörünü kullanır.*
+**Şekil 5.1 —** Complementary filter ayrık blok diyagramı. Üst kol: gyro hızı entegre edilir ($\times\Delta t$) ve önceki füzyon çıktısıyla toplanıp $\alpha$ ile ölçeklenir (yüksek geçiren). Alt kol: ivmeölçer açısı $(1-\alpha)$ ile ölçeklenir (alçak geçiren). $z^{-1}$ bir örnek gecikmedir ($\theta_{fused}[k-1]$ geri besleme). Bu yapı [`00_genel_bakis.md`](00_genel_bakis.md) §2.8'deki ayrık-zaman ($z$) operatörünü kullanır.
 
 > 📊 **Üreten betik:** `matlab/asama_0_altyapi/create_filter_diagram.m`
 
@@ -273,7 +273,7 @@ $$\omega_{co} = \frac{0.02}{0.98 \times 0.05} = 0.41\ \text{rad/s} \approx 0.065
 
 ![Complementary filter frekans bölünmesi](../matlab/asama_0_altyapi/results/complementary_filter_bode.png)
 
-*Şekil 5.2 — Complementary filter frekans karakteristiği. Accel LPF (mavi) ve gyro HPF (kırmızı) kazançları $\omega_{co}=0.41$ rad/s'de kesişir; toplamları her frekansta 1'dir (tamamlayıcılık). Kesim, accel'in güvenilir olduğu düşük frekans ile gyro'nun güvenilir olduğu yüksek frekansı ayırır.*
+**Şekil 5.2 —** Complementary filter frekans karakteristiği. Accel LPF (mavi) ve gyro HPF (kırmızı) kazançları $\omega_{co}=0.41$ rad/s'de kesişir; toplamları her frekansta 1'dir (tamamlayıcılık). Kesim, accel'in güvenilir olduğu düşük frekans ile gyro'nun güvenilir olduğu yüksek frekansı ayırır.
 
 > 📊 **Üreten betik:** `matlab/asama_0_altyapi/create_filter_diagram.m`
 
@@ -291,7 +291,7 @@ Kesim frekansının *tam optimum* yeri, accel açı gürültüsü ile gyro enteg
 
 ![IMU gyro Allan deviation](../matlab/asama_0_altyapi/results/allan_deviation.png)
 
-*Şekil 5.3 — Gyro Allan deviation (log-log). Düşük τ'da eğim $-1/2$ (ARW bölgesi, kırmızı kesikli referans); τ_B≈324 s'de minimuma (bias instability) iner. Klasik MEMS gyro karakteristiği — gyro statik koşulda çok kararlı.*
+**Şekil 5.3 —** Gyro Allan deviation (log-log). Düşük τ'da eğim $-1/2$ (ARW bölgesi, kırmızı kesikli referans); τ_B≈324 s'de minimuma (bias instability) iner. Klasik MEMS gyro karakteristiği — gyro statik koşulda çok kararlı.
 
 > 📊 **Üreten betik:** `scripts/imu_noise_log.py` (veri) + `matlab/asama_0_altyapi/analyze_allan_variance.m` (analiz)
 
