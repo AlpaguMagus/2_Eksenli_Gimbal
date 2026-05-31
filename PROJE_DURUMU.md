@@ -30,7 +30,7 @@
 **Açık emniyet uyarısı:** 12V hattında donanım sigortası yok. Yazılım koruma katmanları (stall + lockout + duty cap %50 + soft-start + watchdog + LED + SpeedPI_Reset stall'da) aktif. Sigorta temin edilince duty cap gevşetilir.
 
 **Akademik çıktılar:**
-- Aşama 1: `matlab/asama_1_model/results/20260518_011926/` — 10 PNG + `motor_model_asama1.slx` + `motor_params.json` + `fit_report.md`
+- Aşama 1: `matlab/asama_1_model/results/20260518_011926/` — 10 PNG + `motor_model_asama1.slx` + `motor_params.json` + `fit_report.md` · `20260518_dogrulama/` (bağımsız 2. tanımlama — reproducibility, docs §10.5)
 - Aşama 2.1: `matlab/asama_2_kontrol/results/2_1_speed_pi/` — 3 PNG + `speed_loop_a2_1.slx` + `speed_pi_params.json` + `speed_pi_design_report.md`
-- Aşama 2.5-2.6.5: `results/2_5_cascade/` (position_p_design + realistic_cascade + cascade_block_diagram + cascade_simulink_step + `cascade_pos_a2_5.slx` + position_p_params) · `results/2_5_strategy/` (cascade vs PID karşılaştırma) · `results/2_3_realistic_sim/`; test `artifacts/2/position_step/20260524_212456/`
+- Aşama 2.5-2.6.5: `results/2_5_cascade/` (position_p_design + realistic_cascade + cascade_block_diagram + cascade_simulink_step + cascade_rootlocus + `cascade_pos_a2_5.slx` + position_p_params) · `results/2_3_realistic_sim/` (realistic_sim_verification); test `artifacts/2/position_step/20260524_212456/`. (Cascade vs direct-PID karşılaştırma scriptleri `sweep_position_strategy.m`/`design_position_direct_pid.m` korunur — eski `2_5_strategy/` çıktı dizini silindi, §11.13.)
 - Teknik belgeler: [`docs/asama_1_model.md`](docs/asama_1_model.md) (Aşama 1) + [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md) (Aşama 2, pozisyon cascade dahil)
