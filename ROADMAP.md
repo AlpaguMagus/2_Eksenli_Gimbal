@@ -28,7 +28,7 @@
 | Doküman | İçerik | Güncelleme tetiği |
 |---|---|---|
 | `README.md` | **Vitrin:** proje tanıtımı, mimari şema, hızlı başlangıç, repo + doküman haritası, "şu an neredeyiz" | Davranış/yapı değişikliği |
-| `docs/00_genel_bakis.md` | Vizyon, sistem mimarisi, aşamalar-arası ortak teori | Mimari değişikliği |
+| `docs/00_genel_bakis.md` | Vizyon + ortak kontrol teorisi primer'i (aşamalar-arası temel) | Vizyon/teori-primer değişikliği |
 | `docs/asama_<N>_*.md` | **Derin akademik içerik:** teori, türetme, tasarım gerekçesi, alternatifler, deney sonucu (ne/neden/nasıl/nerede/sonuç) | İlgili aşama ilerleyince |
 | `ROADMAP.md` (bu dosya) | Yol haritası, aşamalar, adımlar, testler, tamamlanma kanıtı | Her adım/aşama bitiminde |
 | `PROJE_DURUMU.md` | "Şu an neredeyiz?" 5-10 satır özet + ROADMAP linki | Aşama geçişlerinde |
@@ -123,7 +123,7 @@ V_eff = V_supply · duty − V_sat,   V_supply=12.15 V,  V_sat=0.5 V
 
 > Alt-aşama detayları (adımlar + testler) **her alt-aşama açılışında** sokratik tartışma sonrası eklenecek. Şu an iskelet:
 
-- **1.1 — Veri toplama altyapısı:** `scripts/step_response.py` Python tarafı (handshake_test.py temel alınarak). 6 duty × 2 yön = 12 step. 200 Hz örnekleme. Çıktı: `artifacts/1/step_response/<test_id>/raw/data.csv.gz` + meta.json + summary.md.
+- **1.1 — Veri toplama altyapısı:** `scripts/step_response.py` Python tarafı (handshake_test.py temel alınarak). 9 duty × 2 yön = 18 step (drive). USB telemetri ~36 Hz örnekleme (TX throttle 40 Hz nominal; gerçekleşen 4497 örnek / 126 s — aşağıdaki test tablosu). Çıktı: `artifacts/1/step_response/<test_id>/raw/data.csv.gz` + meta.json + summary.md.
 - **1.2 — Step bazlı 1. derece fit:** MATLAB'da her step için `tfest` veya `lsqcurvefit`. Her step → (K_i, τ_i, ω_ss_i).
 - **1.3 — Dead-band tespiti:** ω_ss vs V_eff lineer regresyon, x-intercept = V_dead. R6 (CW%20 değişkenliği) bu adımda nicelendirildi → V_dead ≈ 0, dead-band yok. (2026-05-18 stiction doğrulama testi ile bağımsız teyit edildi, R6 ölçüm artefaktı çıktı.)
 - **1.4 — CW/CCW simetri analizi:** K_cw vs K_ccw, V_dead_cw vs V_dead_ccw. Yön farkı kayıt altına alınır.
@@ -229,8 +229,9 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
     `i += (Ts/T_t)·(u_sat − u_unsat)` (`[AstromMurray2008] §10.2-§10.4`)
   - `include/cmd_parser.h` + `src/cmd_parser.c` — `MODE:DUTY`, `MODE:SP_W`,
     `SP_W:<float>` komutları + `CmdParser_GetMode()` accessor
-  - `src/main.c` — SpeedPI_Init (Kp=0.1163, Ki=4.0447, Ts=5ms, T_t=28.75ms),
-    SP_W modda her 200 Hz tick'te SpeedPI_Step → Motor_SetDir + Motor_SetDuty,
+  - `src/main.c` — SpeedPI_Init (2.2'de Kp=0.1163, Ki=4.0447, Ts=5ms, T_t=28.75ms
+    — **2.3'te ampirik Kp=0.002, Ki=0.1, T_t=20ms ile değiştirildi**; conservative
+    bang-bang verdi, bkz. §2.3 altında), SP_W modda her tick'te SpeedPI_Step,
     USB TX formatına `SP:` (setpoint) + `U:` (kontrol çıkışı) alanları
   - Stall event'inde SpeedPI_Reset (integrator wind-up önleme)
 
@@ -302,10 +303,10 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
 | # | Test | Beklenen | Durum |
 |---|---|---|---|
-| 2.T1 | Pole placement + pidtune kazançları | Gain margin ≥ 6 dB, phase margin ≥ 45° | ☐ |
+| 2.T1 | Kararlılık marjı (ampirik/çalışan kazanç) | Gain margin ≥ 6 dB, phase margin ≥ 45° | ✅ PASS — ampirik Kp=0.002 firmware plant'ta **PM=60.2°, GM=∞** (analitik PM~58° + `margin` doğrulama, %4 uyum). Conservative ωc=1259>Nyquist 628 → sim-to-real gap'in margin-düzeyi kanıtı. `docs §11.12.8` |
 | 2.T2 | Hız step response (firmware) | settling < 5τ, overshoot < %10, ss_error < %2 | ✅ PASS (Kp=0.002, 8/8 step temiz, ss_err çoğunlukla <%2, bang-bang yok. Settling/OS metrikleri düşük setpoint'te encoder kuantizasyonu ile sınırlı — `artifacts/2/speed_step/20260524_180610/`) |
-| 2.T3 | Anti-windup recovery | Saturation sonrası recovery < 100 ms | ☐ |
-| 2.T4 | Disturbance rejection | Yük sonrası setpoint'e dönüş | ✅ PASS — elle yük (7 müdahale), ω %82 düştü, PI duty 0.18→0.5 telafi, setpoint'e döndü. `artifacts/2/disturbance/20260524_192851/` (7 u piki grafiği). Recovery süresi metriği encoder kuantizasyonu ile sınırlı. |
+| 2.T3 | Anti-windup recovery | recovery iyileşmesi | ✅ **PASS (sim + gerçek)** — sim: anti-windup ON 235 vs OFF 715 ms (3× hızlı), integratör 32× az şişme. **Gerçek motor: 637 ms** (450→50 saturation, < sim OFF 715 → anti-windup aktif; sim ON'dan yavaşlık = sim-to-real gap, coast+kuantizasyon). `docs §11.12.9`, `artifacts/2/antiwindup/20260528_203803/` |
+| 2.T4 | Disturbance rejection | Yük sonrası setpoint'e dönüş | ✅ PASS — baseline 101 rad/s (=setpoint, PI sıfır ss-error), elle yük ω'yı 56'ya itti (%44 dip), PI duty 0.186→0.50 telafi, setpoint'e döndü. `artifacts/2/disturbance/20260524_192851/`. Recovery metriği encoder kuantizasyonu ile sınırlı. |
 | 2.T5 | Cascade pozisyon step | Overshoot < %10, ss_error < 1° | ✅ PASS — 6/6 segment (30/90/45/0/-45/0°), ss_err <0.8°, OS <1°, **limit-cycle yok** (θ_std <0.7°). Gerçekçi sim limit-cycle öngördü ama gerçek motor sürtünmesi söndürdü (sim kötümserdi). `artifacts/2/position_step/20260524_212456/` |
 | 2.T6 | Mirror takip (KRİTİK) | RMS < 5° | ✅ PASS — gimbal-hızı (~25-30°/s) RMS **4.68°** (Kp_pos=5), analitik Kv tasarımı Kp_pos=6→4.63° doğruladı. Hızlı el (~80°/s) bant-genişliği limiti (~10°, beklenen). `artifacts/2/mirror/20260526_204240/` |
 

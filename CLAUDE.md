@@ -9,7 +9,7 @@ Proje çok-belgeli bir ekosistemle ilerler. **Her belge tek bir soruyu, tek bir 
 | Belge | Rol / cevapladığı soru | Güncelleme tetiği |
 |---|---|---|
 | `README.md` | **Vitrin** — proje tanıtımı, mimari şema, hızlı başlangıç, repo + doküman haritası, "şu an neredeyiz" | Davranış/yapı/aşama-durum değişikliği |
-| `docs/00_genel_bakis.md` | Vizyon, sistem mimarisi, aşamalar-arası ortak teori | Mimari/vizyon değişikliği |
+| `docs/00_genel_bakis.md` | Vizyon + **ortak kontrol teorisi primer'i** (aşamalar-arası temel: transfer fn, kararlılık, Bode, tip sistem) | Vizyon/teori-primer değişikliği |
 | `docs/asama_<N>_*.md` | **Derin akademik içerik** (ders-kitabı): kavram + neden + nasıl + nerede + sonuç | İlgili aşama ilerleyince |
 | `ROADMAP.md` | Plan, aşamalar, test iskeleti, açık sorular, tamamlanma kanıtı | Her adım/aşama bitiminde |
 | `PROJE_DURUMU.md` | "Şu an neredeyiz" 5-10 satır özet | Aşama/alt-aşama geçişinde |
@@ -35,6 +35,42 @@ Her aşama belgesi, her bileşen (donanım, algoritma, kontrolcü, filter) için
 
 Ek olarak: kaynaklı **tartışma / öğrenilen dersler** bölümü ve **açık konular**. Her teknik karar `KAYNAKCA.md` etiketli.
 
+#### Matematiksel & görsel gösterim zorunlulukları (ders-kitabı kalitesi)
+
+Hedef: **üniversiteye yeni başlayan biri belgeyi adım adım — denklem, blok diyagram, grafik — takip ederek anlayabilmeli.** Her sistem ve her kontrolcü için:
+
+1. **Blok diyagram (zorunlu):** Her sistem (açık-çevrim/kontrolcüsüz dahil) ve her kontrolcü için blok diyagram embed edilir. Üretim: **MATLAB programatik PNG** (`create_*_diagram*.m`, `results/<konu>/`'ya, git'e girer) — tutarlı tez-tarzı stil (toplama noktası $\Sigma$, transfer-fonksiyon blokları, geri besleme okları). Açık-çevrim sistemin kontrolcüsüz blok diyagramı + denklemi mutlaka bulunur.
+2. **Denklemler LaTeX (zorunlu):** Tüm matematiksel ifadeler GitHub `$...$` (satır içi) / `$$...$$` (blok) ile yazılır — ASCII/kod bloğunda denklem bırakılmaz. MATLAB LaTeX'i `\dfrac`/`\c{c}`/`\"o` desteklemez → figür içi metin İngilizce+`\frac`, Türkçe anlatım markdown caption'da.
+3. **Grafik çıktıları + üretim notu (zorunlu):** İlgili sonuç görselleri (step, Bode, kutup haritası, kazanç taraması, test sonucu) embed + Türkçe caption ile yorumlanır. **Her embed'in altına onu üreten betik tam yoluyla not düşülür:** `> 📊 **Üreten betik:** \`matlab/.../script.m\`` (veya `scripts/test.py`). Sebep: izlenebilirlik — bir grafiği yeniden üretmek/güncellemek isteyen okuyucu betiği anında bulur.
+4. **MATLAB fonksiyon prensibi (zorunlu):** Kullanılan her toolbox fonksiyonu (`lsqcurvefit`, `tfest`, `pidtune`, `bode`, `margin`, `lsim`, `step`…) için *ne yaptığı + hangi algoritma/prensiple* açıklanır — "şu fonksiyonu çağırdık" yetersizdir.
+5. **Kavram katmanı:** Ortak kontrol teorisi kavramları (transfer fn, Laplace, kutup/kararlılık, Bode/PM/GM, tip sistem, Tustin) **bir kez** [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md) "Ortak Kontrol Teorisi Primer'i"nde anlatılır; aşama belgeleri tekrar etmez, **oraya atıf verir** ve kavramı kendi sistemine uygular.
+
+> `docs/00_genel_bakis.md` = **aşamalar-arası ortak teori primer'i** (üniversite 1. sınıf seviyesi), donanım mimarisi DEĞİL (o README vitrinindedir). Yeni aşama açılırken bu disiplin baştan uygulanır (sonradan eklemek yerine).
+
+##### ⚠ LaTeX & MATLAB figür tuzakları (öğrenilen dersler — render bozulmasını önler)
+
+Bu tuzaklar gerçek hatalara yol açtı; denklem/figür yazarken baştan uygula (kapanışta `/asama-kapat` mekanik tarar):
+
+**GitHub/KaTeX inline+blok math (`$...$`, `$$...$$`):**
+- Kapanış `$` **öncesinde** ve açılış `$` **sonrasında boşluk OLAMAZ.** `$E = R - $` ❌ → GitHub `$`'i kapanış saymaz, **satırdaki sonraki tüm math bozulur** → `$E = R - Y$` ✅
+- Bir satırda tek-`$` sayısı **dengeli (çift)** olmalı; dengesiz tek `$` o satırı bozar.
+- Blok `$$...$$` ayrı satırda, öncesi/sonrası **boş satır** ile.
+- **`\operatorname` ❌ GitHub'da YASAK** ("macros not allowed: operatorname") → `\text{atan2}` veya `\mathrm{}`. (Geçmiş hata: `\!\left`'i `\operatorname`'le "düzelttim", yeni hata soktum.)
+- **`\left\{ ... \right\}` ❌** → GitHub markdown `$$` bloğunda `\{`'yi `{`'ye çevirir → `\left{` → "Missing delimiter". Çözüm: `\left\lbrace ... \right\rbrace` (backslash-harf markdown'dan geçer). Aynısı `\{`/`\}` için her yerde.
+- **`\text{...}` içinde Türkçe aksan (ç,ğ,ı,ö,ş,ü) veya em-dash (—) ❌** → KaTeX render edemez (eksik/bozuk glyph). `\text{count}` ✅, açıklamayı markdown caption'a koy. Subscript'lerde de aynı (`\text{meas}`, `\text{ölç}` değil).
+- **`%` veya `\%` math (`$...$`/`$$...$$`) içinde ❌** → markdown `\%`'deki backslash'ı yer → bare `%` → KaTeX'te **yorum karakteri** → denklemin geri kalanını + kapanışı yutar, kırar (`\{` ile aynı mekanizma). `\times 100\%` ❌ → `\times 100` yaz, "yüzde/%" kelimesini **markdown metninde** belirt. (Geçmiş hata: $M_p$ ve NRMSE denklemleri `\times 100\%` ile kırılmıştı.)
+- **`$...$` math HERHANGİ emphasis (`*italic*`, `**bold**`, `_italic_`) İÇİNDE ❌** → GitHub emphasis'i render eder ama içindeki `$math$` **HAM** kalır (dolar işaretleri görünür). Şekil caption'ları (`*Şekil N — ... $x$ ...*`) ve `**etiket $x$:**` kalıpları bu yüzden bozulur. ✅ Çözüm: math'i emphasis **dışına** al — caption'lar `**Şekil N —** düz metin $x$` (bold sadece etikette), `**P ($K_p$):**` → `**P** ($K_p$):`. Tespit grep ile güvenilmez (iki ayrı span arası düz metni "içeride" sanır) → `/asama-kapat` §7b (g7) tokenize ile tarar. (Geçmiş hata: tüm Şekil caption'ları italic+math'ti, math render olmuyordu — tek tek `$` düzeltmeleri bu sınıfı kaçırdı.)
+- `°` (degree) KaTeX'te çalışır ama tutarlılık için `^\circ` tercih edilebilir (zorunlu değil).
+
+**MATLAB LaTeX yorumlayıcısı (figür içi `text/title`, `Interpreter','latex'`):**
+- `\dfrac` ❌ → `\frac` ✅ ; `\c{c}`, `\"o`, `\S`, `\emph` ❌ (Türkçe aksan/komut desteklenmez) → figür metni **İngilizce + LaTeX matematik**, Türkçe anlatım markdown caption'da.
+- `\!\left(` ❌ ("Missing/unrecognized delimiter") → `\left(` (sadece `\!`'i kaldır) ; `\left` ↔ `\right` daima eşleşir.
+- `_` içeren etiketi `\text{}` içinde escape et (`fused\_pitch`) ya da hiç kullanma.
+
+**MATLAB figür teması (ders-kitabı görseli):**
+- Session dark tema olabilir → script başında `set(groot,'defaultAxesColor','w','defaultAxesXColor','k','defaultAxesYColor','k','defaultTextColor','k')` ile **beyaz zemin zorla**.
+- `exportgraphics(f, ..., 'Resolution',150)`; üretilen PNG `results/<konu>/`'ya (git'e girer); blok diyagram helper'ları (`draw_block`/`draw_sum`/`draw_arrow`) tutarlı stil için yeniden kullan.
+
 ### Aşama kapanışında (her aşama: 1, 2, 3, …)
 
 İlgili `docs/asama_<N>_*.md` **kalıcı sonuç bölümüyle** güncellenir (özet + sayısal tablo + görsel embed + kaynaklı tartışma + açık konular). Ayrıca senkronize edilir:
@@ -51,6 +87,16 @@ Ek olarak: kaynaklı **tartışma / öğrenilen dersler** bölümü ve **açık 
 - Yalnızca kod düzeltmesi / refactor / yorum değişikliği → belge dokunulmaz
 - Görsel/dosya **taşınırsa** belgelerdeki linkler de güncellenir (path tutarlılığı — kırık link bırakma)
 - Kullanıcı söylemeden de yap; **commit ile birlikte** güncellensin
+
+#### İzlenebilirlik kod yorumlarını da kapsar + stale-sayı senkronu
+
+İzlenebilirlik (Kaynaklı ilerleme + Analitik-önce) yalnızca docs'u değil **firmware kod yorumlarını da** kapsar:
+
+- Bir **tasarım değeri** (kazanç, eşik, ω_n, T_t, kök konumu) docs'ta düzeltilince, o değere atıf veren **firmware yorumu** (`src/`, `include/`) da aynı commit'te güncellenir. (Geçmiş hata: docs iç ω_n 9.4→33 düzeltti ama `position_p.h`/`main.c` yorumları 9.4'te kaldı.)
+- **Terk edilen/eski değer** (örn. conservative kazanç, ilk analitik tahmin, kâğıt-üzeri seçim) docs/kodda **niteleyicisiz** bırakılmaz — "eski/terk edilen/ilk tahmin/conservative/§X'te değiştirildi" işareti taşır, yoksa okuyucu *güncel* sanır. (Geçmiş hata: §11.5 JSON `firmware_selected: conservative` derken firmware ampiriği kullanıyordu; §11.6 `T_t=28.75 ms` terk edilen kazançtandı.)
+- **Otomatik üretilen metrikler** (test artifact `summary`/`meta`) teoriyle çelişiyorsa (örn. integral kontrolde `baseline ≠ setpoint`, fizik-dışı değer) **pencere/hesap artefaktı** olabilir — ham veriyle el-doğrula, düzelt ve ham metrikleri sakla. (Geçmiş hata: disturbance baseline 86.9 — slew ramp-up'ı pencereye katmıştı; gerçek 101 = setpoint.)
+
+> Bu kontroller `/asama-kapat` §7c'de mekanik tarama (kod-yorum ↔ docs sabit çapraz-kontrolü + niteleyicisiz terk-edilen değer + otomatik-metrik akıl-süzgeci) olarak yürütülür.
 
 ## Donanım çalışmalarında datasheet'i incele
 
@@ -206,6 +252,30 @@ Algoritma seçimi, parametre değeri, kontrolcü tasarımı, fit yöntemi, model
 **Onaylanan alternatif:** *"Denenmemiş varsayım — `Test 1.3` ile doğrulanacak."* (kaynak yoksa açıkça "varsayım" işareti)
 
 `KAYNAKCA.md` sınıflandırılmış Markdown: sistem tanımlama, klasik kontrol, optimal kontrol, state estimation, MIMO, donanım, yazılım. BibTeX/LaTeX kullanılmaz (gerekirse sonra dönüşüm).
+
+## Analitik-Önce Tasarım Prensibi (toolbox referans, deneme-yanılma yasak)
+
+**Her tasarım kararı (kontrolcü kazancı, kök yerleştirme, eşik, filtre katsayısı, gözlemci kazancı) önce mühendislik bakış açısıyla — analitik veya optimal el-hesabıyla — çözülür.** Hazır toolbox fonksiyonu birincil tasarım aracı DEĞİL.
+
+### Sıralama (her aşamada uygulanır)
+
+1. **Analitik / optimal çözüm (birincil):** Karakteristik denklemi yaz, kökleri tayin et (pole placement / root locus), transfer fonksiyonunu türet, optimizasyon problemini kur (LQR → Riccati, en küçük kareler → normal denklemler). Kapalı-çevrim kutuplarının *nereye* ve *neden* gittiğini göster. Sonuç bir **formül/türetme** olmalı, bir buton çıktısı değil.
+2. **Toolbox = doğrulama/referans (ikincil):** `pidtune`, `rlocus`, `place`, `lqr`, `margin` vb. analitik sonucu **doğrulamak veya karşılaştırmak** için kullanılır — *"elle hesapladım X, toolbox Y dedi, %Z uyum"*. Toolbox'ın *neyi hangi prensiple* yaptığı da açıklanır (kara kutu bırakılmaz).
+3. **Analitik yetmezse → gerekçeli numerik/toolbox:** Problem analitik olarak çözülemiyorsa (yüksek mertebe, nonlineer, MIMO kuplaj) veya analitik çözüm performans sağlamıyorsa, toolbox/numerik yönteme geçilir — **ama neden analitiğin yetmediği açıkça yazılır.**
+
+### Yasaklar ve onaylananlar
+
+- ❌ **Deneme-yanılma:** Kazancı elle çevirip ("KPP 2→4→5") "iyi göründü" demek yasak. (Geçmiş hata: mirror Kp_pos deneme-yanılmayla arandı → kullanıcı eleştirdi → Kv hız hata sabitiyle analitik yeniden türetildi.)
+- ❌ **Toolbox-önce:** Önce `pidtune` çağırıp sonucu kabul etmek. pidtune ancak analitik tasarımın *yanında* karşılaştırma olarak durur.
+- ✅ **Analitik + kaynak + toolbox doğrulama:** *"Karakteristik denklem $\tau s^2+(1+KK_p)s+KK_i$'yi $\zeta=1,\omega_n=60$ ile eşitleyip $K_p,K_i$ türettim `[Franklin2010] §6.4`; `pidtune` ile karşılaştırdım (tabloda)."*
+
+### Bu projede uygulanmış örnekler
+
+- Hız PI: pole placement (karakteristik denklem → $K_p,K_i$ formülü), `pidtune` referans karşılaştırma. ✅
+- Mirror $K_{p,pos}$: tip-1 hız hata sabiti $K_v=\omega_{in}/e_{ss}$ analitik, deney doğrular. ✅
+- Cascade dış döngü: root locus + kapalı-çevrim kutup analizi (analitik karakteristik denklem, `rlocus` doğrulama). ✅
+
+> Bu prensip mevcut **Kaynaklı ilerleme** (§ yukarı) ve **Sokratik rehber** (§ aşağı) ile birlikte uygulanır: analitik çöz + kaynakla + alternatifleri tart.
 
 ## Sokratik rehber rolü (kontrol/gömülü/robotik mühendisi)
 

@@ -12,8 +12,10 @@
  *            └──────────────── pozisyon geri besleme ───────────┘
  *
  * Tasarım: matlab/asama_2_kontrol/design_position_p.m
- *   Kp_pos = 2.0 [1/s], dış döngü ω_c ≈ 1.93 rad/s (iç döngü ω_n=9.4'ten 5×
- *   yavaş — cascade kuralı [Franklin2010] §6.4). PM 69.7°, GM 23 dB.
+ *   Kp_pos = 2.0 [1/s], dış döngü ω_c ≈ 1.93 rad/s — cascade kuralı gereği
+ *   iç döngüden ~5× yavaş [Franklin2010] §6.4. PM 69.7°, GM 23 dB.
+ *   (NOT: ilk analitik tahmin iç ω_n≈9.4 idi; Vsupply dahil gerçek iç ω_n≈33
+ *    — root locus doğrulaması, docs §11.13.2b → ayrım ~16×, daha da güvenli.)
  *   Tip-1 sistem (plant'te entegratör) → P kontrolcü ile ss_error=0
  *   ([Franklin2010] §4.3), PI gereksiz (wind-up riski yok).
  *

@@ -7,9 +7,12 @@
  * Hız iç döngü PI kontrolcü (Aşama 2.2)
  *
  * Tustin (bilinear) z-dönüşümü ile discrete-time ayrıştırma + back-calculation
- * anti-windup. Aşama 2.1 MATLAB tasarımının firmware karşılığı:
- *   matlab/asama_2_kontrol/results/a2_1_20260518_071843/speed_pi_params.json
- *   pole_placement_conservative — Kp=0.1163, Ki=4.0447, ζ=1.0, ω_n=60 rad/s
+ * anti-windup.
+ *   ÇALIŞAN (deployed) kazanç: Kp=0.002, Ki=0.1 — AMPIRIK (Aşama 2.3, docs §11.12.3).
+ *     main.c'de yüklenen değer budur; SpeedPI_SetGains ile runtime ayarlanabilir.
+ *   Orijinal 2.1 tasarımı (REFERANS, KULLANILMIYOR): pole_placement_conservative
+ *     Kp=0.1163, Ki=4.0447, ζ=1.0, ω_n=60 rad/s — gerçek motorda bang-bang verdi,
+ *     2.3'te ampirik ile değiştirildi. matlab/asama_2_kontrol/results/2_1_speed_pi/
  *
  * Model: Aşama 1 motor parametreleri
  *   G(s) = K / (τs + 1),  K=53.89 rad/s/V, τ=60.5 ms
@@ -33,7 +36,8 @@
 typedef struct {
     float Kp;
     float Ki;
-    float Ts;        /* örnekleme süresi (s) — 0.005 (200 Hz) */
+    float Ts;        /* Tustin SABIT adımı (s) — 0.005 (5 ms = 200 Hz nominal).
+                      * Gerçek döngü ~7 ms/~140 Hz → efektif Ki ~0.71×; bkz main.c:101 notu */
     float duty_max;  /* saturation (0.50 = MOTOR_MAX_DUTY) */
     float T_t;       /* anti-windup tracking time (s) — tipik Kp/Ki */
 } SpeedPI_Config;

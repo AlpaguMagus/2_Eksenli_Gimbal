@@ -16,3 +16,7 @@ Yusufun anlatacakları/
 
 # Editor lock dosyaları
 .~lock.*#
+
+# Python
+__pycache__/
+*.pyc

@@ -98,7 +98,13 @@ int main(void)
     static const SpeedPI_Config SPEED_PI_CFG = {
         .Kp       = 0.002f,           /* ampirik (2.3); 2.1 conservative çok yüksekti */
         .Ki       = 0.1f,
-        .Ts       = 0.005f,           /* 200 Hz fixed sample */
+        .Ts       = 0.005f,           /* Tustin SABIT adımı (5 ms = 200 Hz NOMINAL).
+                                       * DİKKAT: gerçek ana döngü ~7 ms (~140 Hz, docs
+                                       * asama_0 §5.4) — Ts gerçek dt değil. Efektif integral
+                                       * kazancı nominalin Ts/dt≈5/7≈0.71 katı; ampirik Ki=0.1
+                                       * bu sabit-Ts varsayımı altında gerçek motorda ayarlandı.
+                                       * Döngü hızı değişir/Ts gerçek dt'ye bağlanırsa integral
+                                       * etkisi sessizce kayar (latent kuplaj — docs §11.12.8 notu). */
         .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı */
         .T_t      = 0.02f             /* Kp/Ki — Aström-Murray T_t = T_i */
     };
@@ -106,7 +112,8 @@ int main(void)
 
     /* Pozisyon dış döngü P kontrolcü (Aşama 2.5 — cascade).
      * Kp_pos=2.0 [1/s]: matlab/asama_2_kontrol/design_position_p.m
-     *   dış döngü ω_c≈1.93 rad/s = iç döngü ω_n 9.4'ten 5× yavaş [Franklin2010 §6.4]
+     *   dış döngü ω_c≈1.93 rad/s, cascade kuralı gereği iç döngüden ~5× yavaş [Franklin2010 §6.4]
+     *   (ilk tahmin iç ω_n≈9.4; Vsupply dahil gerçek ω_n≈33 → ayrım ~16×, docs §11.13.2b)
      *   PM 69.7°, tip-1 → P ile ss_error=0 [Franklin2010 §4.3]
      * Gerçekçi sim (verify_realistic_cascade.m): ss_err %1.75, OS %12.5.
      *   ⚠ simde küçük limit-cycle (iç hız döngüsü düşük hızda kuant. kör) —
@@ -177,7 +184,7 @@ int main(void)
         bool key_pressed = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET);
         Motor_DebugInjectFakeStall(key_pressed);
 
-        /* Stall detection — her iterasyonda (200 Hz) */
+        /* Stall detection — her iterasyonda (~140 Hz, döngü ~7 ms) */
         Motor_StallCheck(enc_speed);
 
         /* Watchdog — 1 sn boyunca komut yoksa Motor_Stop. Edge'de USB CDC'ye

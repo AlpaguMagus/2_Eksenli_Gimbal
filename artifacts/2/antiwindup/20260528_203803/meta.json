@@ -1,0 +1,23 @@
+{
+  "test_id": "20260528_203803",
+  "title": "Anti-windup recovery (Test 2.T3, gerçek motor)",
+  "timestamp": "2026-05-28T20:38:09",
+  "commit": "e2528e2",
+  "status": "PASS",
+  "gains": {
+    "Kp": 0.002,
+    "Ki": 0.1,
+    "slew": 1000
+  },
+  "result": {
+    "sp_high": 450,
+    "sp_low": 50,
+    "omega_high_plateau": 274.3,
+    "recovery_ms": 637,
+    "sim_on_ms": 235,
+    "sim_off_ms": 715
+  },
+  "artifacts": [
+    "data.csv"
+  ]
+}

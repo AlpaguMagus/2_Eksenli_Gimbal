@@ -17,6 +17,12 @@
 
 clear; close all; clc;
 
+% Beyaz tema zorla — dark MATLAB session'da axes panelleri siyah kalıyordu
+% (figure 'Color','w' yetmiyor; axes/text de zorlanmalı). CLAUDE.md figür disiplini.
+set(groot,'defaultFigureColor','w','defaultAxesColor','w', ...
+    'defaultAxesXColor','k','defaultAxesYColor','k','defaultTextColor','k', ...
+    'defaultAxesGridColor',[0.15 0.15 0.15]);
+
 % ── Plant parametreleri (Aşama 1) ─────────────────────────────────
 K       = 53.89;     % rad/s/V
 tau     = 0.0605;    % s
@@ -116,7 +122,7 @@ for g = 1:numel(gains)
     yline(SP, 'r:');
     grid on; xlabel('t (s)'); ylabel('\omega (rad/s)');
     title(sprintf('%s — Kp=%.4f, Ki=%.3f', gains(g).name, Kp, Ki));
-    legend('\omega','setpoint(slew)','Location','best');
+    lg = legend('\omega','setpoint(slew)','Location','best'); set(lg,'Color','w','TextColor','k');
     ylim([-300 300]);
 
     subplot(2,2,g+2);
@@ -127,7 +133,7 @@ for g = 1:numel(gains)
     ylim([-0.6 0.6]);
 end
 
-sgtitle('Aşama 2.3→2b: Gerçekçi model (kuantizasyon+filtre+saturation) — sim-to-real doğrulama');
+sgtitle('Aşama 2.3→2b: Gerçekçi model (kuantizasyon+filtre+saturation) — sim-to-real doğrulama','Color','k');
 out = fullfile(fileparts(mfilename('fullpath')), 'results', '2_3_realistic_sim');
 if ~exist(out,'dir'), mkdir(out); end
 exportgraphics(gcf, fullfile(out, 'realistic_sim_verification.png'), 'Resolution', 150);

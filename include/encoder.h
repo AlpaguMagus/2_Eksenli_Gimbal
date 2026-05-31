@@ -39,7 +39,10 @@ float   Encoder_GetSpeed(float dt_sec);  /* MOTOR ŞAFTI rad/s (ham). Çıkış 
  *   mean(son N ham hız) hem efektif çözünürlüğü N× artırır (B: pencere),
  *   hem yüksek frekans gürültüyü bastırır (A: filtre).
  *   WINDOW=5 → efektif çözünürlük 18.7/5 ≈ 3.74 rad/s, gecikme ~(N-1)/2·Δt ≈ 14 ms.
- * Kontrolcü faz marjına etkisi: PM 80.8° → ~58° (hâlâ >45° güvenli).
+ * Kontrolcü faz marjına etkisi (ÇALIŞAN ampirik döngü Kp=0.002):
+ *   MA-hariç PM≈60° (docs §11.12.8); MA grup gecikmesi ~14 ms (döngü ~7 ms) ωc≈34 rad/s'te
+ *   ~28° faz kaybı → MA-dahil PM≈33° (kararlı, spec ≥45°'nin marjinal altında, docs §11.12.8).
+ *   [Eski conservative Kp=0.1163 PM=80.8° KULLANILMIYOR — ωc=1259'da MA fazı zaten battırır.]
  * Ham Encoder_GetSpeed korunur (Aşama 1 reproducibility + stall check için). */
 #define ENCODER_SPEED_WINDOW  5
 float   Encoder_FilterSpeed(float raw_speed_radps);  /* moving average, SP_W PI girişi */

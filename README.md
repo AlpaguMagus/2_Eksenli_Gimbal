@@ -15,7 +15,7 @@
 |---|---|---|
 | **0 — Altyapı** | ✅ KAPALI | Donanım + firmware + IMU füzyonu + USB CDC + koruma katmanları |
 | **1 — Sistem Tanımlama** | ✅ KAPALI | `K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0` — model NRMSE %11 (Test 1.T5 PASS) |
-| **2 — Tek Motor Kontrol** | ✅ KAPALI | Hız PI + sim-to-real gap + disturbance + pozisyon cascade + IMU mirror — **tüm testler PASS** (2.T2/T4/T5/T6) |
+| **2 — Tek Motor Kontrol** | ✅ KAPALI | Hız PI + sim-to-real gap + disturbance + pozisyon cascade + IMU mirror — **2.T1–T6 tüm testler PASS** (anti-windup sim+gerçek 637ms) |
 | 3 — MIMO Model | ⬜ | İki motor + decoupling |
 | 4 — MIMO Kontrol | ⬜ | LQR/LQG + Kalman |
 | 5 — Gerçek Gimbal | ⬜ | 3D-baskı + stabilizasyon |
@@ -31,7 +31,7 @@ Her belge tek bir soruyu, tek bir okuyucu kitlesine cevaplar:
 | Belge | Cevapladığı soru | Okuyucu |
 |---|---|---|
 | **README.md** (bu dosya) | Proje ne, nasıl çalıştırılır, nereye bakılır? | İlk gelen / GitHub |
-| [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md) | Vizyon, sistem mimarisi, aşamalar-arası ortak temel? | Jüri / geliştirici |
+| [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md) | Vizyon + **ortak kontrol teorisi primer'i** (transfer fn, kararlılık, Bode, tip sistem)? | Jüri / yeni başlayan |
 | [`docs/asama_0_altyapi.md`](docs/asama_0_altyapi.md) | Donanım, firmware, IMU füzyonu, USB, motor/encoder **nasıl** kuruldu? | Geliştirici |
 | [`docs/asama_1_model.md`](docs/asama_1_model.md) | Motor modeli (K, τ) **nasıl/neden** çıkarıldı, **sonuç** ne? | Jüri (akademik) |
 | [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md) | Kontrolcü **neden** öyle tasarlandı, **alternatifler**, **sonuç**? | Jüri (akademik) |
@@ -82,7 +82,7 @@ Her belge tek bir soruyu, tek bir okuyucu kitlesine cevaplar:
                     └───────────────────────┘
 ```
 
-**Bare-metal süper-loop:** RTOS yok. Ana döngü `sensör oku → filtrele → kontrol → USB I/O → tekrarla` (~200 Hz). Düşük gecikme, deterministik zamanlama. Mimari detay → [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md).
+**Bare-metal süper-loop:** RTOS yok. Ana döngü `sensör oku → filtrele → kontrol → USB I/O → tekrarla` (ölçülen ~140 Hz / ~7 ms; DWT ile). Düşük gecikme, deterministik zamanlama. Mimari detay → [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md).
 
 ---
 
@@ -127,7 +127,7 @@ Komut seti detayı → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md).
 2_Eksenli_Gimbal/
 ├── README.md                 ← Bu dosya (vitrin)
 ├── docs/                     ← Aşama-bazlı teknik/akademik belgeler
-│   ├── 00_genel_bakis.md     ← Vizyon, sistem mimarisi, ortak teori
+│   ├── 00_genel_bakis.md     ← Vizyon + ortak kontrol teorisi primer'i (denklem/diyagram)
 │   ├── asama_0_altyapi.md    ← Donanım, firmware, IMU, filter, USB, motor/encoder
 │   ├── asama_1_model.md      ← Sistem tanımlama (K, τ, dead-band)
 │   └── asama_2_kontrol.md    ← Hız PI, sim-to-real, disturbance, pozisyon cascade

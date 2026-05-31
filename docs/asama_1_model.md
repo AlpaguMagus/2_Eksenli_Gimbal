@@ -17,12 +17,31 @@ Step response deneyleriyle (18 step: 9 duty × CW/CCW) DC motorun birinci-derece
 
 **Sistem tanımlama** (`[Ljung1999] §1, §3`), bir fiziksel sistemin **giriş-çıkış verisinden** matematiksel modelini çıkarma sürecidir. Bizim sistemimiz: PWM duty komutu → motor şaft hızı (rad/s). Bu adımda Pololu 25D motor + TB6612 sürücü kombinasyonunun **transfer fonksiyonu** çıkarıldı.
 
+> **Ön bilgi:** Transfer fonksiyonu, Laplace dönüşümü, kutup ve 1. derece sistem kavramları → [`00_genel_bakis.md`](00_genel_bakis.md) §2.1–§2.3. Bu belge o temeli motora uygular.
+
+Modellediğimiz sistem **açık çevrimdir** (henüz kontrolcü yok): duty komutu motoru sürer, çıkış serbestçe oturur. Sürücü, duty'yi efektif gerilime çevirir ($V_{eff}=V_s\,u - V_{sat}$); plant ise bu gerilimi şaft hızına dönüştürür:
+
+![Açık-çevrim motor modeli — kontrolcüsüz sistem blok diyagramı](../matlab/asama_1_model/results/20260518_011926/11_block_diagram_openloop.png)
+
+**Şekil 10.0 —** Açık-çevrim (kontrolcüsüz) motor modeli. Sürücü bloğu duty $u\in[-1,1]$'i efektif gerilime çevirir; plant $G(s)$ birinci derece dinamiktir. Aşama 1'in görevi $K$ ve $\tau$'yu deneysel olarak bulmaktır. Bu sistem Aşama 2'de bir kontrolcü ($C(s)$) ile geri-besleme döngüsüne sokulacaktır ([`00_genel_bakis.md`](00_genel_bakis.md) Şekil 1).
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/create_block_diagram.m`
+
+Birinci derece motor transfer fonksiyonu (sürücü kazancı dahil edilmeden, saf plant):
+
+$$G(s) = \frac{\Omega(s)}{V_{eff}(s)} = \frac{K}{\tau s + 1}$$
+
+Burada $K$ DC kazanç (girdiğimiz gerilime karşılık oturan hız), $\tau$ ise zaman sabitidir (sistemin ne kadar hızlı oturduğu). Tek kutbu $s=-1/\tau$ sol yarı düzlemdedir → açık çevrimde kararlı (§10.7, Şekil 10.x kutup haritası).
+
 ### 10.2. Neden — Niçin Önce Modelleme?
 
-Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §6.4`) yapacaksak, motorun K (DC kazanç) ve τ (zaman sabiti) değerlerini bilmemiz gerekir:
-- **τ_cl = τ_ol / 5** kuralı (cascade) için τ_ol şart
-- **Kp = (τ · ω_n²) / K** formülü için K şart
-- Kazanç bilmeden kontrolcü = deneme-yanılma = akademik olmayan yaklaşım
+Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §6.4`) yapacaksak, motorun $K$ (DC kazanç) ve $\tau$ (zaman sabiti) değerlerini bilmemiz gerekir. Hız PI kazançları, kapalı-çevrim karakteristik denklemini istenen $(\zeta,\omega_n)$ ile eşitleyerek **analitik** türetilir (tam türetme → [`asama_2_kontrol.md`](../docs/asama_2_kontrol.md) §11.2):
+
+$$K_p = \frac{2\zeta\omega_n\tau - 1}{K}, \qquad K_i = \frac{\omega_n^2\,\tau}{K}$$
+
+- Bu iki formül de doğrudan $K$ ve $\tau$'ya bağlı → model olmadan kazanç hesaplanamaz.
+- Cascade'de (Aşama 2.5) ayrıca **iç döngü dış döngüden ~5× daha hızlı** seçilir (`[Franklin2010] §6.4`); bu da iç döngünün $\tau$/bant genişliğini bilmeyi gerektirir.
+- Kazanç bilmeden kontrolcü = deneme-yanılma = akademik olmayan yaklaşım.
 
 ### 10.3. Nasıl — Yöntem
 
@@ -32,22 +51,43 @@ Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §
 - 4497 örnek, 36 segment, gzip'li CSV → `artifacts/1/step_response/<id>/raw/data.csv.gz`
 
 **Adım 2 — Step bazlı fit** (`fit_first_order.m`):
-- **Model:** `ω(t) = ω_ss · (1 − e^(−(t−t0)/τ))`
-- **Yöntem A:** `lsqcurvefit` (Optimization Toolbox, `[Soderstrom1989] §4`)
-- **Yöntem B:** `tfest` + iddata (System Identification Toolbox, `[Ljung1999] §4`)
-- Her step için ikisini de koştur, daha düşük NRMSE veren seçilir → 16/18 step'te lsqcurve
+
+Birinci derece sistemin step yanıtı (§10.1'deki $G(s)$'in zaman domeni karşılığı):
+
+$$\omega(t) = \omega_{ss}\left(1 - e^{-(t-t_0)/\tau}\right)$$
+
+Bu eğriyi her step'in ölçülen verisine **uydurarak** (curve fitting) $\omega_{ss}$ ve $\tau$ bulunur. İki bağımsız yöntem koşturulur ve daha iyi uyanı seçilir:
+
+- **Yöntem A — `lsqcurvefit`** (Optimization Toolbox, `[Soderstrom1989] §4`): Parametreleri ($\omega_{ss}, \tau, t_0$), model ile ölçüm arasındaki **kareler toplamını minimize** ederek bulan bir optimizasyon çözücüsüdür:
+
+$$\min_{\theta}\ \sum_{k}\big(\omega_{\text{model}}(t_k;\theta) - \omega_{\text{meas}}(t_k)\big)^2,\qquad \theta=[\omega_{ss},\tau,t_0]$$
+
+  **Çalışma prensibi:** Levenberg-Marquardt algoritması — gradyan inişi (uzaktayken güvenli) ile Gauss-Newton'u (yakınken hızlı) harmanlar. Başlangıç tahmininden başlayıp her iterasyonda hatayı azaltan yöne adım atar, yakınsayınca durur. Model denklemi açıkça bizim elimizde olduğu için **şeffaftır**.
+
+- **Yöntem B — `tfest`** (System Identification Toolbox, `[Ljung1999] §4`): Veriden doğrudan transfer fonksiyonu kestirir (1 kutup, 0 sıfır istenir). **Çalışma prensibi:** prediction-error method (PEM) — modelin bir sonraki örneği tahmin etme hatasını minimize eder; iç yapıyı `tfest` kendi seçer ("kara kutuya" daha yakın). Girdi olarak `iddata` nesnesi (giriş `V_eff`, çıkış `ω`, örnekleme süresi) alır.
+
+- Her step için ikisini de koştur, daha düşük NRMSE veren seçilir → 16/18 step'te `lsqcurvefit` kazandı (açık model varsayımı bu temiz step verisinde daha iyi uydu).
 
 **Adım 3 — Dead-band tespit** (`compute_dead_band.m`):
-- Lineer regresyon: `ω_ss = K · V_eff + b` → `V_dead = −b/K` (x-intercept)
-- `V_eff = V_supply·duty − V_sat = 12.15·duty − 0.5`
-- CW/CCW ayrı fit
+
+Oturmuş hızların ($\omega_{ss}$) efektif gerilime ($V_{eff}$) karşı lineer regresyonu yapılır:
+
+$$\omega_{ss} = K\cdot V_{eff} + b \quad\Rightarrow\quad V_{dead} = -\frac{b}{K}\ \ (\text{x-intercept})$$
+
+Burada $V_{eff} = V_{supply}\cdot\text{duty} - V_{sat} = 12.15\cdot\text{duty} - 0.5$ (sürücü kaybı çıkarılmış efektif gerilim). $V_{dead}$ motorun dönmeye başladığı eşik gerilimdir; CW/CCW için ayrı fit edilir.
+
+> **Kavram — dead-band:** Motorun *dönmeye başladığı* en küçük eşik gerilim. Burada motor **zaten dönerken** ölçtüğümüz için bulduğumuz "dinamik" dead-band'dir (soğuk-başlangıç statik eşiğinden farklı olabilir; statik sürtünme tartışması → Bulgu 1). **R² (determinasyon katsayısı):** regresyonun, verideki toplam değişkenliğin ne kadarını açıkladığını ölçer; $1$'e ne kadar yakınsa lineer uyum o kadar iyidir ($R^2=0.9998$ → neredeyse kusursuz doğrusal ilişki).
 
 **Adım 4 — Simetri analizi:** CW/CCW K karşılaştırması (`plot_results.m §06`)
 
 **Adım 5 — Model validation** (Test 1.T5, `validate_model.m`):
-- Tek (K_avg, τ_median) çiftiyle her step yeniden simüle et (`lsim`)
-- NRMSE her step için, sınır: ort < %15, max < %20 (`[Ljung1999] §16` "good agreement")
-- Simulink modeli (`motor_model_asama1.slx`) programatik üretildi
+- Tek $(K_{avg}, \tau_{median})$ çiftiyle her step yeniden simüle et (`lsim`). **`lsim` prensibi:** verilen transfer fonksiyonunu, keyfi bir giriş sinyaline karşı zaman domeninde sayısal olarak çözer (durum-uzayı formuna çevirip adım adım entegre eder). Burada giriş gerçek deneydeki $V_{eff}$ basamağı, çıkış simüle $\omega$.
+- Uyum kalitesi her step için **NRMSE** (normalize edilmiş RMS hatası, yüzde) ile ölçülür:
+
+$$\text{NRMSE} = 100\times\frac{\sqrt{\frac{1}{N}\sum_k\big(\omega_{\text{meas}}[k]-\omega_{\text{model}}[k]\big)^2}}{\omega_{\max}-\omega_{\min}}$$
+
+  Sınır: ortalama < %15, maksimum < %20 (`[Ljung1999] §16` "good agreement" kriteri).
+- Simulink modeli (`motor_model_asama1.slx`) programatik üretildi (blok diyagram kanıtı).
 
 ### 10.4. Nerede — Dosya ve Konum Referansları
 
@@ -66,6 +106,8 @@ Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §
 | **Sonuçlar (PNG+JSON+MD)** | `matlab/asama_1_model/results/20260518_011926/` | hoca/jüri klasörü |
 
 ### 10.5. Ne Sonuç Çıktı — Sayısal Parametreler
+
+Her step'in kazanan fitinden bir $(K, \tau)$ çifti çıkar (18 step → 18 çift). **Final tek model** bunların agregesidir: $K$ = CW ve CCW ortalaması (yön simetrisi varsayımı, Test 1.T3 doğruladı), $\tau$ = tüm step'lerin **median**'ı (aykırı değerlere gürbüz; ortalama yerine median, çünkü düşük-duty step'lerinde τ saçılımı yüksek — Bulgu 3). Sayısal sonuç:
 
 ```json
 {
@@ -91,8 +133,19 @@ Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §
 K = 53.89 rad/s/V      (K_cw ve K_ccw ortalaması)
 τ = 60.5 ms            (median, gürültüye dayanıklı)
 V_dead ≈ 0             (dinamik dead-band yok)
-G(s) = K / (τs + 1)    (birinci derece TF, dead-band çıkarılmış)
 ```
+
+Somut transfer fonksiyonu (dead-band çıkarılmış, Aşama 2 kontrolcü tasarımının temeli):
+
+$$G(s) = \frac{K}{\tau s + 1} = \frac{53.89}{0.0605\,s + 1}$$
+
+Tek kutup $s = -1/\tau = -16.5$ rad/s, sol yarı düzlemde → sistem açık çevrimde kararlı, salınımsız (§[`00_genel_bakis.md`](00_genel_bakis.md) §2.5 kararlılık kuralı):
+
+![Birinci derece motorun kutup haritası](../matlab/asama_1_model/results/20260518_011926/12_pole_map.png)
+
+**Şekil 10.6 —** Motorun kutup haritası. Tek reel kutup $s=-16.5$ sol yarı düzlemde (LHP). Karmaşık (sanal) bileşeni yok → salınım yok; negatif reel → sönerek oturur. Aşama 2'de kontrolcü bu kutbu daha hızlı/sönümlü bir yere taşıyacak (pole placement).
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/create_block_diagram.m`
 
 ### 10.6. Test Sonuçları
 
@@ -114,7 +167,9 @@ Pololu 25D motor %12 duty (V_eff=0.96 V) iken zaten 57 rad/s dönüyor. Aşama 1
 
 ![Dead-band tespiti — ω_ss vs V_eff, x-intercept ≈ ±0.24 V](../matlab/asama_1_model/results/20260518_011926/04_omega_vs_Veff.png)
 
-*Şekil 10.1 — ω_ss vs V_eff lineer regresyonu (`compute_dead_band.m`). x-eksenini kestiği nokta (V_dead) ≈ ±0.24 V, neredeyse orijinde → dinamik dead-band ihmal edilebilir.*
+**Şekil 10.1 —** ω_ss vs V_eff lineer regresyonu. x-eksenini kestiği nokta (V_dead) ≈ ±0.24 V, neredeyse orijinde → dinamik dead-band ihmal edilebilir.
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/plot_results.m` (regresyon `compute_dead_band.m`)
 
 ##### İlk hipotezimiz (Aşama 1.3 yorumu)
 
@@ -163,7 +218,9 @@ K_apparent (= ω_ss / V_eff) profili **60 → 50 rad/s/V kademeli düşüş** (G
 
 ![K_apparent vs duty — V_sat'ın akım bağımlılığının görsel kanıtı](../matlab/asama_1_model/results/20260518_011926/05_K_apparent_vs_duty.png)
 
-*Şekil 10.2 — K_apparent = ω_ss/V_eff profili. Sabit V_sat varsayımı altında düz olması beklenirdi; kademeli düşüş, V_sat'ın akıma bağlı (MOSFET R_DS_on×I) olduğunu görsel olarak doğrular (`[TB6612_DS]`).*
+**Şekil 10.2 —** K_apparent = ω_ss/V_eff profili. Sabit V_sat varsayımı altında düz olması beklenirdi; kademeli düşüş, V_sat'ın akıma bağlı (MOSFET R_DS_on×I) olduğunu görsel olarak doğrular (`[TB6612_DS]`).
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/plot_results.m`
 
 **Niçin düşüyor?** V_sat aslında **akıma bağlı** (MOSFET R_DS_on × akım):
 - **Düşük duty** → düşük akım → gerçek V_sat ~0.3 V → modelimiz V_eff'i altta tahmin → K_apparent şişer
@@ -182,14 +239,16 @@ Bu, datasheet V_sat=0.5V varsayımımızın **görsel olarak doğrulanmasıdır*
 
 ![τ özeti — histogram + duty bağımlılığı](../matlab/asama_1_model/results/20260518_011926/07_tau_summary.png)
 
-*Şekil 10.3 — τ dağılımı (median 60.5 ms) ve duty bağımlılığı. Saçılım, tek-τ 1. derece modelin ortalama bir yaklaşım olduğunu gösterir (`[Franklin2010] §3.5`).*
+**Şekil 10.3 —** τ dağılımı (median 60.5 ms) ve duty bağımlılığı. Saçılım, tek-τ 1. derece modelin ortalama bir yaklaşım olduğunu gösterir (`[Franklin2010] §3.5`).
 
-**Gerçek DC motor 2. derece:**
-```
-G(s) = K / [(τ_e·s + 1) · (τ_m·s + 1)]
-```
-- τ_e (elektriksel) = L/R ≈ 2-10 ms
-- τ_m (mekanik) = J/b ≈ 50-200 ms
+> 📊 **Üreten betik:** `matlab/asama_1_model/plot_results.m`
+
+**Gerçek DC motor aslında 2. derecedir:**
+
+$$G(s) = \frac{K}{(\tau_e s + 1)(\tau_m s + 1)}$$
+
+- $\tau_e$ (elektriksel) $= L/R \approx 2\text{-}10$ ms
+- $\tau_m$ (mekanik) $= J/b \approx 50\text{-}200$ ms
 
 Bizim için τ_m / τ_e ≈ 12-25× → elektriksel kısım anında biter, mekanik baskın → **1. derece görünür**. 40 Hz USB örneklemesi τ_e'yi zaten göremez (25 ms aralık).
 
@@ -218,13 +277,37 @@ Tek (K, τ) ile validation NRMSE |duty|≈0.18'de minimum (%5.7), uçlarda yüks
 
 ![CW step fitleri](../matlab/asama_1_model/results/20260518_011926/01_step_fits_cw.png)
 
-*Şekil 10.4 — CW yönü step fitleri (`fit_first_order.m`). Yüksek duty'de NRMSE %3-5 (mükemmel), düşük duty'de %9-12 (transient hızlı, 40 Hz örnekleme sınırı).*
+**Şekil 10.4 —** CW yönü step fitleri. Yüksek duty'de NRMSE %3-5 (mükemmel), düşük duty'de %9-12 (transient hızlı, 40 Hz örnekleme sınırı).
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/plot_results.m` (fit `fit_first_order.m`)
 
 **Model doğrulama** (Test 1.T5) — tek (K_avg, τ_median) ile tüm step'lerin yeniden simülasyonu:
 
 ![Validation NRMSE özeti — U-eğrisi](../matlab/asama_1_model/results/20260518_011926/10_validation_summary.png)
 
-*Şekil 10.5 — Validation NRMSE U-eğrisi (`validate_model.m`). |duty|≈0.18'de minimum (%5.7), uçlarda %12-14. Ortalama %11.11, max %14.77 → Test 1.T5 PASS. U şekli, K(duty)/τ(duty) varyasyonunun (Bulgu 2-3) doğal sonucu — gain scheduling adayı (Bulgu 4).*
+**Şekil 10.5 —** Validation NRMSE U-eğrisi. |duty|≈0.18'de minimum (%5.7), uçlarda %12-14. Ortalama %11.11, max %14.77 → Test 1.T5 PASS. U şekli, K(duty)/τ(duty) varyasyonunun (Bulgu 2-3) doğal sonucu — gain scheduling adayı (Bulgu 4).
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/validate_model.m`
+
+#### Tekrarlanabilirlik (reproducibility) — bağımsız 2. tanımlama
+
+Sistem tanımlamanın güvenilirliğini göstermek için step-response veri toplama + fit, 6 gün sonra (2026-05-24) bağımsız olarak **tekrarlandı** (`20260518_dogrulama`, aynı 9-duty profil + aynı pipeline). İki koşumun model parametreleri tutarlı:
+
+| Parametre | İlk (`20260518_011926`) | Tekrar (`20260518_dogrulama`) | Fark |
+|---|---|---|---|
+| $K_{cw}$ (rad/s/V) | 54.22 | 54.53 | %0.6 |
+| $K_{ccw}$ (rad/s/V) | 53.56 | 53.98 | %0.8 |
+| Simetri | %1.24 | %1.02 | ~aynı |
+| Validation NRMSE (ort) | %11.1 | %10.4 | ikisi de PASS |
+| $\tau_{median}$ (ms) | 60.5 | 77.4 | %28 |
+
+Kazançlar %1'in altında, simetri ve validation NRMSE tutarlı, **ikisi de Test 1.T5 PASS** → model tekrarlanabilir. Tek belirgin fark $\tau_{median}$'da (%28); ama bu, $\tau$'nın duty'ye göre geniş yayılımının (IQR ~40–49 ms, Bulgu 3) doğal yansımasıdır — ortalama dinamik aynı (her iki koşumda NRMSE < %15 hedefi). Aşama 2 tasarımı kanonik `20260518_011926` setini kullanır; `dogrulama` **bağımsız teyit** olarak korunur (silinmedi).
+
+![Tekrarlanabilirlik — bağımsız 2. koşum validation NRMSE](../matlab/asama_1_model/results/20260518_dogrulama/10_validation_summary.png)
+
+**Şekil 10.5b —** Bağımsız 2. tanımlama koşumunun (`20260518_dogrulama`) validation NRMSE U-eğrisi. İlk koşumla (Şekil 10.5) aynı U-profili ve aynı PASS sonucu — model tekrarlanır.
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/validate_model.m` (test-id `20260518_dogrulama`)
 
 **Tüm grafikler** — `matlab/asama_1_model/results/20260518_011926/` altında:
 
@@ -240,6 +323,8 @@ Tek (K, τ) ile validation NRMSE |duty|≈0.18'de minimum (%5.7), uçlarda yüks
 | 08 | `08_validation_cw.png` | Test 1.T5 model vs ölçüm (CW) |
 | 09 | `09_validation_ccw.png` | Test 1.T5 model vs ölçüm (CCW) |
 | 10 | `10_validation_summary.png` | Test 1.T5 NRMSE özet (U-eğrisi) |
+| 11 | `11_block_diagram_openloop.png` | Açık-çevrim motor blok diyagramı (duty → sürücü → plant → ω) |
+| 12 | `12_pole_map.png` | Birinci derece sistemin kutup haritası (s=−1/τ, kararlılık) |
 | — | `motor_model_asama1.slx` | Simulink blok diyagramı (programatik üretildi) |
 | — | `motor_params.json` | Aşama 2 girişi (firmware için kaynak) |
 | — | `fit_report.md` | Detaylı sayısal rapor |

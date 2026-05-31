@@ -31,17 +31,21 @@ Parametreler: **K** (rad/s/V), **τ** (s), **V_dead** (V).
 | `validate_model.m` | Simulink ile model çıktısı vs gerçek ölçüm | model params + raw data | RMSE, NRMSE |
 | `plot_results.m` | Üç panel: step fit, dead-band intercept, validation | her şey | `results/*.png` |
 
+> **Not:** `results/<test_id>/motor_model_asama1.slx` `create_simulink_model.m` ile **programatik üretilir** — el-yazımı kaynak değil, üretilen çıktıdır (PNG/JSON gibi), bu yüzden `results/`'ta. İki test-id (`20260518_011926` kanonik + `20260518_dogrulama` bağımsız teyit) reproducibility kanıtıdır (docs §10.5).
+
 ## Veri Toplama Planı (Aşama 1 firmware tarafı)
 
-`scripts/step_response.py` çalıştırılır:
-- 6 duty seviyesi × 2 yön (CW/CCW) = 12 step
-- Her step: 5 sn sürüş + 2 sn coast
-- 200 Hz örnekleme
-- CSV: `timestamp, duty_cmd, omega_firmware, encoder_count`
+`scripts/step_response.py` çalıştırılır (gerçekleşen değerler — docs/asama_1_model.md §10.3):
+- 9 duty seviyesi × 2 yön (CW/CCW) = 18 step (drive)
+- Her step: 5 sn sürüş + 2 sn coast (drive+coast segment = 36)
+- USB telemetri ~36 Hz (TX throttle 40 Hz nominal) — ölçülen 4497 örnek / 126 s
+- CSV (13 kolon): `t_us_fw, t_host_s, phase, step_idx, duty_cmd, omega, encoder_count, pitch, roll, gx, gy, fused_pitch, fused_roll`
 
 Çıktı: `artifacts/1/step_response/<test_id>/raw/data.csv.gz`
 
 ## Çıktı Formatı
+
+> ⚠ Aşağıdaki değerler **şablon/örnektir** (ilk plandan kalma yer-tutucu). Gerçek üretilen değerler farklı: `K_cw≈54.22`, `tau≈60.5 ms`, ve model `first_order` (dead-band tespit **edilmedi**, `V_dead≈0` — §1.3). Kanonik değerler: `results/20260518_011926/motor_params.json` + `docs/asama_1_model.md` §10.5.
 
 `results/motor_params.json`:
 ```json
