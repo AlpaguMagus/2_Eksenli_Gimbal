@@ -399,10 +399,26 @@ Sim-to-real gap'i **kararlılık marjı** düzeyinde de inceleyelim — hem ampi
 
 > **⚠ Ayrık-zaman / gecikme kaveatı (dürüstlük notu).** Yukarıdaki PM = 60.2° **sürekli-zaman** PI+plant ($L_e = C_e G_d$) üzerinde hesaplanır; firmware'in gerçek döngüsünde olan iki etki bu marja **girmez** ve analizi gerçeğe göre **iyimser** gösterir:
 >
-> 1. **Ölçüm filtresi fazı (C2).** Hız PI girişinde `WINDOW=5` moving-average var (`src/encoder.c` `Encoder_FilterSpeed`). Lineer-faz FIR grup gecikmesi $(N-1)/2\cdot\Delta t \approx 14$ ms (döngü $\Delta t\approx7$ ms). Gain-crossover $\omega_c = 34.4$ rad/s'te faz kaybı $\approx \omega_c\,\tau_g = 34.4\times0.014 \approx 0.48$ rad, yani $\approx 28°$. MA-dahil faz payı bu yüzden $\approx 33°$ — hâlâ kararlı, ama koyduğumuz $\geq 45°$ spec'inin **marjinal altında**. (MA kazancı $\omega_c$'de $\approx-0.5$ dB düşürdüğü için gerçek $\omega_c$ bir tık aşağı kayar → 33° hafifçe kötümser bir üst-sınırdır.)
+> 1. **Ölçüm filtresi fazı (C2).** Hız PI girişinde `WINDOW=5` moving-average var (`src/encoder.c` `Encoder_FilterSpeed`). Lineer-faz FIR grup gecikmesi $(N-1)/2\cdot\Delta t \approx 14$ ms (döngü $\Delta t\approx7$ ms). Gain-crossover $\omega_c = 34.4$ rad/s'te faz kaybı $\approx \omega_c\,\tau_g = 34.4\times0.014 \approx 0.48$ rad, yani $\approx 28°$. Naif el-hesabı: $60.2° - 28° \approx 33°$. Ama bu, kazanç-geçiş frekansının kayışını ihmal eder — aşağıdaki **tam ayrık margin** kesin değeri $\approx 40°$ verir (C1 etkisi $\omega_c$'yi düşürüp marjı kısmen telafi eder).
 > 2. **Sabit örnekleme adımı (C1).** PI Tustin integrali **sabit** $T_s = 5$ ms kullanır (`src/speed_pi.c`), ama ana döngü ölçülen $\approx 7$ ms'tir (~140 Hz, [`asama_0_altyapi.md`](asama_0_altyapi.md) §5.4). Efektif integral kazancı nominalin $T_s/\Delta t \approx 0.71$ katıdır. Ampirik $K_i = 0.1$ bu sabit-$T_s$ varsayımı altında **gerçek motorda** ayarlandığından kapalı-çevrim çalışır; fakat döngü hızı değişir veya $T_s$ gerçek $dt$'ye bağlanırsa integral etkisi **sessizce kayar** (latent kuplaj). Complementary filter ve hız ölçümü zaten gerçek DWT $dt$'sini kullanır — bu asimetri yalnızca integral terimdedir.
 >
-> İkisi **aynı temanın** iki yüzüdür: ayrık-zaman ve gecikme etkileri sürekli-zaman marjına girmez. **Fonksiyonel risk değildir** (Test 2.T2 8/8 temiz, 2.T5 cascade PASS — gerçek motorda sürtünme ek sönüm sağlar), ama akademik dürüstlük için kayıt altındadır. Tam **ayrık + MA + gecikme** margin'i (`c2d` + FIR fazı dahil açık-çevrim) ileride doğrulanacak **açık konudur**.
+> İkisi **aynı temanın** iki yüzüdür: ayrık-zaman ve gecikme etkileri sürekli-zaman marjına girmez.
+
+Bu açık konuyu **tam ayrık margin** hesabıyla kapattık (`verify_speed_margin_discrete.m`): ZOH plant + firmware Tustin PI ($T_s=5$ ms, $T_{loop}=7$ ms hızında — C1 dahil) + 5-tap MA FIR açık-çevrimi `margin()` ile değerlendirildi (`margin()` ayrık TF'in fazını z-domain'de, örnekleme dahil hesaplar).
+
+| Açık-çevrim | PM | $\omega_c$ (rad/s) |
+|---|---|---|
+| Sürekli (MA yok) | 60.2° | 34.4 |
+| Ayrık, MA yok (ZOH + C1) | 62.9° | 29.6 |
+| Ayrık, MA dahil (TAM) | **39.9°** | 28.7 |
+
+![Ayrık-zaman + MA faz payı doğrulama](../matlab/asama_2_kontrol/results/2_1_speed_pi/06_margin_discrete_ma.png)
+
+**Şekil 11.12b —** Sürekli (mavi, PM=60°) vs tam-ayrık (kırmızı: ZOH + PI + MA, PM=40°) açık-çevrim Bode. MA filtresi fazı $-180°$'ye doğru hızlandırır + yüksek frekansta Dirichlet çentikleri (FIR sıfırları) görünür. Kazanç-geçiş frekansı $34.4\to28.7$ rad/s'e iner.
+
+> 📊 **Üreten betik:** `matlab/asama_2_kontrol/verify_speed_margin_discrete.m`
+
+**Yorum (C1 + C2 ayrışımı):** C1 (efektif $K_i$ düşük, $T_s/\Delta t\approx0.71$) loop kazancını düşürüp $\omega_c$'yi $34.4\to29.6$'ya indirir ve baz marjı $62.9°$'ye **yükseltir** (düşük bant genişliği = yüksek faz payı). C2 (MA grup gecikmesi) bu düşük $\omega_c$'de $\approx 23°$ götürür → **tam ayrık PM** $\approx 40°$. Yani naif el-hesabı (33°) fazla kötümserdi; gerçek faz payı $\approx 40°$ — $\geq 45°$ spec'in hâlâ **marjinal altında** ama el-tahminden sağlam. **Fonksiyonel risk değildir** (Test 2.T2 8/8 temiz, 2.T5 cascade PASS; gerçek motorda sürtünme ek sönüm sağlar). İlginç içgörü: C1 "latent kuplaj" tek yönlü kötü değil — efektif $K_i$'yi düşürerek bandı daraltıp marjı artırıyor, ampirik tuning bunu zaten soğurmuş.
 
 #### 11.12.9. Anti-Windup Doğrulama — Test 2.T3 (sim)
 
