@@ -289,6 +289,26 @@ Tek (K, τ) ile validation NRMSE |duty|≈0.18'de minimum (%5.7), uçlarda yüks
 
 > 📊 **Üreten betik:** `matlab/asama_1_model/validate_model.m`
 
+#### Tekrarlanabilirlik (reproducibility) — bağımsız 2. tanımlama
+
+Sistem tanımlamanın güvenilirliğini göstermek için step-response veri toplama + fit, 6 gün sonra (2026-05-24) bağımsız olarak **tekrarlandı** (`20260518_dogrulama`, aynı 9-duty profil + aynı pipeline). İki koşumun model parametreleri tutarlı:
+
+| Parametre | İlk (`20260518_011926`) | Tekrar (`20260518_dogrulama`) | Fark |
+|---|---|---|---|
+| $K_{cw}$ (rad/s/V) | 54.22 | 54.53 | %0.6 |
+| $K_{ccw}$ (rad/s/V) | 53.56 | 53.98 | %0.8 |
+| Simetri | %1.24 | %1.02 | ~aynı |
+| Validation NRMSE (ort) | %11.1 | %10.4 | ikisi de PASS |
+| $\tau_{median}$ (ms) | 60.5 | 77.4 | %28 |
+
+Kazançlar %1'in altında, simetri ve validation NRMSE tutarlı, **ikisi de Test 1.T5 PASS** → model tekrarlanabilir. Tek belirgin fark $\tau_{median}$'da (%28); ama bu, $\tau$'nın duty'ye göre geniş yayılımının (IQR ~40–49 ms, Bulgu 3) doğal yansımasıdır — ortalama dinamik aynı (her iki koşumda NRMSE < %15 hedefi). Aşama 2 tasarımı kanonik `20260518_011926` setini kullanır; `dogrulama` **bağımsız teyit** olarak korunur (silinmedi).
+
+![Tekrarlanabilirlik — bağımsız 2. koşum validation NRMSE](../matlab/asama_1_model/results/20260518_dogrulama/10_validation_summary.png)
+
+**Şekil 10.5b —** Bağımsız 2. tanımlama koşumunun (`20260518_dogrulama`) validation NRMSE U-eğrisi. İlk koşumla (Şekil 10.5) aynı U-profili ve aynı PASS sonucu — model tekrarlanır.
+
+> 📊 **Üreten betik:** `matlab/asama_1_model/validate_model.m` (test-id `20260518_dogrulama`)
+
 **Tüm grafikler** — `matlab/asama_1_model/results/20260518_011926/` altında:
 
 | # | Dosya | Açıklama |

@@ -41,12 +41,15 @@ matlab/asama_2_kontrol/
 └── results/                             ← konu-bazlı çıktılar
     ├── 2_1_speed_pi/      (bode, step, metrics, speed_loop_a2_1.slx, params, report)
     ├── 2_3_realistic_sim/ (realistic_sim_verification.png)
-    ├── 2_5_cascade/       (position_p_design, realistic_cascade, cascade_block_diagram,
-    │                       cascade_simulink_step, cascade_pos_a2_5.slx, position_p_params)
-    └── 2_5_strategy/      (position_strategy_sweep, position_direct_pid)
+    └── 2_5_cascade/       (position_p_design, realistic_cascade, cascade_block_diagram,
+                            cascade_simulink_step, cascade_pos_a2_5.slx, position_p_params)
 ```
 
-> **Not:** `.png`/`.slx` git'te (görsel + model kanıtı), `.mat` git dışı (gitignored).
+> **Not:** `.png`/`.slx` git'te (görsel + model kanıtı; `.slx` `create_*_simulink.m` ile
+> **programatik üretilir** → el-yazımı kaynak değil, üretilen çıktıdır, bu yüzden `results/`'ta —
+> tıpkı PNG gibi), `.mat` git dışı (gitignored).
+> (Direct-PID alternatifi `2_5_strategy/` Aşama 2.5'te terk edildi — cascade seçildi; üreten
+> scriptler `sweep_position_strategy.m` + `design_position_direct_pid.m` kaynakta korunur, docs §11.13.)
 > Aşama 1 `results/<test_id>/` (tarihli) yapısını kullanır — orada iki çalıştırma
 > (orijinal + doğrulama) reproducibility kanıtıdır; Aşama 2 konu-bazlıdır.
 

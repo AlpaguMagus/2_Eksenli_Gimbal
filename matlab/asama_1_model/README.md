@@ -31,6 +31,8 @@ Parametreler: **K** (rad/s/V), **τ** (s), **V_dead** (V).
 | `validate_model.m` | Simulink ile model çıktısı vs gerçek ölçüm | model params + raw data | RMSE, NRMSE |
 | `plot_results.m` | Üç panel: step fit, dead-band intercept, validation | her şey | `results/*.png` |
 
+> **Not:** `results/<test_id>/motor_model_asama1.slx` `create_simulink_model.m` ile **programatik üretilir** — el-yazımı kaynak değil, üretilen çıktıdır (PNG/JSON gibi), bu yüzden `results/`'ta. İki test-id (`20260518_011926` kanonik + `20260518_dogrulama` bağımsız teyit) reproducibility kanıtıdır (docs §10.5).
+
 ## Veri Toplama Planı (Aşama 1 firmware tarafı)
 
 `scripts/step_response.py` çalıştırılır (gerçekleşen değerler — docs/asama_1_model.md §10.3):
