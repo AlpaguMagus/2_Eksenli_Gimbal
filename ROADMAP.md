@@ -32,7 +32,7 @@
 | `docs/asama_<N>_*.md` | **Derin akademik içerik:** teori, türetme, tasarım gerekçesi, alternatifler, deney sonucu (ne/neden/nasıl/nerede/sonuç) | İlgili aşama ilerleyince |
 | `ROADMAP.md` (bu dosya) | Yol haritası, aşamalar, adımlar, testler, tamamlanma kanıtı | Her adım/aşama bitiminde |
 | `PROJE_DURUMU.md` | "Şu an neredeyiz?" 5-10 satır özet + ROADMAP linki | Aşama geçişlerinde |
-| `CLAUDE.md` | AI etkileşim kuralları + proje standartları | Yeni kural eklendiğinde |
+| `CLAUDE.md` | **Proje-spesifik** AI standartları/bağlar (genel disiplinler kullanıcı-global `~/.claude/CLAUDE.md`'de — 2026-05-31 taşındı) | Yeni kural eklendiğinde |
 | `KAYNAKCA.md` | Etiketli akademik referanslar + datasheet'ler | Her yeni teknik karar |
 | `matlab/<aşama>/README.md` | Aşama-spesifik MATLAB workflow | Aşama açılışında |
 
