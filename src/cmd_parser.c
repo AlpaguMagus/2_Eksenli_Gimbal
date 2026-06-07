@@ -8,6 +8,10 @@
 #include <string.h>
 #include <stdlib.h>
 
+/* main.c MPU6050 yardımcıları — IMUDIAG/IMUINIT teşhis komutları (2026-05-31) */
+extern void MPU6050_Init(void);
+extern void MPU6050_DiagPrint(void);
+
 #define CMD_BUF_SIZE  64U
 
 static char     line_buf[CMD_BUF_SIZE];
@@ -171,6 +175,20 @@ static void parse_line(const char *line)
     }
     if (strcmp(line, "PING") == 0) {
         CDC_Transmit_FS((uint8_t *)PONG, (uint16_t)(sizeof(PONG) - 1U));
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if (strcmp(line, "IMUDIAG") == 0) {
+        /* I2C/IMU sağlık teşhisi — bus/uyku/AD0 ayrımı (main.c MPU6050_DiagPrint) */
+        MPU6050_DiagPrint();
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if (strcmp(line, "IMUINIT") == 0) {
+        /* Çipi komutla uyandır (PWR_MGMT_1=0) — güç glitch'i sonrası USB çek-tak
+         * gerektirmez (Init normalde yalnız boot'ta koşar). Sonucu hemen raporla. */
+        MPU6050_Init();
+        MPU6050_DiagPrint();
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }

@@ -359,6 +359,30 @@ void MPU6050_Read(int16_t *ax, int16_t *ay, int16_t *az,
     *gz = (int16_t)(raw[12] << 8 | raw[13]);
 }
 
+/* IMUDIAG — I2C/IMU sağlık teşhisi (2026-05-31; tekrarlayan bağlantı arızası):
+ * bus ACK (0x68 + AD0-kayma kontrolü 0x69), kimlik (WHO_AM_I 0x75 == 0x68),
+ * uyku durumu (PWR_MGMT_1 0x6B bit6) — [MPU6050_RM]. HAL rc: 0=OK 1=ERR 2=BUSY 3=TIMEOUT.
+ * Yorum kılavuzu:
+ *   r68=0 + who=68 + sleep=1 → çip BUS'ta ama UYKUDA (güç glitch'i; IMUINIT yeter,
+ *                              USB çek-tak GEREKMEZ — Init yalnız boot'ta koştuğu için)
+ *   r68≠0 ve r69=0           → AD0 teması kopmuş (adres 0x69'a kaymış)
+ *   ikisi de ≠0              → bus/güç seviyesi arızası (kablo teması / modül) */
+void MPU6050_DiagPrint(void)
+{
+    uint8_t who = 0xFF, pwr = 0xFF;
+    HAL_StatusTypeDef r68 = HAL_I2C_IsDeviceReady(&hi2c1, MPU6050_ADDR, 2, 50);
+    HAL_StatusTypeDef r69 = HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(0x69 << 1), 2, 50);
+    HAL_StatusTypeDef rw  = HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x75,
+                                             I2C_MEMADD_SIZE_8BIT, &who, 1, 50);
+    HAL_StatusTypeDef rp  = HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, MPU6050_PWR_MGMT_1,
+                                             I2C_MEMADD_SIZE_8BIT, &pwr, 1, 50);
+    char buf[96];
+    int len = snprintf(buf, sizeof(buf),
+        "IMUDIAG r68:%d r69:%d who:%02X(rc%d) pwr:%02X(rc%d) sleep:%d\r\n",
+        (int)r68, (int)r69, who, (int)rw, pwr, (int)rp, ((pwr & 0x40U) != 0U) ? 1 : 0);
+    if (len > 0) CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
+}
+
 /* ================================================================
    SAAT — HSE 25MHz → PLL → 96MHz SYSCLK, PLLQ=4 → 48MHz USB
    ================================================================ */
