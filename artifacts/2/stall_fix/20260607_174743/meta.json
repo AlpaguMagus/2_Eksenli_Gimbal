@@ -1,0 +1,15 @@
+{
+  "test_id": "2.stall_fix",
+  "timestamp": "2026-06-07T17:47:43+03:00",
+  "commit": "0376605",
+  "status": "PASS",
+  "key_metrics": {
+    "false_positive_events": 0,
+    "false_positive_window_s": 35, "ref_span_deg": 101.3, "max_reversal_dps": 80,
+    "loaded_but_turning_grip_s": 11, "loaded_false_trigger": false,
+    "true_stall_detected": 3, "retry_cycle_verified": true,
+    "auto_resume_s": [1.02, 1.25],
+    "spw_post_stall": "stops_by_design"
+  },
+  "artifacts": ["raw/testA_mirror_yavas_sert.log","raw/testB_spw_gercek_stall.log","raw/testB2_pos_step.log","raw/testB3_pos_dongusu.log"]
+}

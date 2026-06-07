@@ -85,7 +85,7 @@ Sigorta temin edildiğinde:
 
 ### Açık Konu (Aşama 0 → 1'e taşınan)
 
-- **2A.T5-B (gerçek motor stall testi):** KEY simülasyonu (Aşama A) PASS. Gerçek motor stall (eldivenle şaftı tut + multimetre <0.9 A) bağımsız donanım doğrulaması, sonraki seansa bırakıldı — Aşama 1'i engellemiyor.
+- **2A.T5-B (gerçek motor stall testi):** ✅ **KAPANDI (2026-06-07, count-tabanlı dedektörle)** — eldivenle gerçek kilitleme: 3/3 tespit; yüklü-ama-dönen (u=0.50 doyumda ~11 s kavrama) tetiklemedi; engel sürerken kes→1 sn→dene döngüsü; bırakınca **+1.0–1.25 s oto-devam**. `artifacts/2/stall_fix/20260607_174743/`. (KEY simülasyonu Aşama A daha önce PASS. Multimetre akım ölçümü yapılmadı — bütçe `[Pololu_25D]` duty %50'de ~0.55 A öngörür; ampirik ölçüm ACS712 Faz-2'de.)
 - ~~**R6 (CW%20 ölü-bant değişkenliği)**~~ ✅ **ÇÖZÜLDÜ 2026-05-18 (artifact: `artifacts/1/stiction_test/20260518_111200/`):** Önce stiction hipotezi ile açıklandı (Aşama 1.3), sonra deneysel test ile **stiction reddedildi** (cold-start dahil tüm duty'lerde motor başlıyor). T7 ham log yeniden analizi: motor T7'de aslında dönmüş (ΔEC ≈ 1750 her cycle, ω ≈ 76 rad/s). Anomalinin nedeni: o dönem firmware OMEGA alanını göndermiyordu, Python analizi varsayılan 0.0 raporladı. **R6 fiziksel değil, analiz/parsing artefaktıydı.**
 
 ---
