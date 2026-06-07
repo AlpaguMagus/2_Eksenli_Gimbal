@@ -333,6 +333,13 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 - TIM4 quadrature encoder (PB6/PB7 — I2C ile çakışıyor → revize: TIM5 PA0/PA1)
 - ⚠ PA0 = KEY butonu, çakışma! → pin yeniden değerlendirme Aşama 3 açılışında
 
+**Güç & koruma planı (2026-05-31 datasheet denetimi — `[Pololu_25D]`, `[TB6612_DS]`, `[ACS712_DS]`):**
+
+- **Tek 3A adaptör 2 motora YETERLİ** (karar: 5A alınmadı): ikisi stall @ duty %50 ≈ 1.6 A, @ tam 12V (en kötü) 2.2 A < 3.0 A. Şartlar: duty cap %50 korunur, soft-start'lar kademeli (eşzamanlı inrush yok), 12V hattına bulk kapasitör.
+- **2 AYRI TB6612 modülü** (karar — ikisi de mevcut): tek çipte iki motor stall'da disipasyon ~1.2 W > PD limiti (0.78–0.89 W) → TSD riski; iki çipte ~0.6 W/çip güvenli (`[TB6612_DS]` sf 3/5).
+- **Dar boğaz = SÜRÜCÜ** (adaptör değil): motor stall @12V 1.1 A > TB6612 sürekli 1.0 A; TB6612'de ayrık OCP YOK (yalnız TSD ~175°C) → sürücü koruması **yazılımdadır** (duty cap + stall detection; ileride ACS712 foldback).
+- **ACS712 ±5A akım sensörü — planlı açık konu (karar kaydı):** duty %100 gevşetmenin **ön koşulu** (1.1 A > 1.0 A'yı foldback ile spec içinde tutar) + "elle müdahalede sistem durmasın" gereksinimi (orantısal güç kısma yalnız akım ölçümüyle olur). Eksen-başı 2 sensör (hangi motor stall bilgisi); ADC1 boş, PA1–PA7 serbest; ≤1.1 A aralığımızda çıkış 2.5±0.21 V → 3.3V ADC uyumlu; çözünürlük kaba (gürültü ~113 mA) ama koruma eşiği için yeterli (`[ACS712_DS]`). NOT: ACS712 pasif backstop'un (polyfuse) yerine geçmez — MCU çökerse yazılım limiti de ölür; katmanlar tamamlayıcıdır.
+
 **MATLAB:** `matlab/asama_3_mimo_model/`
 
 ### Önkoşul
@@ -434,8 +441,8 @@ sistem tanımlama + kazanç ayarı** alt-adımı eklenmeli.
 
 ## Kapsam Dışı (Sonraki İterasyonlar)
 
-- **VM hattı sigorta entegrasyonu** — Kullanıcı 1.5 A polyfuse veya 2 A cam sigorta temin ettiğinde aktif aşamaya alınır. Duty cap %50 sınırı gevşetilir.
-- **Duty cap %50 → %100 gevşetme** — Sigorta sonrası, kontrolcü stabilse.
+- **VM hattı sigorta entegrasyonu** — Tek motor döneminde 1.5 A polyfuse planlanmıştı; **2 motorda (Aşama 3+) ~2.5–3 A polyfuse** gerekir (normal 2-motor stall 1.6 A'yi taşımalı; oto-reset PTC "sistem ölü kalmasın" hedefine uygun). Kullanıcı temin edince aktif aşamaya alınır. ⚠ Polyfuse kabloyu/adaptörü korur, 1.0 A'lik sürücüyü KORUMAZ (o, yazılım katmanlarının işi — ROADMAP Aşama 3 güç planı).
+- **Duty cap %50 → %100 gevşetme** — Ön koşul: **ACS712 akım foldback** (stall @12V 1.1 A > TB6612 sürekli 1.0 A — dar boğaz sürücü, Aşama 3 güç planı) + sigorta. Kontrolcü stabilse.
 - **Madgwick / quaternion füzyon** — ±90° singülarite çözümü. Mevcut complementary ±45° için yeterli; gerekirse Aşama 5+'ta eklenir.
 - **µ-synthesis, H∞ kontrol** — `[Skogestad2005] §11`. Akademik olarak zengin ama proje kapsamı dışı.
 - **Bluetooth gecikme analizi** — Ferhat'ın tezi tarafı, BLE/HC-05 üzerinden komut gecikmesi.
