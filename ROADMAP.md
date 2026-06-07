@@ -328,10 +328,10 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 - 2×2 transfer matrisi G(s)
 - Relative Gain Array (RGA) analizi `[Skogestad2005] §10`
 
-**Donanım eklemesi:**
-- İkinci TB6612 kanalı veya ikinci modül (BIN1/BIN2/PWMB)
-- TIM4 quadrature encoder (PB6/PB7 — I2C ile çakışıyor → revize: TIM5 PA0/PA1)
-- ⚠ PA0 = KEY butonu, çakışma! → pin yeniden değerlendirme Aşama 3 açılışında
+**Donanım eklemesi (pin planı ✅ ONAYLANDI 2026-06-07 — tam tablo: `docs/asama_3_mimo_model.md` §12.2):**
+- İkinci TB6612 **modülü** (ayrı çip — termal gerekçe güç planında): AIN1=**PB4**, AIN2=**PB5**, STBY=**PB10** (ayrı — eksen-bağımsız kesme), PWM=**PB1** (TIM3_CH4, motor-1 ile aynı 20 kHz timer)
+- Encoder-2: **TIM1 quadrature PA8/PA9** (eski adaylar elendi: TIM4 PB6/7=I2C ✗, TIM5 PA0=KEY ✗); TIM1 16-bit → yazılım count-genişletme (3.2)
+- ACS712 rezervi: PA1/PA2 (ADC1_IN1/IN2, Faz-2)
 
 **Güç & koruma planı (2026-05-31 datasheet denetimi — `[Pololu_25D]`, `[TB6612_DS]`, `[ACS712_DS]`):**
 
@@ -348,8 +348,8 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
 ### Alt-Aşamalar (iskelet)
 
-- **3.1 — Pin yeniden değerlendirme** (ikinci encoder için)
-- **3.2 — İkinci motor sürücüsü hazırlığı** (TB6612 B kanalı veya ikinci modül)
+- **3.1 — Pin planı** ✅ KARAR (2026-06-07): docs §12.2 tablosu — fiziksel kablolama kullanıcıda
+- **3.2 — İkinci motor sürücüsü + encoder-2 firmware** (2. TB6612 modülü; TIM1 quadrature + 16-bit count-genişletme)
 - **3.3 — SISO ↔ MIMO veri toplama** (her motoru ayrı sür, diğerini ölç)
 - **3.4 — Transfer matrisi G(s) tahmini** (MATLAB)
 - **3.5 — RGA + condition number** — decoupling potansiyeli
