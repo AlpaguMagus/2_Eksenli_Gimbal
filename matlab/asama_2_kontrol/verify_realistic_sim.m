@@ -1,6 +1,7 @@
 %% Aşama 2.3 → 2b — Gerçekçi kapalı-döngü simülasyon (sim-to-real gap doğrulama)
 %
-% Amaç: Aşama 2.3'te ampirik bulunan Kp=0.002'yi TEORİK doğrulamak.
+% Amaç: Aşama 2.3'ün çalışan Kp=0.002 kazancını (analitik: doyum-kısıtı + doğru-plant
+%       pole placement, design_speed_pi_corrected.m) BAĞIMSIZ doğrulamak.
 % Aşama 2.1 Simulink modeli IDEAL ölçüm varsaymıştı → conservative Kp=0.1163
 % mükemmel görünüyordu. Gerçek sistemde bang-bang verdi. Bu script gerçek
 % sistemin efektlerini modele ekler:
@@ -10,8 +11,8 @@
 %   4. Setpoint slew rate
 %   5. V_sat sürücü kaybı
 %
-% Beklenti: conservative (Kp=0.1163) → bang-bang; ampirik (Kp=0.002) → stabil.
-% Bu, sim-to-real gap'i kapatır ve ampirik kazancı teorik temellendirir.
+% Beklenti: conservative (Kp=0.1163) → bang-bang; düzeltilmiş (Kp=0.002) → stabil.
+% Bu, sim-to-real gap'i kapatır ve çalışan kazancı bağımsız doğrular.
 %
 % Referans: [Franklin2010] §6.4, [AstromMurray2008] §10.2-10.4, [Ljung1999] §16
 
@@ -44,7 +45,7 @@ sysd = c2d(sysc, Ts);
 [bnum, bden] = tfdata(sysd, 'v');   % ω[k] = -bden(2)*ω[k-1] + bnum(2)*Veff[k-1]
 
 % ── İki kazanç setini simüle et ───────────────────────────────────
-gains = struct('name', {'conservative (2.1)', 'ampirik (2.3)'}, ...
+gains = struct('name', {'conservative (2.1)', 'duzeltilmis (2.3)'}, ...
                'Kp',   {0.1163, 0.002}, ...
                'Ki',   {4.0447, 0.1});
 

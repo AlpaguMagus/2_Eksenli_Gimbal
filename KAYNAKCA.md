@@ -121,7 +121,14 @@
 - **[Pololu_25D]** Pololu Corp., *"25D mm Metal Gearmotors with 48 CPR Encoders"*.
   - <https://www.pololu.com/category/116>
   - Robotsepeti Türkçe sayfa: <https://www.robotsepeti.com/971-metal-gearmotor-25dx63l-mm-lp-12v-with-48-cpr-encoder>
+  - Yerel: `datasheets/Pololu 9.7:1 Metal Redüktörlü Motor 25Dx63L mm LP 12V, 48 CPR Enkoderli/Datasheet/Page 1.png` + `Page 2.png`
+  - **LP 12V 9.68:1 elektriksel değerler (Page 1, amper bütçesi dayanağı):** stall 1100 mA @12V / 550 mA @6V; yüksüz 100 mA @12V; 560 rpm @12V; redüktör 9.68:1 (ürün adı 9.7:1 yuvarlama)
   - **48 CPR konvansiyon kararı:** Robotsepeti sayfası — *"Kuadratür enkoder her iki kanalda kenarlar için sayım yapması durumunda 48 CPR'lık bir çözünürlük sağlar"* → 48 zaten 4× decoded sayım (Aşama 0 Test 2A.T1'de doğrulandı)
+
+- **[ACS712_DS]** Allegro MicroSystems, *"ACS712 — Fully Integrated, Hall-Effect-Based Linear Current Sensor IC"* datasheet.
+  - Yerel: `datasheets/ACS712/acs712-datasheet.pdf`
+  - ±5A varyant (x05B): sensitivity 185 mV/A (sf 5); Vout(0A) = Vcc/2 (sf 4); bant genişliği 80 kHz (sf 4); toplam hata ±%1.5 (sf 5); gürültü 21 mV pp ≈ 113 mA (sf 5); izolasyon 2.1 kVRMS (sf 2); iletken direnci 1.2 mΩ (sf 4)
+  - Aşama 3+ planlı kullanım: eksen-başı akım ölçümü + duty %100 gevşetmenin foldback ön koşulu (ROADMAP "Aşama 3 güç & koruma planı"); ≤1.1 A aralığımızda çıkış 2.5±0.21 V → 3.3V ADC doğrudan uyumlu
 
 - **[WeAct_BP]** WeAct Studio, *"BlackPill V2.0 STM32F411CEU6"*.
   - GitHub: <https://github.com/WeActStudio/WeActStudio.MiniSTM32F4x1>

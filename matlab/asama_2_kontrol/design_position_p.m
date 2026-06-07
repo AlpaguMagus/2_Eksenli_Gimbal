@@ -5,8 +5,9 @@
 %            ↑                                                              │
 %            └──────────────── pozisyon geri besleme ─────────────────────┘
 %
-% İç döngü: hız PI (AMPIRIK kazanç, Aşama 2.3 — firmware'de çalışan değer):
-%   Kp_i = 0.002, Ki_i = 0.1  (conservative 2.1 değil — gerçek sistemde bang-bang verdi)
+% İç döngü: hız PI (ÇALIŞAN kazanç, Aşama 2.3 — analitik: doyum-kısıtı + doğru-plant
+%   pole placement, design_speed_pi_corrected.m):
+%   Kp_i = 0.002, Ki_i = 0.1  (conservative 2.1 değil — o, yanlış plant + doyum yüzünden bang-bang)
 %
 % Dış döngü: P kontrolcü. Plant tip-1 (hız→pozisyon entegratör) → P ile ss_error=0
 %   ([Franklin2010] §4.3). PI gereksiz (wind-up riski).
@@ -23,9 +24,9 @@ set(groot,'defaultFigureColor','w','defaultAxesColor','w', ...
     'defaultAxesXColor','k','defaultAxesYColor','k','defaultTextColor','k', ...
     'defaultAxesGridColor',[0.15 0.15 0.15]);
 
-% ── İç döngü (ampirik kazanç) ─────────────────────────────────────
+% ── İç döngü (çalışan kazanç) ─────────────────────────────────────
 K   = 53.89;   tau = 0.0605;       % Aşama 1 motor modeli
-Kp_i = 0.002;  Ki_i = 0.1;         % Aşama 2.3 ampirik hız PI
+Kp_i = 0.002;  Ki_i = 0.1;         % Aşama 2.3 çalışan hız PI (analitik, §11.12.3)
 
 G       = tf(K, [tau 1]);          % plant: V_eff → ω
 C_inner = pid(Kp_i, Ki_i);         % hız PI

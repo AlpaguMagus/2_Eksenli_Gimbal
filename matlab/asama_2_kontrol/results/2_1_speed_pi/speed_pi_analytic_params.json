@@ -1,0 +1,19 @@
+{
+  "Kp": 0.002,
+  "Ki": 0.10097646322578893,
+  "zeta": 0.57738175,
+  "omega_n": 33.057851239669425,
+  "Kg_correct_plant": 654.7635,
+  "Kp_saturation_bound": 0.0016642438050604661,
+  "omega_max_freeshaft": 300.43675,
+  "PM_deg": 59.95333932406573,
+  "wc": 34.566284016604676,
+  "conservative_Kp": 0.1163,
+  "conservative_saturates_at_radps": 4.2992261392949267,
+  "method": "saturation_constrained_pole_placement_correct_plant",
+  "kaynak": [
+    "Franklin2010 §6.4",
+    "Franklin2010 §9",
+    "AstromMurray2008 §10"
+  ]
+}

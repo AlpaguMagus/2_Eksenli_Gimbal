@@ -20,7 +20,7 @@
 | 4 — MIMO Kontrol | ⬜ | LQR/LQG + Kalman |
 | 5 — Gerçek Gimbal | ⬜ | 3D-baskı + stabilizasyon |
 
-**En son (2026-05-27):** **Aşama 2 KAPALI** — IMU mirror takip (motor IMU pitch'ini izler) Test 2.T6 PASS (gimbal-hızı RMS 4.68°, Kp_pos analitik Kv tasarımı). Aşama 2 tüm kontrol omurgası (hız PI → cascade → mirror) gerçek motorda doğrulandı. Sırada **Aşama 3 — MIMO model**. Detay → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md) §11.15 (kapanış sentezi). Güncel durum → [`PROJE_DURUMU.md`](PROJE_DURUMU.md).
+**En son (2026-05-27):** **Aşama 2 KAPALI** — IMU mirror takip (motor IMU pitch'ini izler) Test 2.T6 PASS (gimbal-hızı RMS 4.02° @ Kp_pos=6 firmware default, gerçek motor; analitik Kv tasarımı). Aşama 2 tüm kontrol omurgası (hız PI → cascade → mirror) gerçek motorda doğrulandı. Sırada **Aşama 3 — MIMO model**. Detay → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md) §11.15 (kapanış sentezi). Güncel durum → [`PROJE_DURUMU.md`](PROJE_DURUMU.md).
 
 ---
 
@@ -116,6 +116,7 @@ python3 scripts/disturbance_test.py       # disturbance rejection
 | `POS_DEG:<±float>` | Pozisyon hedefi (çıkış mili derece) — POS modda |
 | `KP:` / `KI:` / `SLEW:` / `KPP:` | Runtime kazanç ayarı (flash'sız) |
 | `STOP` / `RESET` / `PING` | Durdur / lockout temizle / handshake |
+| `IMUDIAG` / `IMUINIT` | IMU I2C sağlık teşhisi (bus/uyku/AD0) / çek-taksız uyandırma |
 
 Komut seti detayı → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md).
 

@@ -10,7 +10,7 @@ function verify_antiwindup()
 % sonra 450→50 rad/s. Wind-up etkisi iniş geçişinde görünür: anti-windup kapalıysa
 % şişmiş integratör boşalana kadar u yüksek kalır, ω 50'ye geç iner (recovery gecikir).
 %
-% Firmware ile uyumlu ayrık PI (Ts=5 ms, ampirik Kp=0.002, Ki=0.1, T_t=Kp/Ki),
+% Firmware ile uyumlu ayrık PI (Ts=5 ms, çalışan Kp=0.002, Ki=0.1, T_t=Kp/Ki),
 % saturation ±0.5 duty, plant duty→ω = K·Vs/(τs+1).
 %
 % Kaynak: [AstromMurray2008] §10.4 (back-calculation anti-windup)

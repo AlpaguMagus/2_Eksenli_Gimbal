@@ -55,7 +55,7 @@ function design_speed_margin_empirical()
     semilogx(w, 20*log10(mc), 'r--', 'LineWidth',1.5);
     yline(0,'k:');
     ylabel('Gain [dB]'); title('Test 2.T1 — Speed PI Margins on Firmware Plant (duty\rightarrow\omega)', 'FontWeight','bold');
-    legend('ampirik K_p=0.002 (calisan)','conservative K_p=0.1163 (bang-bang)', ...
+    legend('calisan K_p=0.002 (analitik)','conservative K_p=0.1163 (bang-bang)', ...
         'Location','southwest','TextColor','k','Color','w','EdgeColor',[0.6 0.6 0.6]);
 
     subplot(2,1,2);
@@ -63,7 +63,7 @@ function design_speed_margin_empirical()
     semilogx(w, pc, 'r--', 'LineWidth',1.5);
     yline(-180,'k:');
     ylabel('Phase [deg]'); xlabel('frequency \omega [rad/s]');
-    text(1.4, -150, sprintf('ampirik: PM=%.0f^\\circ, \\omega_c=%.0f rad/s (guvenli)', Pm_e, Wcp_e), 'Color','b','FontSize',9);
+    text(1.4, -150, sprintf('calisan: PM=%.0f^\\circ, \\omega_c=%.0f rad/s (guvenli)', Pm_e, Wcp_e), 'Color','b','FontSize',9);
     text(1.4, -165, sprintf('conservative: PM=%.0f^\\circ ama \\omega_c=%.0f >> Nyquist 628', Pm_c, Wcp_c), 'Color','r','FontSize',9);
 
     exportgraphics(f, fullfile(outdir, '05_margin_empirical_vs_conservative.png'), 'Resolution',150);

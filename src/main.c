@@ -88,21 +88,23 @@ int main(void)
      * serbest mil çok hızlı (0.5 duty → ~280 rad/s no-load) + encoder kuantize
      * + yüksek Kp her error'da saturation'a fırlatıyordu → limit cycle.
      *
-     * AMPIRIK ÇÖZÜM (artifacts/2/, düşük-kazanç taraması): Kp=0.002, Ki=0.1
-     * → motor tüm setpoint'lere temiz oturuyor (50/120/30 rad/s, bang-bang yok).
-     * Conservative'den ~58× düşük. Bu kazançlar 2b'de Simulink'e gerçekçi
-     * efektler (kuantizasyon + gecikme + serbest mil) eklenerek teorik doğrulanacak.
+     * ANALİTİK DÜZELTME (design_speed_pi_corrected.m, docs §11.12.3): doyum-kısıtı
+     * Kp≈duty_max/ω_max=0.002 + doğru-plant (Kg=K·Vs=654.8) pole placement
+     * ω_n=2/τ=33 → Ki=0.1. Conservative'den ~58× düşük; tüm setpoint'lere temiz
+     * oturur (50/120/30 rad/s, bang-bang yok). 2b gerçekçi Simulink + ayrık margin doğruladı.
      *
      * Runtime KP:/KI:/SLEW: komutlarıyla flash'sız ayarlanabilir (test için).
      * Kaynaklar: [AstromMurray2008] §10.2 (Tustin), §10.4 (back-calculation) */
     static const SpeedPI_Config SPEED_PI_CFG = {
-        .Kp       = 0.002f,           /* ampirik (2.3); 2.1 conservative çok yüksekti */
+        .Kp       = 0.002f,           /* analitik: doyum-kısıtı Kp≈duty_max/ω_max
+                                       * (design_speed_pi_corrected.m, docs §11.12.3);
+                                       * 2.1 conservative 58× yüksekti (P-term doyar → bang-bang) */
         .Ki       = 0.1f,
         .Ts       = 0.005f,           /* Tustin SABIT adımı (5 ms = 200 Hz NOMINAL).
                                        * DİKKAT: gerçek ana döngü ~7 ms (~140 Hz, docs
                                        * asama_0 §5.4) — Ts gerçek dt değil. Efektif integral
-                                       * kazancı nominalin Ts/dt≈5/7≈0.71 katı; ampirik Ki=0.1
-                                       * bu sabit-Ts varsayımı altında gerçek motorda ayarlandı.
+                                       * kazancı nominalin Ts/dt≈5/7≈0.71 katı; Ki=0.1 bu
+                                       * sabit-Ts varsayımı altında geçerli (donanımda doğrulandı).
                                        * Döngü hızı değişir/Ts gerçek dt'ye bağlanırsa integral
                                        * etkisi sessizce kayar (latent kuplaj — docs §11.12.8 notu). */
         .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı */
@@ -184,8 +186,11 @@ int main(void)
         bool key_pressed = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET);
         Motor_DebugInjectFakeStall(key_pressed);
 
-        /* Stall detection — her iterasyonda (~140 Hz, döngü ~7 ms) */
-        Motor_StallCheck(enc_speed);
+        /* Stall detection — her iterasyonda (~140 Hz); COUNT-tabanlı (2026-05-31,
+         * gerekçe motor.h): anlık hız 1 count = 18.7 rad/s kuantize olduğundan yavaş
+         * takipte yanlış-pozitif veriyordu; count deltası 200 ms pencerede 0.67 rad/s
+         * çözünürlük sağlar. enc_speed artık yalnız telemetri + PI içindir. */
+        Motor_StallCheck(enc_count);
 
         /* Watchdog — 1 sn boyunca komut yoksa Motor_Stop. Edge'de USB CDC'ye
          * 'WATCHDOG_TIMEOUT\r\n' bir kerelik mesaj (sürekli flood yok).
@@ -352,6 +357,30 @@ void MPU6050_Read(int16_t *ax, int16_t *ay, int16_t *az,
     *gx = (int16_t)(raw[8]  << 8 | raw[9]);
     *gy = (int16_t)(raw[10] << 8 | raw[11]);
     *gz = (int16_t)(raw[12] << 8 | raw[13]);
+}
+
+/* IMUDIAG — I2C/IMU sağlık teşhisi (2026-05-31; tekrarlayan bağlantı arızası):
+ * bus ACK (0x68 + AD0-kayma kontrolü 0x69), kimlik (WHO_AM_I 0x75 == 0x68),
+ * uyku durumu (PWR_MGMT_1 0x6B bit6) — [MPU6050_RM]. HAL rc: 0=OK 1=ERR 2=BUSY 3=TIMEOUT.
+ * Yorum kılavuzu:
+ *   r68=0 + who=68 + sleep=1 → çip BUS'ta ama UYKUDA (güç glitch'i; IMUINIT yeter,
+ *                              USB çek-tak GEREKMEZ — Init yalnız boot'ta koştuğu için)
+ *   r68≠0 ve r69=0           → AD0 teması kopmuş (adres 0x69'a kaymış)
+ *   ikisi de ≠0              → bus/güç seviyesi arızası (kablo teması / modül) */
+void MPU6050_DiagPrint(void)
+{
+    uint8_t who = 0xFF, pwr = 0xFF;
+    HAL_StatusTypeDef r68 = HAL_I2C_IsDeviceReady(&hi2c1, MPU6050_ADDR, 2, 50);
+    HAL_StatusTypeDef r69 = HAL_I2C_IsDeviceReady(&hi2c1, (uint16_t)(0x69 << 1), 2, 50);
+    HAL_StatusTypeDef rw  = HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x75,
+                                             I2C_MEMADD_SIZE_8BIT, &who, 1, 50);
+    HAL_StatusTypeDef rp  = HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, MPU6050_PWR_MGMT_1,
+                                             I2C_MEMADD_SIZE_8BIT, &pwr, 1, 50);
+    char buf[96];
+    int len = snprintf(buf, sizeof(buf),
+        "IMUDIAG r68:%d r69:%d who:%02X(rc%d) pwr:%02X(rc%d) sleep:%d\r\n",
+        (int)r68, (int)r69, who, (int)rw, pwr, (int)rp, ((pwr & 0x40U) != 0U) ? 1 : 0);
+    if (len > 0) CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
 }
 
 /* ================================================================

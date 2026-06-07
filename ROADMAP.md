@@ -32,7 +32,7 @@
 | `docs/asama_<N>_*.md` | **Derin akademik içerik:** teori, türetme, tasarım gerekçesi, alternatifler, deney sonucu (ne/neden/nasıl/nerede/sonuç) | İlgili aşama ilerleyince |
 | `ROADMAP.md` (bu dosya) | Yol haritası, aşamalar, adımlar, testler, tamamlanma kanıtı | Her adım/aşama bitiminde |
 | `PROJE_DURUMU.md` | "Şu an neredeyiz?" 5-10 satır özet + ROADMAP linki | Aşama geçişlerinde |
-| `CLAUDE.md` | AI etkileşim kuralları + proje standartları | Yeni kural eklendiğinde |
+| `CLAUDE.md` | **Proje-spesifik** AI standartları/bağlar (genel disiplinler kullanıcı-global `~/.claude/CLAUDE.md`'de — 2026-05-31 taşındı) | Yeni kural eklendiğinde |
 | `KAYNAKCA.md` | Etiketli akademik referanslar + datasheet'ler | Her yeni teknik karar |
 | `matlab/<aşama>/README.md` | Aşama-spesifik MATLAB workflow | Aşama açılışında |
 
@@ -85,7 +85,7 @@ Sigorta temin edildiğinde:
 
 ### Açık Konu (Aşama 0 → 1'e taşınan)
 
-- **2A.T5-B (gerçek motor stall testi):** KEY simülasyonu (Aşama A) PASS. Gerçek motor stall (eldivenle şaftı tut + multimetre <0.9 A) bağımsız donanım doğrulaması, sonraki seansa bırakıldı — Aşama 1'i engellemiyor.
+- **2A.T5-B (gerçek motor stall testi):** ✅ **KAPANDI (2026-06-07, count-tabanlı dedektörle)** — eldivenle gerçek kilitleme: 3/3 tespit; yüklü-ama-dönen (u=0.50 doyumda ~11 s kavrama) tetiklemedi; engel sürerken kes→1 sn→dene döngüsü; bırakınca **+1.0–1.25 s oto-devam**. `artifacts/2/stall_fix/20260607_174743/`. (KEY simülasyonu Aşama A daha önce PASS. Multimetre akım ölçümü yapılmadı — bütçe `[Pololu_25D]` duty %50'de ~0.55 A öngörür; ampirik ölçüm ACS712 Faz-2'de.)
 - ~~**R6 (CW%20 ölü-bant değişkenliği)**~~ ✅ **ÇÖZÜLDÜ 2026-05-18 (artifact: `artifacts/1/stiction_test/20260518_111200/`):** Önce stiction hipotezi ile açıklandı (Aşama 1.3), sonra deneysel test ile **stiction reddedildi** (cold-start dahil tüm duty'lerde motor başlıyor). T7 ham log yeniden analizi: motor T7'de aslında dönmüş (ΔEC ≈ 1750 her cycle, ω ≈ 76 rad/s). Anomalinin nedeni: o dönem firmware OMEGA alanını göndermiyordu, Python analizi varsayılan 0.0 raporladı. **R6 fiziksel değil, analiz/parsing artefaktıydı.**
 
 ---
@@ -230,8 +230,9 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
   - `include/cmd_parser.h` + `src/cmd_parser.c` — `MODE:DUTY`, `MODE:SP_W`,
     `SP_W:<float>` komutları + `CmdParser_GetMode()` accessor
   - `src/main.c` — SpeedPI_Init (2.2'de Kp=0.1163, Ki=4.0447, Ts=5ms, T_t=28.75ms
-    — **2.3'te ampirik Kp=0.002, Ki=0.1, T_t=20ms ile değiştirildi**; conservative
-    bang-bang verdi, bkz. §2.3 altında), SP_W modda her tick'te SpeedPI_Step,
+    — **2.3'te analitik düzeltilmiş Kp=0.002, Ki=0.1, T_t=20ms ile değiştirildi**
+    (doyum-kısıtı + doğru-plant pole placement, §11.12.3); conservative bang-bang
+    verdi, bkz. §2.3 altında), SP_W modda her tick'te SpeedPI_Step,
     USB TX formatına `SP:` (setpoint) + `U:` (kontrol çıkışı) alanları
   - Stall event'inde SpeedPI_Reset (integrator wind-up önleme)
 
@@ -251,7 +252,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
   saturation'a fırlatıp limit cycle yaratıyordu. Doğru kazanç ~58× düşük.
 
   Firmware değişiklikleri (commit `<bu seans>`):
-  - main.c: default kazanç Kp=0.002, Ki=0.1 (ampirik)
+  - main.c: default kazanç Kp=0.002, Ki=0.1 (analitik: doyum-kısıtı + doğru-plant pole placement, §11.12.3)
   - main.c: dt→DWT µs (ms jitter giderme)
   - main.c: SP_W'de Motor_Tick bypass, Motor_SetDutySigned doğrudan PWM
   - encoder.c: Encoder_FilterSpeed moving-avg (WINDOW=5)
@@ -262,7 +263,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
   Artifact: `artifacts/2/T2_3_speed_pi_tuning/` + `speed_gain_sweep/` + `slew_sweep/`
   Detay: docs/asama_2_kontrol.md §11.12
 
-  Kalan: ampirik kazancı 2b Simulink'te teorik doğrula. Sonra programatik
+  Kalan: çalışan kazancı 2b Simulink'te teorik doğrula. Sonra programatik
   `scripts/speed_step_test.py` ile resmi step response metrikleri (settling/OS/ss).
 
 - **2.4 — Disturbance rejection testi**
@@ -291,7 +292,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
   - Güvenlik: STOP/RESET→DUTY, watchdog hedef sıfırla; complementary filter mod sürüşü öncesine taşındı
 
 - **2.8 — Mirror takip testi** ✅ (Test 2.T6, 2026-05-26)
-  - Gimbal-hızı (~25-30°/s): RMS 4.68° (Kp=5) PASS; Kp_pos=6 analitik 4.63°
+  - Gimbal-hızı: Kp_pos=6 firmware default RMS 4.02° (gerçek motor, span 95.4°) PASS — analitik 4.63° üst sınırını doğruladı; Kp=5 sweep 4.68°
   - Hızlı el (~80°/s): bant genişliği limiti (~10° RMS, beklenen — cascade ~0.3 Hz)
   - Detay: docs/asama_2_kontrol.md §11.13.8
 
@@ -303,12 +304,12 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
 | # | Test | Beklenen | Durum |
 |---|---|---|---|
-| 2.T1 | Kararlılık marjı (ampirik/çalışan kazanç) | Gain margin ≥ 6 dB, phase margin ≥ 45° | ✅ PASS — ampirik Kp=0.002 firmware plant'ta **PM=60.2°, GM=∞** (analitik PM~58° + `margin` doğrulama, %4 uyum). Conservative ωc=1259>Nyquist 628 → sim-to-real gap'in margin-düzeyi kanıtı. `docs §11.12.8` |
+| 2.T1 | Kararlılık marjı (çalışan kazanç) | Gain margin ≥ 6 dB, phase margin ≥ 45° | ✅ PASS — çalışan Kp=0.002 firmware plant'ta **PM=60.2°, GM=∞** (analitik PM~58° + `margin` doğrulama, %4 uyum). Conservative ωc=1259>Nyquist 628 → sim-to-real gap'in margin-düzeyi kanıtı. `docs §11.12.8` |
 | 2.T2 | Hız step response (firmware) | settling < 5τ, overshoot < %10, ss_error < %2 | ✅ PASS (Kp=0.002, 8/8 step temiz, ss_err çoğunlukla <%2, bang-bang yok. Settling/OS metrikleri düşük setpoint'te encoder kuantizasyonu ile sınırlı — `artifacts/2/speed_step/20260524_180610/`) |
 | 2.T3 | Anti-windup recovery | recovery iyileşmesi | ✅ **PASS (sim + gerçek)** — sim: anti-windup ON 235 vs OFF 715 ms (3× hızlı), integratör 32× az şişme. **Gerçek motor: 637 ms** (450→50 saturation, < sim OFF 715 → anti-windup aktif; sim ON'dan yavaşlık = sim-to-real gap, coast+kuantizasyon). `docs §11.12.9`, `artifacts/2/antiwindup/20260528_203803/` |
 | 2.T4 | Disturbance rejection | Yük sonrası setpoint'e dönüş | ✅ PASS — baseline 101 rad/s (=setpoint, PI sıfır ss-error), elle yük ω'yı 56'ya itti (%44 dip), PI duty 0.186→0.50 telafi, setpoint'e döndü. `artifacts/2/disturbance/20260524_192851/`. Recovery metriği encoder kuantizasyonu ile sınırlı. |
 | 2.T5 | Cascade pozisyon step | Overshoot < %10, ss_error < 1° | ✅ PASS — 6/6 segment (30/90/45/0/-45/0°), ss_err <0.8°, OS <1°, **limit-cycle yok** (θ_std <0.7°). Gerçekçi sim limit-cycle öngördü ama gerçek motor sürtünmesi söndürdü (sim kötümserdi). `artifacts/2/position_step/20260524_212456/` |
-| 2.T6 | Mirror takip (KRİTİK) | RMS < 5° | ✅ PASS — gimbal-hızı (~25-30°/s) RMS **4.68°** (Kp_pos=5), analitik Kv tasarımı Kp_pos=6→4.63° doğruladı. Hızlı el (~80°/s) bant-genişliği limiti (~10°, beklenen). `artifacts/2/mirror/20260526_204240/` |
+| 2.T6 | Mirror takip (KRİTİK) | RMS < 5° | ✅ PASS — gimbal-hızı RMS **4.02°** (Kp_pos=6 firmware default, gerçek motor, span 95.4°; analitik 4.63° üst sınırını doğruladı). Kp=5 sweep 4.68°. Hızlı el (~80°/s) bant-genişliği limiti (~10°, beklenen). `artifacts/2/mirror/20260531_174740/` |
 
 ### Açık Sorular (alt-aşama açılışlarında)
 
@@ -331,6 +332,13 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 - İkinci TB6612 kanalı veya ikinci modül (BIN1/BIN2/PWMB)
 - TIM4 quadrature encoder (PB6/PB7 — I2C ile çakışıyor → revize: TIM5 PA0/PA1)
 - ⚠ PA0 = KEY butonu, çakışma! → pin yeniden değerlendirme Aşama 3 açılışında
+
+**Güç & koruma planı (2026-05-31 datasheet denetimi — `[Pololu_25D]`, `[TB6612_DS]`, `[ACS712_DS]`):**
+
+- **Tek 3A adaptör 2 motora YETERLİ** (karar: 5A alınmadı): ikisi stall @ duty %50 ≈ 1.6 A, @ tam 12V (en kötü) 2.2 A < 3.0 A. Şartlar: duty cap %50 korunur, soft-start'lar kademeli (eşzamanlı inrush yok), 12V hattına bulk kapasitör.
+- **2 AYRI TB6612 modülü** (karar — ikisi de mevcut): tek çipte iki motor stall'da disipasyon ~1.2 W > PD limiti (0.78–0.89 W) → TSD riski; iki çipte ~0.6 W/çip güvenli (`[TB6612_DS]` sf 3/5).
+- **Dar boğaz = SÜRÜCÜ** (adaptör değil): motor stall @12V 1.1 A > TB6612 sürekli 1.0 A; TB6612'de ayrık OCP YOK (yalnız TSD ~175°C) → sürücü koruması **yazılımdadır** (duty cap + stall detection; ileride ACS712 foldback).
+- **ACS712 ±5A akım sensörü — planlı açık konu (karar kaydı):** duty %100 gevşetmenin **ön koşulu** (1.1 A > 1.0 A'yı foldback ile spec içinde tutar) + "elle müdahalede sistem durmasın" gereksinimi (orantısal güç kısma yalnız akım ölçümüyle olur). Eksen-başı 2 sensör (hangi motor stall bilgisi); ADC1 boş, PA1–PA7 serbest; ≤1.1 A aralığımızda çıkış 2.5±0.21 V → 3.3V ADC uyumlu; çözünürlük kaba (gürültü ~113 mA) ama koruma eşiği için yeterli (`[ACS712_DS]`). NOT: ACS712 pasif backstop'un (polyfuse) yerine geçmez — MCU çökerse yazılım limiti de ölür; katmanlar tamamlayıcıdır.
 
 **MATLAB:** `matlab/asama_3_mimo_model/`
 
@@ -433,8 +441,8 @@ sistem tanımlama + kazanç ayarı** alt-adımı eklenmeli.
 
 ## Kapsam Dışı (Sonraki İterasyonlar)
 
-- **VM hattı sigorta entegrasyonu** — Kullanıcı 1.5 A polyfuse veya 2 A cam sigorta temin ettiğinde aktif aşamaya alınır. Duty cap %50 sınırı gevşetilir.
-- **Duty cap %50 → %100 gevşetme** — Sigorta sonrası, kontrolcü stabilse.
+- **VM hattı sigorta entegrasyonu** — Tek motor döneminde 1.5 A polyfuse planlanmıştı; **2 motorda (Aşama 3+) ~2.5–3 A polyfuse** gerekir (normal 2-motor stall 1.6 A'yi taşımalı; oto-reset PTC "sistem ölü kalmasın" hedefine uygun). Kullanıcı temin edince aktif aşamaya alınır. ⚠ Polyfuse kabloyu/adaptörü korur, 1.0 A'lik sürücüyü KORUMAZ (o, yazılım katmanlarının işi — ROADMAP Aşama 3 güç planı).
+- **Duty cap %50 → %100 gevşetme** — Ön koşul: **ACS712 akım foldback** (stall @12V 1.1 A > TB6612 sürekli 1.0 A — dar boğaz sürücü, Aşama 3 güç planı) + sigorta. Kontrolcü stabilse.
 - **Madgwick / quaternion füzyon** — ±90° singülarite çözümü. Mevcut complementary ±45° için yeterli; gerekirse Aşama 5+'ta eklenir.
 - **µ-synthesis, H∞ kontrol** — `[Skogestad2005] §11`. Akademik olarak zengin ama proje kapsamı dışı.
 - **Bluetooth gecikme analizi** — Ferhat'ın tezi tarafı, BLE/HC-05 üzerinden komut gecikmesi.

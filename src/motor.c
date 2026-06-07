@@ -14,11 +14,17 @@
 #define MOTOR_DEAD_THRESHOLD 0.10f  /* |Δ| > 0.10 ise rampa, ≤ 0.10 ise direkt */
 #define MOTOR_SOFT_STEP_MS   5U     /* SoftStart blok rampa step bekleme */
 
-/* Stall detection */
-#define STALL_SPEED_TH       2.0f    /* rad/s motor şaftı eşiği */
+/* Stall detection — COUNT-TABANLI (2026-05-31; gerekçe → include/motor.h):
+ * 200 ms pencerede |Δcount| < STALL_COUNT_TH → "dönmüyor". 1 count/200 ms
+ * = 0.67 rad/s motor-şaftı çözünürlüğü (eski anlık-hız yolunun 18.7 rad/s
+ * kuantizasyonuna karşı 28× ince) — yavaş takip artık yanlış tetiklemez.
+ * Kaynak: [Pololu_25D] 48 CPR. Lockout 1 sn (eski 5 sn): duty-cap %50'de
+ * stall ~0.55-0.8 A < TB6612 sürekli 1.0 A (docs/asama_0 §8.5 amper bütçesi)
+ * → kesme dişli koruması, hızlı oto-toparlanma yeterli. */
+#define STALL_COUNT_TH       2       /* count/pencere — altı "dönmüyor" (≈|ω|<1.35 rad/s motor) */
 #define STALL_DUTY_TH        0.20f   /* duty eşiği */
 #define STALL_DURATION_MS    200U    /* tetik penceresi */
-#define LOCKOUT_DURATION_MS  5000U   /* lockout süresi */
+#define LOCKOUT_DURATION_MS  1000U   /* lockout süresi (5000→1000: yumuşatma) */
 
 static TIM_HandleTypeDef htim3;
 
@@ -28,6 +34,7 @@ static float target_duty  = 0.0f;
 
 /* Stall / lockout state */
 static uint32_t stall_count_ms      = 0;
+static int32_t  stall_ref_count     = 0;      /* pencere başlangıç encoder count'u */
 static bool     stall_active        = false;
 static uint32_t lockout_until_ms    = 0;
 static bool     stall_event_pending = false;
@@ -135,8 +142,9 @@ void Motor_SetDuty(float duty01)
 {
     if (stall_active) return;   /* Lockout — duty komutu reddedilir */
 
-    /* Hard cap MOTOR_MAX_DUTY (0.50f) — Stall'da pik akım ~0.8 A,
-     * TB6612 1.2 A continuous limitinin altında.
+    /* Hard cap MOTOR_MAX_DUTY (0.50f) — Stall'da pik akım ~0.55-0.8 A,
+     * TB6612 sürekli operating limiti 1.0 A'in altında ([TB6612_DS] sf 3;
+     * eski yorumdaki "1.2 A continuous" yanlıştı — 1.2 A pulse-koşullu abs-max).
      *
      * |Δduty| > MOTOR_DEAD_THRESHOLD (0.10) ise sadece target güncellenir,
      * Motor_Tick her iterasyonda 0.01 step ile yaklaştırır (non-blocking).
@@ -235,11 +243,11 @@ void Motor_EmergencyStop(void)
 
 /* ── Stall detection + lockout ─────────────────────────────────────────── */
 
-void Motor_StallCheck(float speed_radps)
+void Motor_StallCheck(int32_t enc_count)
 {
     uint32_t now = HAL_GetTick();
 
-    /* Lockout otomatik açılma — 5 sn dolunca sürücüyü tekrar aktive et */
+    /* Lockout otomatik açılma — süre dolunca sürücüyü tekrar aktive et */
     if (stall_active && now >= lockout_until_ms) {
         stall_active     = false;
         lockout_until_ms = 0;
@@ -250,12 +258,14 @@ void Motor_StallCheck(float speed_radps)
         /* Lockout süresince kontrol yapma */
         last_check_tick = now;
         stall_count_ms  = 0;
+        stall_ref_count = enc_count;
         return;
     }
 
     /* Rampa sırasında bypass (current ≠ target) — yanlış pozitif önleme */
     if (fabsf(current_duty - target_duty) > 0.005f) {
         stall_count_ms  = 0;
+        stall_ref_count = enc_count;
         last_check_tick = now;
         return;
     }
@@ -265,22 +275,35 @@ void Motor_StallCheck(float speed_radps)
     last_check_tick = now;
     if (dt > 100U) dt = 5U;
 
-    /* Stall koşulu — fake_stall ile debug injection */
-    float v = fake_stall_inject ? 0.0f : speed_radps;
-    bool cond = (fabsf(v) < STALL_SPEED_TH) && (current_duty > STALL_DUTY_TH);
+    /* Duty eşiği altında pencereyi sıfırla — düşük güçte stall anlamsız */
+    if (current_duty <= STALL_DUTY_TH) {
+        stall_count_ms  = 0;
+        stall_ref_count = enc_count;
+        return;
+    }
 
-    if (cond) {
-        stall_count_ms += dt;
-        if (stall_count_ms >= STALL_DURATION_MS) {
-            /* STALL TETİK — kesici durdurma + 5 sn lockout */
-            stall_event_pending = true;
-            stall_count_ms      = 0;
-            lockout_until_ms    = now + LOCKOUT_DURATION_MS;
-            Motor_EmergencyStop();
-            stall_active        = true;  /* EmergencyStop sonrası set — sıra önemli */
-        }
-    } else {
-        stall_count_ms = 0;
+    /* Count deltası — fake_stall debug injection deltayı 0 zorlar (kilitli
+     * rotor simülasyonu). int32 fark wrap-safe; pencere içi delta küçük. */
+    int32_t delta = enc_count - stall_ref_count;
+    if (fake_stall_inject) delta = 0;
+
+    if (delta >= STALL_COUNT_TH || delta <= -STALL_COUNT_TH) {
+        /* Mil dönüyor — pencereyi yeni referansla baştan başlat */
+        stall_count_ms  = 0;
+        stall_ref_count = enc_count;
+        return;
+    }
+
+    /* |Δcount| < eşik VE duty yüksek → "dönmüyor" sayacı işlesin */
+    stall_count_ms += dt;
+    if (stall_count_ms >= STALL_DURATION_MS) {
+        /* STALL TETİK — kesici durdurma + 1 sn lockout (oto-toparlanma) */
+        stall_event_pending = true;
+        stall_count_ms      = 0;
+        stall_ref_count     = enc_count;
+        lockout_until_ms    = now + LOCKOUT_DURATION_MS;
+        Motor_EmergencyStop();
+        stall_active        = true;  /* EmergencyStop sonrası set — sıra önemli */
     }
 }
 

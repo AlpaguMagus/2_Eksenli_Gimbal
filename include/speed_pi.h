@@ -8,11 +8,13 @@
  *
  * Tustin (bilinear) z-dönüşümü ile discrete-time ayrıştırma + back-calculation
  * anti-windup.
- *   ÇALIŞAN (deployed) kazanç: Kp=0.002, Ki=0.1 — AMPIRIK (Aşama 2.3, docs §11.12.3).
+ *   ÇALIŞAN (deployed) kazanç: Kp=0.002, Ki=0.1 — ANALİTİK (doyum-kısıtı +
+ *     doğru-plant pole placement; design_speed_pi_corrected.m, docs §11.12.3):
+ *     Kp≈duty_max/ω_max (P-terimi doyumu aşmasın), ω_n=2/τ=33 → Ki=ω_n²τ/Kg, Kg=K·Vs=654.8.
  *     main.c'de yüklenen değer budur; SpeedPI_SetGains ile runtime ayarlanabilir.
  *   Orijinal 2.1 tasarımı (REFERANS, KULLANILMIYOR): pole_placement_conservative
- *     Kp=0.1163, Ki=4.0447, ζ=1.0, ω_n=60 rad/s — gerçek motorda bang-bang verdi,
- *     2.3'te ampirik ile değiştirildi. matlab/asama_2_kontrol/results/2_1_speed_pi/
+ *     Kp=0.1163, Ki=4.0447, ζ=1.0, ω_n=60 rad/s — İKİ hata (yanlış plant K=53.89 yerine
+ *     Kg=654.8; doyum yok sayıldı) → gerçek motorda bang-bang. matlab/.../results/2_1_speed_pi/
  *
  * Model: Aşama 1 motor parametreleri
  *   G(s) = K / (τs + 1),  K=53.89 rad/s/V, τ=60.5 ms
