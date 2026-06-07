@@ -186,8 +186,11 @@ int main(void)
         bool key_pressed = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET);
         Motor_DebugInjectFakeStall(key_pressed);
 
-        /* Stall detection — her iterasyonda (~140 Hz, döngü ~7 ms) */
-        Motor_StallCheck(enc_speed);
+        /* Stall detection — her iterasyonda (~140 Hz); COUNT-tabanlı (2026-05-31,
+         * gerekçe motor.h): anlık hız 1 count = 18.7 rad/s kuantize olduğundan yavaş
+         * takipte yanlış-pozitif veriyordu; count deltası 200 ms pencerede 0.67 rad/s
+         * çözünürlük sağlar. enc_speed artık yalnız telemetri + PI içindir. */
+        Motor_StallCheck(enc_count);
 
         /* Watchdog — 1 sn boyunca komut yoksa Motor_Stop. Edge'de USB CDC'ye
          * 'WATCHDOG_TIMEOUT\r\n' bir kerelik mesaj (sürekli flood yok).

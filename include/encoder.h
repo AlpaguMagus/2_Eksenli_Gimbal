@@ -44,7 +44,8 @@ float   Encoder_GetSpeed(float dt_sec);  /* MOTOR ŞAFTI rad/s (ham). Çıkış 
  *   (ZOH + Tustin PI + MA; verify_speed_margin_discrete.m): PM≈40°, ωc≈29 rad/s — kararlı,
  *   spec ≥45°'nin marjinal altında (C1 efektif-Ki düşüklüğü ωc'yi indirip kısmen telafi eder; docs §11.12.8).
  *   [Eski conservative Kp=0.1163 PM=80.8° KULLANILMIYOR — ωc=1259'da MA fazı zaten battırır.]
- * Ham Encoder_GetSpeed korunur (Aşama 1 reproducibility + stall check için). */
+ * Ham Encoder_GetSpeed korunur (Aşama 1 reproducibility için; stall check
+ * 2026-05-31'den beri COUNT-tabanlı — Encoder_GetCount + motor.h gerekçesi). */
 #define ENCODER_SPEED_WINDOW  5
 float   Encoder_FilterSpeed(float raw_speed_radps);  /* moving average, SP_W PI girişi */
 void    Encoder_FilterReset(void);                   /* pencere temizle (mod geçişi/STOP) */

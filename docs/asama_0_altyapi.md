@@ -635,10 +635,10 @@ htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
 
   | # | Katman | Durum | Davranış |
   |---|---|---|---|
-  | 1 | **Stall detection** | ✅ Aktif (2A.7) | `Motor_StallCheck()` her döngü iterasyonunda (~140 Hz) çağrılır. Tetik: \|hız\| < 2 rad/s + current_duty > 0.20 + 200 ms. Rampa sırasında (current ≠ target) bypass. Tetiklenince `Motor_EmergencyStop()` (STBY=L + duty=0 + AIN=0). USB CDC'ye `STALL_DETECTED\r\n`. |
+  | 1 | **Stall detection** | ✅ Aktif (2A.7; **2026-05-31 count-tabanlı düzeltme**) | `Motor_StallCheck()` her döngü iterasyonunda (~140 Hz) çağrılır. Tetik: 200 ms pencerede \|Δ encoder count\| < 2 **VE** current_duty > 0.20. *(Eski tetik \|hız\| < 2 rad/s idi — anlık hız ~7 ms loop'ta 1 count = 18.7 rad/s kuantize → yavaş ama DÖNEN mil ω=0 okunup yanlış-pozitif veriyordu, 2.T6 mirror takibinde yaşandı. Count deltası 200 ms pencerede 0.67 rad/s çözünürlük verir — 28× ince; `[Pololu_25D]` 48 CPR.)* Rampa sırasında (current ≠ target) bypass. Tetiklenince `Motor_EmergencyStop()` (STBY=L + duty=0 + AIN=0). USB CDC'ye `STALL_DETECTED\r\n`. |
   | 2 | **Duty hard cap** | ✅ Aktif (2A.4) | `MOTOR_MAX_DUTY = 0.50f` motor.c iç sabiti. `Motor_SetDuty` clamp. Stall'da pik akım ~0.8 A, TB6612 1.2 A continuous altında. |
   | 3 | **Soft-start / rampa** | ✅ Aktif (2A.5) | Non-blocking: `Motor_SetDuty` target'ı set, `Motor_Tick()` her iterasyonda (~140 Hz) 0.01 step yumuşatır. \|Δduty\| ≤ 0.10 anında uygulanır. Bloklayan `Motor_SoftStart()` init için. |
-  | 4 | **5 sn lockout** | ✅ Aktif (2A.8) | Stall sonrası `Motor_SetDuty`/`Motor_Enable` sessizce reddedilir. Otomatik açılır, `Motor_ResetLockout()` erken kapatma (USB komut 2B). |
+  | 4 | **1 sn lockout** | ✅ Aktif (2A.8; **2026-05-31: 5 sn → 1 sn yumuşatma**) | Stall sonrası `Motor_SetDuty`/`Motor_Enable` sessizce reddedilir; otomatik açılır, `Motor_ResetLockout()` erken kapatma (USB komut 2B). *(Yumuşatma gerekçesi: amper bütçesi §8.5 — duty-cap %50'de stall ~0.55–0.8 A < TB6612 sürekli 1.0 A → kesme elektriksel değil dişli koruması; kısa lockout "elle müdahalede sistem çalışmayı bırakmasın" gereksinimini karşılar.)* |
   | 5 | **LED durum kodu** | ✅ Aktif (2A.9) | Normal 500 ms, stall 100 ms (5 Hz) toggle — kullanıcı görsel uyarı. |
   | 6 | **Watchdog timeout** | ⏳ 2B'de aktive | USB CDC'den 1 sn komut yoksa PWM=0. |
   | 7 | **TB6612 dahili termal shutdown** | ✅ Sürücü içinde | 175 °C tetik, 20 °C histerezis (datasheet sf 5). Demo sırasında **manuel termal kontrol** (motora dokun). |
