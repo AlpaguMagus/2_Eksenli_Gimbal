@@ -33,6 +33,29 @@ mevcut atamalar ([`asama_0_altyapi.md`](asama_0_altyapi.md) §8.1) sabit. Tüm e
 devrinde sarar → encoder-2 sürücüsünde **yazılım count-genişletme** (int16 delta extension)
 gerekir — 3.2'de implement edilir.
 
+#### Kablolama — renk renk (Pololu 25D tek gövde: motor+encoder, 6 telli tek kablo)
+
+Pololu 25D'de motor ve encoder **ayrı değil, tek gövde** — kablodan **6 renkli tel** çıkar
+ve 3 yere ayrılır: kalın 2 tel (motor gücü) sürücü çıkışına, ince 4 telin 2'si güç rayına,
+2'si (sinyal) doğrudan MCU'ya. **Sarı/beyaz asla sürücüye gitmez — doğrudan işlemciye.**
+Renk kodu: `[Pololu_25D]` Page 2.
+
+| Renk | İşlev | Motor-1 (mevcut) | **Motor-2 (yeni)** |
+|---|---|---|---|
+| 🔴 Kırmızı | Motor + | TB6612-1 AO1 | **TB6612-2 AO1** |
+| ⚫ Siyah | Motor − | TB6612-1 AO2 | **TB6612-2 AO2** |
+| 🔵 Mavi | Encoder Vcc | 5V | **5V** (PA8/PA9 FT, 5V-tol.) |
+| 🟢 Yeşil | Encoder GND | GND | **GND** |
+| 🟡 Sarı | Encoder A | PA15 | **PA8** |
+| ⚪ Beyaz | Encoder B | PB3 | **PA9** |
+
+**MCU ↔ TB6612-2 kontrol jumper'ları** (motor kablosu değil): PWMA←PB1, AIN1←PB4,
+AIN2←PB5, STBY←PB10, VCC←3.3V, VM←12V, GND←GND.
+
+⚠ **(1)** Tüm GND'ler ORTAK (MCU + 2 sürücü + 12V adaptör − + encoder yeşiller tek nokta).
+**(2)** Kırmızı/siyah AO1↔AO2 sırası yön belirler — ters dönerse swap veya firmware yön çevir.
+**(3)** Encoder Vcc=5V, sürücü VCC=3.3V (karıştırma).
+
 Güç & koruma kararları → `ROADMAP.md` "Aşama 3 güç & koruma planı" (tek 3A adaptör yeterli,
 2 ayrı TB6612 — termal, dar boğaz = sürücü, ACS712 eksen-başı rezervi).
 
