@@ -500,6 +500,9 @@ Her 30 saniyede bir `screenshots/` klasörüne PNG kaydedilir (maksimum 50 dosya
 
 ### 8.1. Pin Atama Tablosu (donanım entegrasyonu)
 
+> ℹ️ Bu tablo **tek-motor (Aşama 0–2)** görünümüdür. **İki-motor MIMO tam sistem şeması**
+> (her iki eksen + IMU + güç + renk-renk kablolama) → [`asama_3_mimo_model.md`](asama_3_mimo_model.md) §12.2.
+
 Tüm pin seçimleri STM32F411 datasheet alternate function tablosuyla (`[STM32F411_DS]`) doğrulanmıştır. WeAct BlackPill V2.0 schematic'i (`[WeAct_BP]`) incelenerek SPI flash footprint çakışmaları (PA4-PA7) elimine edilmiştir.
 
 | İşlev | Pin | Çevre birimi | Dayanak |
