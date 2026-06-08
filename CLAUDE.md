@@ -12,6 +12,7 @@ Aşağıdaki belgeler **her zaman güncel tutulur** (genel ilke: global CLAUDE.m
 |---|---|---|
 | `README.md` | **Vitrin** — proje tanıtımı, mimari şema, hızlı başlangıç, repo + doküman haritası, "şu an neredeyiz" | Davranış/yapı/aşama-durum değişikliği |
 | `docs/00_genel_bakis.md` | Vizyon + **ortak kontrol teorisi primer'i** (aşamalar-arası temel: transfer fn, kararlılık, Bode, tip sistem) | Vizyon/teori-primer değişikliği |
+| `docs/00_donanim_semasi.md` | **Tek yaşayan donanım şeması** (kesişen: pin haritası + ASCII bağlantı + kablolama + güç + ACS712 rezerv). Faz belgeleri buna atıf verir | Donanım/pin/kablolama değişikliği |
 | `docs/asama_<N>_*.md` | **Derin akademik içerik** (ders-kitabı): kavram + neden + nasıl + nerede + sonuç | İlgili aşama ilerleyince |
 | `ROADMAP.md` | Plan, aşamalar, test iskeleti, açık sorular, tamamlanma kanıtı | Her adım/aşama bitiminde |
 | `PROJE_DURUMU.md` | "Şu an neredeyiz" 5-10 satır özet | Aşama/alt-aşama geçişinde |
@@ -26,6 +27,7 @@ Aşağıdaki belgeler **her zaman güncel tutulur** (genel ilke: global CLAUDE.m
 - **README = vitrin:** derin teknik/akademik içerik (türetme, tasarım gerekçesi, deney sonucu) `docs/asama_<N>_*.md`'dedir; README'ye yol haritası/TODO veya derin türetme girmez.
 - **`docs/asama_<N>_*.md` ders-kitabı disipliniyle yazılır** (Ne/Neden/Nasıl/Nerede/Sonuç + kaynaklı tartışma + açık konular — global CLAUDE.md). Her teknik karar `KAYNAKCA.md` etiketli.
 - **Kavram katmanı:** ortak kontrol teorisi kavramları **bir kez** [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md) "Ortak Kontrol Teorisi Primer'i"nde (üniversite 1. sınıf seviyesi); aşama belgeleri tekrar etmez, oraya atıf verir. `00_genel_bakis.md` donanım mimarisi DEĞİL (o README vitrininde). Yeni aşama açılırken bu disiplin baştan uygulanır.
+- **Donanım katmanı (kesişen — teori primer'iyle aynı mantık):** tam pin haritası / şema / kablolama **bir kez** [`docs/00_donanim_semasi.md`](docs/00_donanim_semasi.md)'de (TEK doğruluk kaynağı); faz belgeleri (asama_0 §8, asama_3 §12) **şemayı tekrar etmez**, oraya atıf verir, yalnız **pin seçim gerekçesini** tutar. (Geçmiş ders 2026-06-09: şema iki faz-belgesinde duplike edildi → IMU voltajı 5V/3.3V ıraksadı; ayrı belgeye çekilerek çözüldü.)
 - **Figür üretimi:** MATLAB programatik PNG (`create_*_diagram*.m`) → `results/<konu>/` (git'e girer); blok diyagram helper'ları (`draw_block`/`draw_sum`/`draw_arrow`) tutarlı tez-tarzı stil için yeniden kullanılır. Her embed altına üretim notu: `> 📊 **Üreten betik:** \`matlab/.../script.m\``.
 
 ### Aşama kapanışında (her aşama: 1, 2, 3, …)

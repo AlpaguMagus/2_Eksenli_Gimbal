@@ -29,6 +29,7 @@
 |---|---|---|
 | `README.md` | **Vitrin:** proje tanıtımı, mimari şema, hızlı başlangıç, repo + doküman haritası, "şu an neredeyiz" | Davranış/yapı değişikliği |
 | `docs/00_genel_bakis.md` | Vizyon + ortak kontrol teorisi primer'i (aşamalar-arası temel) | Vizyon/teori-primer değişikliği |
+| `docs/00_donanim_semasi.md` | **Tek yaşayan donanım şeması** (pin haritası + kablolama + güç + ACS712 rezerv); faz belgeleri atıf verir | Donanım/pin/kablolama değişikliği |
 | `docs/asama_<N>_*.md` | **Derin akademik içerik:** teori, türetme, tasarım gerekçesi, alternatifler, deney sonucu (ne/neden/nasıl/nerede/sonuç) | İlgili aşama ilerleyince |
 | `ROADMAP.md` (bu dosya) | Yol haritası, aşamalar, adımlar, testler, tamamlanma kanıtı | Her adım/aşama bitiminde |
 | `PROJE_DURUMU.md` | "Şu an neredeyiz?" 5-10 satır özet + ROADMAP linki | Aşama geçişlerinde |

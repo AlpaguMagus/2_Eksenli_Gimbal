@@ -498,27 +498,17 @@ Her 30 saniyede bir `screenshots/` klasörüne PNG kaydedilir (maksimum 50 dosya
 > **Aşama:** Plan onaylı, donanım entegrasyonu `feature/motor-encoder-tb6612` branch'inde.  
 > **Hedef:** Tek motor + encoder + IMU stabilizasyon demosu.
 
-### 8.1. Pin Atama Tablosu (donanım entegrasyonu)
+### 8.1. Pin Seçimi — Aşama 0 gerekçeleri (tek motor)
 
-> ℹ️ Bu tablo **tek-motor (Aşama 0–2)** görünümüdür. **İki-motor MIMO tam sistem şeması**
-> (her iki eksen + IMU + güç + renk-renk kablolama) → [`asama_3_mimo_model.md`](asama_3_mimo_model.md) §12.2.
+> 📐 **Tam şema / pin haritası / kablolama → [`00_donanim_semasi.md`](00_donanim_semasi.md)** (tek
+> yaşayan donanım kaynağı). Bu bölüm yalnız **Aşama 0'da neden bu pinlerin seçildiğini** anlatır
+> (gerekçe fazda, veri donanım belgesinde — tek doğruluk kaynağı). Tüm seçimler `[STM32F411_DS]`
+> AF tablosu + `[WeAct_BP]` schematic (SPI-flash footprint PA4-PA7 elendi) ile doğrulanmıştır.
 
-Tüm pin seçimleri STM32F411 datasheet alternate function tablosuyla (`[STM32F411_DS]`) doğrulanmıştır. WeAct BlackPill V2.0 schematic'i (`[WeAct_BP]`) incelenerek SPI flash footprint çakışmaları (PA4-PA7) elimine edilmiştir.
-
-| İşlev | Pin | Çevre birimi | Dayanak |
-|---|---|---|---|
-| I2C1 SCL (MPU6050) | PB6 | I2C1 | mevcut |
-| I2C1 SDA (MPU6050) | PB7 | I2C1 | mevcut |
-| USB DM | PA11 | OTG_FS | mevcut |
-| USB DP | PA12 | OTG_FS | mevcut |
-| LED | PC13 | GPIO | mevcut |
-| SWD IO / CLK | PA13 / PA14 | SWJ-DP | mevcut |
-| **Encoder A** | **PA15** | TIM2_CH1 | [RM0383] §23.3: SW-DP modunda JTDI serbest |
-| **Encoder B** | **PB3** | TIM2_CH2 | [RM0383] §23.3: SW-DP modunda JTDO serbest |
-| **Motor PWM** | **PB0** | TIM3_CH3 | SPI flash footprint dışı (PA6/PA7'den kaçınıldı) |
-| **AIN1 (yön)** | **PB12** | GPIO | TIM1_BKIN alternatifi kullanılmıyor |
-| **AIN2 (yön)** | **PB13** | GPIO | TIM1_CH1N alternatifi kullanılmıyor |
-| **STBY (enable)** | **PB14** | GPIO | TIM1_CH2N alternatifi kullanılmıyor |
+**Aşama 0'da entegre edilen (tek motor):** I2C1 MPU6050 → PB6/PB7; Encoder-1 → **PA15/PB3**
+(TIM2; `[RM0383]` §23.3 SW-DP modunda JTDI/JTDO serbest); Motor-1 PWM → **PB0** (TIM3_CH3,
+SPI-flash footprint dışı); AIN1/AIN2/STBY → **PB12/PB13/PB14** (GPIO; TIM1_BKIN/CH1N/CH2N
+alternatifleri kullanılmıyor); USB → PA11/PA12; SWD → PA13/PA14; LED → PC13.
 
 **Kullanılmayan pinler (gerekçe):**
 - **PA0** — KEY butonuna bağlı (BlackPill schematic).
