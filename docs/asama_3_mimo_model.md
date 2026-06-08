@@ -25,10 +25,11 @@ ama **güncel ve eksiksiz şema burasıdır.** Tüm eşleşmeler `STM32F411_func
 ```
 ┌─ GÜÇ DAĞITIMI ───────────────────────────────────────────────┐
 │ 12V/3A adaptör (+) → TB6612-1.VM  +  TB6612-2.VM  (motor gücü)│
-│ BlackPill 5V       → enc-1.Vcc 🔵  +  enc-2.Vcc 🔵            │
-│ BlackPill 3.3V     → TB6612-1.VCC  +  TB6612-2.VCC  (lojik)   │
+│ BlackPill 5V       → enc-1.Vcc 🔵  +  enc-2.Vcc 🔵  (encoder) │
+│ BlackPill 3.3V     → TB6612-1.VCC + TB6612-2.VCC + MPU6050.VCC│
+│                      (lojik — IMU 3.3V! encoder'la KARIŞTIRMA)│
 │ ORTAK GND ⏚ (TEK NOKTA) → BlackPill.GND + TB6612-1/2.GND      │
-│                           + 12V(−) + enc-1/2.GND 🟢           │
+│                           + 12V(−) + enc-1/2.GND 🟢 + MPU.GND │
 └──────────────────────────────────────────────────────────────┘
 
 MOTOR-1 EKSENİ (mevcut, çalışıyor)            MOTOR-2 EKSENİ (yeni, Aşama 3)
@@ -46,7 +47,8 @@ PB3  ◀─enc B ⚪ beyaz                         PA9  ◀─enc B ⚪ beyaz
 IMU — MPU6050
 ─────────────
 PB6 ─SCL─▶ MPU6050 SCL     PB7 ◀─SDA─▶ MPU6050 SDA
-5V ─▶ VCC    GND ─▶ GND    AD0 ─▶ GND   (I2C1 100 kHz, adres 0x68)
+3.3V ─▶ VCC   GND ─▶ GND   AD0 ─▶ GND   (I2C1 100 kHz, adres 0x68)
+  ⚠ MPU6050 = 3.3V (encoder 5V ile karıştırma — asama_0 §8.5/satır 739 yetkili)
 ```
 
 > 📌 `─▶` MCU **çıkışı**, `◀─` MCU **girişi**. Her Pololu 25D **tek gövdedir** (motor+encoder):
