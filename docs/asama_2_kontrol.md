@@ -448,7 +448,7 @@ Anti-windup recovery'yi **3× hızlandırır** (715→235 ms) ve integratör şi
 
 ![Test 2.T3 anti-windup recovery](../matlab/asama_2_kontrol/results/2_3_realistic_sim/antiwindup_recovery.png)
 
-**Şekil 11.12b —** Anti-windup recovery (3 panel). Üst (ω): ON (mavi) 450→50 geçişinde hızlı iner; OFF (kırmızı) integratör boşalana kadar 327 rad/s'de takılı kalır (~0.5 s gecikme). Orta (u): ON hızlı negatife geçer (frenleme), OFF saturasyonda kalır. Alt (integratör): ON sınırlı (~0.44), OFF 14.26'ya şişer (wind-up) ve yavaş boşalır. Klasik wind-up patolojisi ve back-calculation çözümü.
+**Şekil 11.12d —** Anti-windup recovery (3 panel). Üst (ω): ON (mavi) 450→50 geçişinde hızlı iner; OFF (kırmızı) integratör boşalana kadar 327 rad/s'de takılı kalır (~0.5 s gecikme). Orta (u): ON hızlı negatife geçer (frenleme), OFF saturasyonda kalır. Alt (integratör): ON sınırlı (~0.44), OFF 14.26'ya şişer (wind-up) ve yavaş boşalır. Klasik wind-up patolojisi ve back-calculation çözümü.
 
 > 📊 **Üreten betik:** `matlab/asama_2_kontrol/verify_antiwindup.m`
 

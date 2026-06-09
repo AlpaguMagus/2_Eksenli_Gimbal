@@ -176,7 +176,7 @@ Açısal hız, sayısal entegrasyon ile açıya dönüştürülür:
 
 $$\theta(t) = \theta(t-1) + \omega\cdot\Delta t$$
 
-Burada $\Delta t$, iki ölçüm arası geçen süredir (firmwaredeki `dt`, `HAL_GetTick()` farkından hesaplanır). Bu entegrasyonun zayıflığı: $\omega$'daki küçük bias zamanla birikir → **drift** (§4.3, complementary filter bunu düzeltir).
+Burada $\Delta t$, iki ölçüm arası geçen süredir (firmwaredeki `dt`; Aşama 2.3'ten beri **DWT cycle counter** ile µs hassasiyette hesaplanır — `HAL_GetTick()` ms-jitter'i değil; §5.4). Bu entegrasyonun zayıflığı: $\omega$'daki küçük bias zamanla birikir → **drift** (§4.3, complementary filter bunu düzeltir).
 
 **Jiroskobun güçlü ve zayıf yönleri:**
 
@@ -495,7 +495,8 @@ Her 30 saniyede bir `screenshots/` klasörüne PNG kaydedilir (maksimum 50 dosya
 
 ## 8. Motor Sürücü ve Encoder Entegrasyonu
 
-> **Aşama:** Plan onaylı, donanım entegrasyonu `feature/motor-encoder-tb6612` branch'inde.  
+> **Aşama:** ✅ Aşama 0'da entegre edildi ve doğrulandı (Test 2A.T1); tek-motor donanımı kapalı.
+> Güncel/tam pin haritası ve şema → [`00_donanim_semasi.md`](00_donanim_semasi.md).
 > **Hedef:** Tek motor + encoder + IMU stabilizasyon demosu.
 
 ### 8.1. Pin Seçimi — Aşama 0 gerekçeleri (tek motor)

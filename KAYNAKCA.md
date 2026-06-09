@@ -59,7 +59,7 @@
   - §6: extended Kalman filter (EKF)
   - §13: H∞ filter
 
-- **[Luenberger1971]** D.G. Luenberger, *"An introduction to observers"*, IEEE Trans. Automatic Control, vol. 16, no. 6, pp. 596-602, 1971.
+- **[Luenberger1971]** D.G. Luenberger, *"An introduction to observers"*, IEEE Trans. Automatic Control, vol. 16, no. 6, pp. 596-602, 1971. DOI: <https://doi.org/10.1109/TAC.1971.1099826>
   - Klasik Luenberger observer makalesi (Kalman'ın deterministik alternatifi)
 
 ## MIMO Sistemler
@@ -75,7 +75,7 @@
 
 ## Sensör Füzyonu
 
-- **[Mahony2008]** R. Mahony, T. Hamel, J.-M. Pflimlin, *"Nonlinear Complementary Filters on the Special Orthogonal Group"*, IEEE Trans. Automatic Control, vol. 53, no. 5, pp. 1203-1218, 2008.
+- **[Mahony2008]** R. Mahony, T. Hamel, J.-M. Pflimlin, *"Nonlinear Complementary Filters on the Special Orthogonal Group"*, IEEE Trans. Automatic Control, vol. 53, no. 5, pp. 1203-1217, 2008. DOI: <https://doi.org/10.1109/TAC.2008.923738>
   - Madgwick ve quaternion füzyon için temel
   - Mevcut complementary filter (Aşama 0) lineer versiyon — bu makale nonlinear genişletmeyi anlatır
 

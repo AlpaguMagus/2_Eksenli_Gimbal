@@ -2,8 +2,8 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
-> - **Son güncelleme:** 2026-06-07 (**Aşama 3 AÇILDI** — Aşama-2-sonrası iyileştirme paketi main'e merge `512e796`: mirror Kp=6 gerçek 4.02°, amper bütçesi datasheet denetimi, count-tabanlı stall fix bench PASS + 2A.T5-B kapandı, IMUDIAG)
-> - **Aktif aşama:** **Aşama 3 (İki Motor MIMO Model) 🟡 AKTİF** — branch `feature/asama-3-mimo-model`; ilk adım 3.1 pin planı (onay bekliyor)
+> - **Son güncelleme:** 2026-06-09 (Aşama 3 ilerliyor — **3.1 pin planı ✅ ONAYLANDI** + kablolama tamam; **3.2a encoder-2 bench PASS**; motor-2 sürücü + IMU self-heal firmware. Aşama-2-sonrası paket main'de `512e796`: mirror Kp=6 4.02°, amper bütçesi, count-stall fix, IMUDIAG)
+> - **Aktif aşama:** **Aşama 3 (İki Motor MIMO Model) 🟡 AKTİF** — branch `feature/asama-3-mimo-model`; sıradaki **3.2b motor-2 sürücü + kimlik/yön doğrulaması**
 > - **Dokümantasyon:** Aşama-bazlı `docs/` ekosistemi (README vitrin + `docs/asama_<N>_*.md` derin içerik)
 > - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
 
