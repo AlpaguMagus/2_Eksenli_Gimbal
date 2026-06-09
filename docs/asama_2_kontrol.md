@@ -658,7 +658,7 @@ Sürtünmeli sim θ_std=0° (gerçek Test 2.5: <0.7°) — **sim artık gerçeğ
 
 #### 11.13.8. IMU Mirror Takip — Analitik Kazanç Tasarımı (Aşama 2.7)
 
-**Ne:** `MODE:MIRROR` — motor, IMU pitch açısını **canlı takip eder** (breadboard'u eğince motor şaftı aynı açıya gider). Cascade altyapısı (§11.13) değişmez; setpoint `POS_DEG` komutu yerine **canlı fused_pitch**'ten beslenir: $\theta_{ref} = \text{clamp}(\text{fused\_pitch} - p_0,\ \pm60°)$, 90°/s slew. Mirror = **takip/taklit** ($+$pitch, aynı yön); gerçek gimbal stabilizasyonu ($-$pitch, kamerayı sabit tutma) Aşama 5'e aittir.
+**Ne:** `MODE:MIRROR` — motor, IMU pitch açısını **canlı takip eder** (breadboard'u eğince motor şaftı aynı açıya gider). Cascade altyapısı (§11.13) değişmez; setpoint `POS_DEG` komutu yerine **canlı fused_pitch**'ten beslenir: $\theta_{ref} = \text{clamp}(\theta_{\text{fused}} - p_0,\ \pm60°)$ (burada $\theta_{\text{fused}}$ = firmware `fused_pitch`), 90°/s slew. Mirror = **takip/taklit** ($+$pitch, aynı yön); gerçek gimbal stabilizasyonu ($-$pitch, kamerayı sabit tutma) Aşama 5'e aittir.
 
 ![IMU mirror takip blok diyagramı](../matlab/asama_2_kontrol/results/2_7_mirror/mirror_blockdiagram.png)
 
