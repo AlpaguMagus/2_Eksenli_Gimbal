@@ -19,6 +19,8 @@
 #define MPU6050_ADDR         (0x68 << 1)   /* AD0 GND'ye bağlı */
 #define MPU6050_PWR_MGMT_1   0x6B
 #define MPU6050_ACCEL_XOUT_H 0x3B          /* 14 byte burst okuma */
+#define IMU_I2C_TIMEOUT_MS   3U            /* read timeout — stuck bus ana döngüyü bloklamasın */
+#define IMU_FAIL_LIMIT       40U           /* ardışık başarısız okuma → kendini-iyileştir (~0.3 s) */
 
 /* --- Global Handles --- */
 USBD_HandleTypeDef hUsbDeviceFS;           /* usbd_cdc_if.c tarafından extern */
@@ -28,8 +30,9 @@ I2C_HandleTypeDef  hi2c1;
 void SystemClock_Config(void);
 void I2C1_Init(void);
 void MPU6050_Init(void);
-void MPU6050_Read(int16_t *ax, int16_t *ay, int16_t *az,
-                  int16_t *gx, int16_t *gy, int16_t *gz);
+HAL_StatusTypeDef MPU6050_Read(int16_t *ax, int16_t *ay, int16_t *az,
+                               int16_t *gx, int16_t *gy, int16_t *gz);
+void MPU6050_Recover(void);   /* I2C bus-clear + re-init (kendini-iyileştirme) */
 
 /* ================================================================
    MAIN
@@ -162,12 +165,30 @@ int main(void)
     uint32_t last_tx          = 0;
     uint32_t last_led         = 0;
     bool     watchdog_tripped = false;   /* edge-detect — WATCHDOG_TIMEOUT mesajı */
+    uint32_t imu_fail         = 0;       /* ardışık IMU okuma hatası sayacı */
+    uint32_t last_imu_recover = 0;       /* son kendini-iyileştirme zamanı (cooldown) */
 
     while (1)
     {
-        MPU6050_Read(&ax, &ay, &az, &gx, &gy, &gz);
+        HAL_StatusTypeDef imu_st = MPU6050_Read(&ax, &ay, &az, &gx, &gy, &gz);
 
         uint32_t now = HAL_GetTick();   /* ms — watchdog / TX throttle / LED için */
+
+        /* IMU KENDİNİ-İYİLEŞTİRME (2026-06-09): okuma başarısızsa say; ardışık
+         * IMU_FAIL_LIMIT'e ulaşınca bus-clear + re-init (MPU6050_Recover) → sarsıntı
+         * sonrası USB çek-tak GEREKMEZ. ≥2 s cooldown: kalıcı arızada kontrol döngüsünü
+         * sürekli hitch'lemesin; her gerçek iyileştirmede USB'ye 'IMU_RECOVER'. */
+        if (imu_st != HAL_OK) {
+            if (++imu_fail >= IMU_FAIL_LIMIT && (now - last_imu_recover) >= 2000U) {
+                MPU6050_Recover();
+                last_imu_recover = now;
+                imu_fail = 0;
+                static const char ev[] = "IMU_RECOVER\r\n";
+                CDC_Transmit_FS((uint8_t *)ev, (uint16_t)(sizeof(ev) - 1U));
+            }
+        } else {
+            imu_fail = 0;
+        }
 
         /* dt: DWT cycle counter ile µs hassas (Aşama 2.3).
          * HAL_GetTick ms çözünürlüğü loop ~7 ms'te ±14% jitter veriyordu →
@@ -346,12 +367,15 @@ void MPU6050_Init(void)
     HAL_Delay(100);
 }
 
-void MPU6050_Read(int16_t *ax, int16_t *ay, int16_t *az,
-                  int16_t *gx, int16_t *gy, int16_t *gz)
+HAL_StatusTypeDef MPU6050_Read(int16_t *ax, int16_t *ay, int16_t *az,
+                               int16_t *gx, int16_t *gy, int16_t *gz)
 {
     uint8_t raw[14];
-    HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, MPU6050_ACCEL_XOUT_H,
-                     I2C_MEMADD_SIZE_8BIT, raw, 14, HAL_MAX_DELAY);
+    /* Sonlu timeout (HAL_MAX_DELAY DEĞİL): stuck bus ana kontrol döngüsünü
+     * sonsuza dek bloklamasın → kendini-iyileştirme tetiklenebilsin. */
+    HAL_StatusTypeDef st = HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, MPU6050_ACCEL_XOUT_H,
+                     I2C_MEMADD_SIZE_8BIT, raw, 14, IMU_I2C_TIMEOUT_MS);
+    if (st != HAL_OK) return st;   /* başarısız → çağıran (main loop) iyileştirir */
 
     *ax = (int16_t)(raw[0]  << 8 | raw[1]);
     *ay = (int16_t)(raw[2]  << 8 | raw[3]);
@@ -360,6 +384,39 @@ void MPU6050_Read(int16_t *ax, int16_t *ay, int16_t *az,
     *gx = (int16_t)(raw[8]  << 8 | raw[9]);
     *gy = (int16_t)(raw[10] << 8 | raw[11]);
     *gz = (int16_t)(raw[12] << 8 | raw[13]);
+    return HAL_OK;
+}
+
+/* MPU6050_Recover — I2C kendini-iyileştirme (2026-06-09): sarsıntı/güç-glitch'i
+ * IMU'yu uykuya VEYA I2C bus'ını stuck'a (köle SDA'yı low tutar) sokabilir.
+ * (1) Stuck-bus temizleme: I2C'yi GPIO'ya alıp SCL'yi 9 kez clock'la + STOP üret
+ *     → köle SDA'yı bırakır (klasik I2C kurtarma); (2) peripheral re-init;
+ * (3) çipi uykudan uyandır (MPU6050_Init, PWR_MGMT_1=0). Init artık yalnız boot'ta
+ * değil → bir sarsıntıdan sonra USB çek-tak GEREKMEZ, sistem kendini toparlar. */
+void MPU6050_Recover(void)
+{
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    HAL_I2C_DeInit(&hi2c1);
+
+    GPIO_InitTypeDef g = {0};
+    g.Mode  = GPIO_MODE_OUTPUT_OD;          /* open-drain — pull-up'lar high çeker */
+    g.Pull  = GPIO_PULLUP;
+    g.Speed = GPIO_SPEED_FREQ_LOW;
+    g.Pin   = GPIO_PIN_6 | GPIO_PIN_7;      /* SCL=PB6, SDA=PB7 */
+    HAL_GPIO_Init(GPIOB, &g);
+
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);   /* SDA serbest bırak */
+    for (int i = 0; i < 9; i++) {                          /* 9 SCL pulse */
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_RESET); HAL_Delay(1);
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);   HAL_Delay(1);
+    }
+    /* STOP koşulu: SCL high iken SDA low→high */
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_RESET); HAL_Delay(1);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_6, GPIO_PIN_SET);   HAL_Delay(1);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_7, GPIO_PIN_SET);   HAL_Delay(1);
+
+    I2C1_Init();        /* peripheral yeniden (PB6/PB7 tekrar AF4_I2C1) */
+    MPU6050_Init();     /* uykudan uyandır */
 }
 
 /* IMUDIAG — I2C/IMU sağlık teşhisi (2026-05-31; tekrarlayan bağlantı arızası):

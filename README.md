@@ -118,7 +118,8 @@ python3 scripts/disturbance_test.py       # disturbance rejection
 | `KP:` / `KI:` / `SLEW:` / `KPP:` | Runtime kazanç ayarı (flash'sız) |
 | `STOP` / `RESET` / `PING` | Durdur / lockout temizle / handshake |
 | `IMUDIAG` / `IMUINIT` | IMU I2C sağlık teşhisi (bus/uyku/AD0) / çek-taksız uyandırma |
-| `ENCDIAG` | Encoder pin-düzeyi teşhis (PA15/PB3/PA8/PA9 ham seviye + TIM2/TIM1 sayaç) |
+
+> 🔧 **IMU kendini-iyileştirme (otomatik):** Sarsıntı/güç-glitch'i IMU'yu uykuya veya I2C'yi stuck'a sokarsa firmware ardışık ~40 başarısız okumadan sonra **bus-clear (9 SCL pulse) + re-init** yapar — USB çek-tak gerekmez, USB'ye `IMU_RECOVER` düşer (≥2 s cooldown).
 
 Komut seti detayı → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md).
 

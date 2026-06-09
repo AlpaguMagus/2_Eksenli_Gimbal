@@ -8,10 +8,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-/* main.c teşhis yardımcıları — IMUDIAG/IMUINIT (2026-05-31) + ENCDIAG (2026-06-09) */
+/* main.c MPU6050 yardımcıları — IMUDIAG/IMUINIT teşhis komutları (2026-05-31) */
 extern void MPU6050_Init(void);
 extern void MPU6050_DiagPrint(void);
-extern void Encoder_DiagPrint(void);
 
 #define CMD_BUF_SIZE  64U
 
@@ -182,12 +181,6 @@ static void parse_line(const char *line)
     if (strcmp(line, "IMUDIAG") == 0) {
         /* I2C/IMU sağlık teşhisi — bus/uyku/AD0 ayrımı (main.c MPU6050_DiagPrint) */
         MPU6050_DiagPrint();
-        last_cmd_tick_ms = HAL_GetTick();
-        return;
-    }
-    if (strcmp(line, "ENCDIAG") == 0) {
-        /* Encoder pin-düzeyi teşhis — PA15/PB3/PA8/PA9 ham seviye + TIM2/TIM1 (main.c) */
-        Encoder_DiagPrint();
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }
