@@ -349,14 +349,27 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
 ### Alt-Aşamalar (iskelet)
 
-- **3.1 — Pin planı** ✅ KARAR (2026-06-07): docs §12.2 tablosu — fiziksel kablolama kullanıcıda
-- **3.2 — İkinci motor sürücüsü + encoder-2 firmware** (2. TB6612 modülü; TIM1 quadrature + 16-bit count-genişletme)
-- **3.3 — SISO ↔ MIMO veri toplama** (her motoru ayrı sür, diğerini ölç)
-- **3.4 — Transfer matrisi G(s) tahmini** (MATLAB)
-- **3.5 — RGA + condition number** — decoupling potansiyeli
-- **3.6 — Coupling derecesinin akademik raporu**
+- **3.1 — Pin planı** ✅ KARAR (2026-06-07): docs §12.2 — kablolama tamam
+- **3.2 — Encoder-2 + motor-2 sürücü firmware**
+  - 3.2a — encoder-2 (TIM1 PA8/PA9, 16-bit→32-bit) ✅ **PASS** (`artifacts/3/enc2_test/`)
+  - 3.2b — motor-2 sürücü (PB1/PB4/PB5/PB10) + **kimlik & yön doğrulaması** (rewire sonrası: hangi eksen, encoder işareti, dönüş yönü)
+- **3.3 — Baseline 2-eksen (yeniden kullan):** kanıtlı Aşama-2 cascade'ini her motora **bağımsız** uygula → 2-eksenli sistemi test et → çalışan referans + kuplajı **ampirik** gör
+- **3.4 — MIMO sistem tanımlama:** her motoru ayrı sür / diğer ekseni ölç → 2×2 $G(s)$ (`tfest`); $G_{22}$ = motor-2 modeli **bedavaya** çıkar (sıfırdan Aşama-1 kampanyası DEĞİL)
+- **3.5 — RGA + condition number:** kuplajı **sayıyla** ölç → decoupling potansiyeli
+- **3.6 — Kanıta-dayalı kontrolcü kararı:** RGA ≈ birim → decoupled SISO yeterli (bitti); güçlü kuplaj → decoupler / MIMO (Aşama 4'e devir)
+- **3.7 — Coupling derecesinin akademik raporu**
 
-> Kaynaklar: `[Skogestad2005] §3, §10`, `[Ljung1999] §16`.
+> **Yöntem (Sokratik karar 2026-06-09 — baseline-önce, analitik iterasyon):** Bütün
+> kontrolcüleri **önden** tasarlamak yerine **mimari seviyede iterasyon**: baseline (kanıtlı
+> Aşama-2 kontrolcüsünü yeniden kullan) → kuplajı **ölç** (RGA) → karmaşıklığa **kanıtla** karar
+> ver → her kontrolcüyü **analitik tasarla → dene → kıyasla**. Gerekçe: (1) kuplaj bilinmeden
+> doğru kontrolcü (decoupled mi MIMO mu) seçilemez — önden bağlanma erken; (2) baseline zaten
+> yeterli olabilir; (3) projenin kanıtlı dersi (sim-to-real, `asama_2_kontrol.md` §11.14) testin
+> tasarımı açığa çıkardığıdır. ⚠ **Disiplin guard:** her adım **model-bazlı analitik** tasarım —
+> knob-twiddling/deneme-yanılma DEĞİL (mirror Kp_pos dersi); iterasyon *analitik tasarımların*,
+> tahminlerin değil. Motorlar nominal özdeş → Aşama-1 modeli (K≈54, τ≈60 ms) güçlü ön-kabul.
+
+> Kaynaklar: `[Skogestad2005] §3, §10`, `[Ljung1999] §16`, `[Franklin2010] §6.4` (cascade yeniden-kullanım).
 
 ---
 
