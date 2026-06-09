@@ -112,7 +112,8 @@ int main(void)
                                        * sabit-Ts varsayımı altında geçerli (donanımda doğrulandı).
                                        * Döngü hızı değişir/Ts gerçek dt'ye bağlanırsa integral
                                        * etkisi sessizce kayar (latent kuplaj — docs §11.11.8 notu). */
-        .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı */
+        .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı (0.70 denendi, motor-1
+                                       * CW catch'i yenmedi → 0.50'ye geri dönüldü, motor.c notu) */
         .T_t      = 0.02f             /* Kp/Ki — Aström-Murray T_t = T_i */
     };
     SpeedPI_Init(&SPEED_PI_CFG);

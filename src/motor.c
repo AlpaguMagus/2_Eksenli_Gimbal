@@ -9,7 +9,12 @@
  * ============================================================================ */
 
 #define MOTOR_PWM_PERIOD     4799U  /* ARR for 20 kHz @ 96 MHz / (1 × 4800) */
-#define MOTOR_MAX_DUTY       0.50f  /* Aşama 2A hard cap. Stall'da ~0.8 A */
+#define MOTOR_MAX_DUTY       0.50f  /* hard cap. Stall@0.5≈0.55 A < TB6612 sürekli 1.0 A
+                                     * (amper bütçesi asama_0 §8.5; sigorta yok → konservatif).
+                                     * 2026-06-09: 0.70 denendi → motor-1 CW catch'i YENMEDİ
+                                     * (tork↑'da rate↓ = sert mekanik catch, stiction değil) +
+                                     * jam akımını 0.77 A'e çıkarıyordu → 0.50'ye geri dönüldü.
+                                     * Headroom Aşama 5'te (yük + sigorta/ACS712 foldback) açılır. */
 #define MOTOR_RAMP_STEP      0.01f  /* her tick'te duty değişimi */
 #define MOTOR_DEAD_THRESHOLD 0.10f  /* |Δ| > 0.10 ise rampa, ≤ 0.10 ise direkt */
 #define MOTOR_SOFT_STEP_MS   5U     /* SoftStart blok rampa step bekleme */
