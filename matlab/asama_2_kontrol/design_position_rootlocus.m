@@ -8,7 +8,7 @@ function design_position_rootlocus()
 % Kp_pos=2'yi KÖK DÜZEYİNDE gerekçelendirir.
 %
 % ── ANALİTİK TÜRETME ────────────────────────────────────────────────
-% İç döngü (hız PI, çalışan Kp_i=0.002, Ki_i=0.1 — analitik §11.12.3):
+% İç döngü (hız PI, çalışan Kp_i=0.002, Ki_i=0.1 — analitik §11.11.3):
 %   Plant duty→ω:  G_d(s) = K·Vs/(τs+1),  K·Vs = 53.89·12.15 = 654.8
 %   PI:            C_i(s) = Kp_i + Ki_i/s
 %   İç kapalı-çevrim karakteristik denklem 1+C_i·G_d=0:

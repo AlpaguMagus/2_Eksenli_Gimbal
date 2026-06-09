@@ -50,10 +50,10 @@ void    Encoder2_Reset(void);            /* sayacı + birikimi sıfırla */
  *   mean(son N ham hız) hem efektif çözünürlüğü N× artırır (B: pencere),
  *   hem yüksek frekans gürültüyü bastırır (A: filtre).
  *   WINDOW=5 → efektif çözünürlük 18.7/5 ≈ 3.74 rad/s, gecikme ~(N-1)/2·Δt ≈ 14 ms.
- * Kontrolcü faz marjına etkisi (ÇALIŞAN döngü Kp=0.002, analitik §11.12.3):
+ * Kontrolcü faz marjına etkisi (ÇALIŞAN döngü Kp=0.002, analitik §11.11.3):
  *   MA-hariç sürekli PM≈60°; MA grup gecikmesi ~14 ms (döngü ~7 ms). TAM AYRIK margin
  *   (ZOH + Tustin PI + MA; verify_speed_margin_discrete.m): PM≈40°, ωc≈29 rad/s — kararlı,
- *   spec ≥45°'nin marjinal altında (C1 efektif-Ki düşüklüğü ωc'yi indirip kısmen telafi eder; docs §11.12.8).
+ *   spec ≥45°'nin marjinal altında (C1 efektif-Ki düşüklüğü ωc'yi indirip kısmen telafi eder; docs §11.11.8).
  *   [Eski conservative Kp=0.1163 PM=80.8° KULLANILMIYOR — ωc=1259'da MA fazı zaten battırır.]
  * Ham Encoder_GetSpeed korunur (Aşama 1 reproducibility için; stall check
  * 2026-05-31'den beri COUNT-tabanlı — Encoder_GetCount + motor.h gerekçesi). */

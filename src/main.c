@@ -92,7 +92,7 @@ int main(void)
      * serbest mil çok hızlı (0.5 duty → ~280 rad/s no-load) + encoder kuantize
      * + yüksek Kp her error'da saturation'a fırlatıyordu → limit cycle.
      *
-     * ANALİTİK DÜZELTME (design_speed_pi_corrected.m, docs §11.12.3): doyum-kısıtı
+     * ANALİTİK DÜZELTME (design_speed_pi_corrected.m, docs §11.11.3): doyum-kısıtı
      * Kp≈duty_max/ω_max=0.002 + doğru-plant (Kg=K·Vs=654.8) pole placement
      * ω_n=2/τ=33 → Ki=0.1. Conservative'den ~58× düşük; tüm setpoint'lere temiz
      * oturur (50/120/30 rad/s, bang-bang yok). 2b gerçekçi Simulink + ayrık margin doğruladı.
@@ -101,7 +101,7 @@ int main(void)
      * Kaynaklar: [AstromMurray2008] §10.2 (Tustin), §10.4 (back-calculation) */
     static const SpeedPI_Config SPEED_PI_CFG = {
         .Kp       = 0.002f,           /* analitik: doyum-kısıtı Kp≈duty_max/ω_max
-                                       * (design_speed_pi_corrected.m, docs §11.12.3);
+                                       * (design_speed_pi_corrected.m, docs §11.11.3);
                                        * 2.1 conservative 58× yüksekti (P-term doyar → bang-bang) */
         .Ki       = 0.1f,
         .Ts       = 0.005f,           /* Tustin SABIT adımı (5 ms = 200 Hz NOMINAL).
@@ -110,7 +110,7 @@ int main(void)
                                        * kazancı nominalin Ts/dt≈5/7≈0.71 katı; Ki=0.1 bu
                                        * sabit-Ts varsayımı altında geçerli (donanımda doğrulandı).
                                        * Döngü hızı değişir/Ts gerçek dt'ye bağlanırsa integral
-                                       * etkisi sessizce kayar (latent kuplaj — docs §11.12.8 notu). */
+                                       * etkisi sessizce kayar (latent kuplaj — docs §11.11.8 notu). */
         .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı */
         .T_t      = 0.02f             /* Kp/Ki — Aström-Murray T_t = T_i */
     };

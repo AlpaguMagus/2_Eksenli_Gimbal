@@ -9,7 +9,7 @@
  * Tustin (bilinear) z-dönüşümü ile discrete-time ayrıştırma + back-calculation
  * anti-windup.
  *   ÇALIŞAN (deployed) kazanç: Kp=0.002, Ki=0.1 — ANALİTİK (doyum-kısıtı +
- *     doğru-plant pole placement; design_speed_pi_corrected.m, docs §11.12.3):
+ *     doğru-plant pole placement; design_speed_pi_corrected.m, docs §11.11.3):
  *     Kp≈duty_max/ω_max (P-terimi doyumu aşmasın), ω_n=2/τ=33 → Ki=ω_n²τ/Kg, Kg=K·Vs=654.8.
  *     main.c'de yüklenen değer budur; SpeedPI_SetGains ile runtime ayarlanabilir.
  *   Orijinal 2.1 tasarımı (REFERANS, KULLANILMIYOR): pole_placement_conservative

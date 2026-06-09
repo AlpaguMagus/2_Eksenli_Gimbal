@@ -56,7 +56,7 @@ Genel kural global CLAUDE.md'de ("İzlenebilirlik kod yorumlarını da kapsar").
 
 Prensip global CLAUDE.md'de. Bu projede:
 
-- **Hız PI:** doyum-kısıtı + doğru-plant pole placement (karakteristik denklem → $K_p,K_i$), `pidtune` referans karşılaştırma (docs §11.12.3). ✅
+- **Hız PI:** doyum-kısıtı + doğru-plant pole placement (karakteristik denklem → $K_p,K_i$), `pidtune` referans karşılaştırma (docs §11.11.3). ✅
 - **Mirror $K_{p,pos}$:** tip-1 hız hata sabiti $K_v=\omega_{in}/e_{ss}$ analitik → 6; deney doğrular (4.02° < analitik 4.63°). ✅
 - **Cascade dış döngü:** analitik karakteristik denklem + kapalı-çevrim kutup analizi, `rlocus` doğrulama. ✅
 - Geçmiş ders: mirror Kp_pos önce deneme-yanılmayla arandı → kullanıcı eleştirdi → $K_v$ ile analitik yeniden türetildi. Tekrarlanmaz.

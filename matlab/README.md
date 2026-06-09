@@ -117,7 +117,7 @@ Firmware'e değer transfer edilirken kaynak C yorumuna kopyalanır:
 
 ```c
 /* Hız PI kazançları — matlab/asama_2_kontrol/design_speed_pi_corrected.m'den (analitik:
- *   doyum-kısıtı Kp≈duty_max/ω_max + doğru-plant pole placement ω_n=2/τ, docs §11.12.3):
+ *   doyum-kısıtı Kp≈duty_max/ω_max + doğru-plant pole placement ω_n=2/τ, docs §11.11.3):
  *   Kp = 0.002f, Ki = 0.1f, T_t = K_p/K_i = 0.02f
  * Anti-windup back-calculation [AstromMurray2008 §10.4] */
 .Kp = 0.002f, .Ki = 0.1f, .T_t = 0.02f;

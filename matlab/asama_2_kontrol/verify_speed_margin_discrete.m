@@ -1,6 +1,6 @@
-%% §11.12.8 açık konu — AYRIK-ZAMAN + MA margin doğrulaması (C1+C2 caveat)
+%% §11.11.8 açık konu — AYRIK-ZAMAN + MA margin doğrulaması (C1+C2 caveat)
 %
-% Caveat (docs §11.12.8): sürekli-zaman PM=60.2° iki gerçek etkiyi İÇERMİYOR:
+% Caveat (docs §11.11.8): sürekli-zaman PM=60.2° iki gerçek etkiyi İÇERMİYOR:
 %   (C2) WINDOW=5 moving-average ölçüm filtresinin faz gecikmesi
 %   (C1) PI Tustin SABIT Ts=5ms kullanır ama döngü ~7ms (efektif Ki ölçeği)
 % Bu betik TAM AYRIK loop'ta margin'i hesaplar → caveat'ı resmi sayıyla kapatır.
@@ -38,7 +38,7 @@ Le_d  = Ce_d*Gd_d*H_MA;     % ayrık, MA DAHİL (tam loop)
 tau_g=(N-1)/2*Tloop;                  % 14 ms (lineer-faz FIR)
 phase_loss_anal = wc_c*tau_g*180/pi;  % wc_c'de MA faz kaybı (deg) — analitik beklenti
 
-fprintf('=== §11.12.8 — Ayrık-zaman + MA margin doğrulaması ===\n');
+fprintf('=== §11.11.8 — Ayrık-zaman + MA margin doğrulaması ===\n');
 fprintf('Sürekli (MA yok)       : PM=%.1f deg, wc=%.1f rad/s\n',PM_c,wc_c);
 fprintf('Ayrık, MA yok (ZOH+C1) : PM=%.1f deg, wc=%.1f rad/s\n',PM_d0,wc_d0);
 fprintf('Ayrık, MA dahil (TAM)  : PM=%.1f deg, wc=%.1f rad/s\n',PM_d,wc_d);
@@ -68,7 +68,7 @@ yline(-180,'k:'); xline(wc_c,'b--','HandleVisibility','off'); xline(wc_d,'r--','
 ylabel('Phase [deg]'); xlabel('frequency \omega [rad/s]');
 text(0.12,-60,sprintf('MA group delay (N-1)/2\\cdotT_{loop}=%.0f ms',tau_g*1000),'Color','r','FontSize',9);
 text(0.12,-90,sprintf('\\omega_c: %.1f\\rightarrow%.1f rad/s, PM: %.0f^\\circ\\rightarrow%.0f^\\circ',wc_c,wc_d,PM_c,PM_d),'Color','k','FontSize',9);
-sgtitle('§11.12.8 — Ayrik-zaman + moving-average faz payi (C1+C2 caveat dogrulama)','Color','k');
+sgtitle('§11.11.8 — Ayrik-zaman + moving-average faz payi (C1+C2 caveat dogrulama)','Color','k');
 
 here=fileparts(mfilename('fullpath'));
 outdir=fullfile(here,'results','2_1_speed_pi');
