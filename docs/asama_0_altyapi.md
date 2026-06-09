@@ -94,6 +94,11 @@ MPU6050, tek bir çip üzerinde **3 eksen ivmeölçer** ve **3 eksen jiroskop** 
 | Çözünürlük | 16-bit (signed) | 16-bit (signed) |
 | Gürültü | ~400 µg/√Hz | ~0.005 °/s/√Hz |
 
+> **Gürültü kaynağı (datasheet TYP, @10 Hz):** ivmeölçer güç-spektral yoğunluğu 400 µg/√Hz
+> (AFS_SEL=0, ODR=1 kHz — `[MPU6050_DS]` sf 13); jiroskop hız-gürültü spektral yoğunluğu
+> 0.005 °/s/√Hz (FS_SEL=0 — `[MPU6050_DS]` sf 12). Allan varyans analizinde (§5) ölçülen
+> ARW bu spektral yoğunluklarla tutarlıdır.
+
 ### 3.2. Başlatma (Wake-up)
 
 MPU6050, power-on sonrası varsayılan olarak **uyku modundadır** (PWR_MGMT_1 register'ının SLEEP biti 1'dir). Aktif hale getirmek için bu register'a 0x00 yazılır:
@@ -311,7 +316,7 @@ fused_pitch = α * (fused_pitch - gy_dps * dt) + ...   // negatif: GY ekseni ter
 fused_roll  = α * (fused_roll  + gx_dps * dt) + ...   // pozitif: GX ekseni doğru
 ```
 
-İşaret seçimi (`+` veya `-`), sensörün breadboard üzerindeki montaj yönüne bağlıdır. MPU6050'nin sağ-el kuralı konvansiyonu ile fiziksel pitch/roll tanımınız farklı olabilir. **Bu, deneme-yanılma ile kalibre edilmesi gereken bir parametredir** — algorithmic bir hata değil, fiziksel referans çerçevesi eşleştirmesidir.
+İşaret seçimi (`+` veya `-`), sensörün breadboard üzerindeki montaj yönüne bağlıdır. MPU6050'nin sağ-el kuralı konvansiyonu ile fiziksel pitch/roll tanımınız farklı olabilir. **Bu, montaj yönüne göre bir kez gözlemle belirlenen bir işaret parametresidir** — algorithmic bir hata değil, fiziksel referans çerçevesi eşleştirmesidir. (Dikkat: bu, projenin "analitik-önce, deneme-yanılma yasak" disiplininin kapsamına girmez — o disiplin **tasarım kararlarını** kapsar [kazanç, eşik, kutup]; burada söz konusu olan ±1 işaretli bir koordinat-ekseni eşleştirmesidir, türetilecek bir tasarım değeri değil.)
 
 ### 5.4. Δt (Zaman Adımı) Hesabı
 

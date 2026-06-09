@@ -143,7 +143,7 @@ Tek kutup $s = -1/\tau = -16.5$ rad/s, sol yarı düzlemde → sistem açık çe
 
 ![Birinci derece motorun kutup haritası](../matlab/asama_1_model/results/20260518_011926/12_pole_map.png)
 
-**Şekil 10.6 —** Motorun kutup haritası. Tek reel kutup $s=-16.5$ sol yarı düzlemde (LHP). Karmaşık (sanal) bileşeni yok → salınım yok; negatif reel → sönerek oturur. Aşama 2'de kontrolcü bu kutbu daha hızlı/sönümlü bir yere taşıyacak (pole placement).
+**Şekil 10.0b —** Motorun kutup haritası (Şekil 10.0 modelinin tek kutbu). Tek reel kutup $s=-16.5$ sol yarı düzlemde (LHP). Karmaşık (sanal) bileşeni yok → salınım yok; negatif reel → sönerek oturur. Aşama 2'de kontrolcü bu kutbu daha hızlı/sönümlü bir yere taşıyacak (pole placement).
 
 > 📊 **Üreten betik:** `matlab/asama_1_model/create_block_diagram.m`
 
@@ -214,7 +214,7 @@ Stiction reddedildikten sonra T7 ham CSV log'u (`artifacts/2A/T7_integration/raw
 
 #### Bulgu 2 — V_sat Profili: TB6612 Datasheet Doğrulaması
 
-K_apparent (= ω_ss / V_eff) profili **60 → 50 rad/s/V kademeli düşüş** (Grafik 05). Eğer V_sat sabit olsaydı (0.5 V varsayımımız gibi), K_apparent her duty'de aynı olurdu.
+K_apparent (= ω_ss / V_eff) profili **60 → 50 rad/s/V kademeli düşüş** (Şekil 10.2). Eğer V_sat sabit olsaydı (0.5 V varsayımımız gibi), K_apparent her duty'de aynı olurdu.
 
 ![K_apparent vs duty — V_sat'ın akım bağımlılığının görsel kanıtı](../matlab/asama_1_model/results/20260518_011926/05_K_apparent_vs_duty.png)
 
@@ -235,7 +235,7 @@ Bu, datasheet V_sat=0.5V varsayımımızın **görsel olarak doğrulanmasıdır*
 
 #### Bulgu 3 — τ Duty Bağımlılığı: 1. Derece Varsayımının Sınırı
 
-τ değerleri 43 ms (düşük duty) ile 134 ms (yüksek duty) arasında değişiyor (Grafik 07). Bu **1. derece varsayımının sınırını** gösterir.
+τ değerleri 43 ms (düşük duty) ile 134 ms (yüksek duty) arasında değişiyor (Şekil 10.3). Bu **1. derece varsayımının sınırını** gösterir.
 
 ![τ özeti — histogram + duty bağımlılığı](../matlab/asama_1_model/results/20260518_011926/07_tau_summary.png)
 

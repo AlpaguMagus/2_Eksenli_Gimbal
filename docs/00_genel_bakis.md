@@ -85,7 +85,7 @@ $$\omega(t) = K\,(1 - e^{-t/\tau})$$
 
 ![Birinci derece sistem step yanıtı](../matlab/00_genel_teori/results/02_first_order_step.png)
 
-**Şekil 2 —** Birinci derece step yanıtı. İki kritik kavram: **(1) Zaman sabiti** $\tau$ — çıkışın son değerinin %63.2'sine ulaştığı an; sistem ne kadar "hızlı" olduğunu söyler. **(2) Oturma** — pratikte $5\tau$ sonra çıkış son değerin ~%99'una varır. $K$ (DC kazanç) ise son değeri belirler ($t\to\infty$ iken $\omega \to K$). Bu iki parametre Aşama 1'de motordan ölçüldü: $K=53.89$ rad/s/V, $\tau=60.5$ ms.
+**Şekil 2b —** Birinci derece step yanıtı (yukarıdaki Şekil 2a açık-çevrim yapısının zaman-domeni cevabı). İki kritik kavram: **(1) Zaman sabiti** $\tau$ — çıkışın son değerinin %63.2'sine ulaştığı an; sistem ne kadar "hızlı" olduğunu söyler. **(2) Oturma** — pratikte $5\tau$ sonra çıkış son değerin ~%99'una varır. $K$ (DC kazanç) ise son değeri belirler ($t\to\infty$ iken $\omega \to K$). Bu iki parametre Aşama 1'de motordan ölçüldü: $K=53.89$ rad/s/V, $\tau=60.5$ ms.
 
 > 📊 **Üreten betik:** `matlab/00_genel_teori/create_theory_diagrams.m`
 
@@ -101,7 +101,7 @@ $$G(s) = \frac{\omega_n^2}{s^2 + 2\zeta\omega_n s + \omega_n^2}$$
 
 ![İkinci derece sistem — sönüm oranının etkisi](../matlab/00_genel_teori/results/03_second_order_zeta.png)
 
-**Şekil 3 —** Sönüm oranı $\zeta$'nın etkisi. $\zeta<1$ (az sönümlü): hızlı ama **aşım (overshoot)** var — çıkış hedefi aşıp salınır. $\zeta=1$ (kritik sönüm): aşımsız, en hızlı salınımsız yanıt. $\zeta=0.707$: kontrol mühendisliğinde "ideal" denge (hızlı + makul aşım). Yüzde aşım $M_p$ (overshoot, %) sadece $\zeta$'ya bağlıdır:
+**Şekil 3 —** Sönüm oranı $\zeta$'nın etkisi. $\zeta<1$ (az sönümlü): hızlı ama **aşım (overshoot)** var — çıkış hedefi aşıp salınır. $\zeta=1$ (kritik sönüm): aşımsız, en hızlı salınımsız yanıt. $\zeta=0.707$: kontrol mühendisliğinde "ideal" denge (hızlı + makul aşım — yüzde aşım yaklaşık %4.3, faz payı bu $\zeta$'da maksimuma yakın). Yüzde aşım $M_p$ (overshoot, %) sadece $\zeta$'ya bağlıdır (`[Franklin2010] §3.4` — ikinci-derece geçici yanıt):
 
 $$M_p = 100\,e^{-\pi\zeta/\sqrt{1-\zeta^2}}$$
 
@@ -129,7 +129,7 @@ Bir sistemin farklı frekanslardaki sinüs girişlere tepkisi **Bode diyagramın
 
 ![Bode diyagramı — kazanç ve faz payı](../matlab/00_genel_teori/results/04_bode_concept.png)
 
-**Şekil 5 —** Açık-çevrim Bode (3-kutuplu örnek sistem, faz $-180°$'yi geçer). **Kazanç geçiş frekansı** $\omega_c$ (kırmızı): kazancın 0 dB'yi kestiği nokta. **Faz payı (PM)** (kırmızı ok): $\omega_c$'de fazın $-180°$'ye uzaklığı — büyükse sönümlü/güvenli (genelde PM>45°; örnekte 47°). **Kazanç payı (GM)** (mor ok): faz $-180°$'yi geçtiği frekansta kazancın 0 dB'ye uzaklığı (örnekte 12 dB; genelde GM>6 dB istenir). Her ikisi de pozitifse sistem kararlıdır. Bu marjlar Aşama 2.1'de 5 kontrolcüyü karşılaştırırken sağlamlık kriteriydi (kâğıt-üzeri seçilen conservative'in PM'i 80.8° idi; ama bu tasarım gerçek motorda kullanılmadı — firmware'deki çalışan (analitik düzeltilmiş) döngünün PM'i ≈60°, bkz `asama_2_kontrol.md` §11.12.8).
+**Şekil 5 —** Açık-çevrim Bode (3-kutuplu örnek sistem, faz $-180°$'yi geçer). **Kazanç geçiş frekansı** $\omega_c$ (kırmızı): kazancın 0 dB'yi kestiği nokta. **Faz payı (PM)** (kırmızı ok): $\omega_c$'de fazın $-180°$'ye uzaklığı — büyükse sönümlü/güvenli (tipik tasarım hedefi PM≥45°; örnekte 47°). **Kazanç payı (GM)** (mor ok): faz $-180°$'yi geçtiği frekansta kazancın 0 dB'ye uzaklığı (örnekte 12 dB; tipik hedef GM≥6 dB). Bu marj eşikleri klasik tasarım pratiğidir (`[Franklin2010] §6.1`, `[Ogata2010] §7`). Her ikisi de pozitifse sistem kararlıdır. Bu marjlar Aşama 2.1'de 5 kontrolcüyü karşılaştırırken sağlamlık kriteriydi (kâğıt-üzeri seçilen conservative'in PM'i 80.8° idi; ama bu tasarım gerçek motorda kullanılmadı — firmware'deki çalışan (analitik düzeltilmiş) döngünün PM'i ≈60°, bkz `asama_2_kontrol.md` §11.12.8).
 
 **Bant genişliği (bandwidth):** $\omega_c$ kabaca kapalı-çevrimin **bant genişliğini** belirler — sistemin etkin biçimde *takip edebildiği* en yüksek frekans. Bunun üstündeki giriş bileşenleri zayıflatılır. Pratik kural: örnekleme frekansı bant genişliğinin çok üstünde seçilir (Aşama 2'de iç hız döngüsü $T_s=5$ ms = 200 Hz nominal — gerçek ana döngü ~140 Hz, yine kontrol bandının onlarca katı). Aşama 2'deki cascade'in $\sim0.3$ Hz bant genişliği bu kavramla yorumlanır.
 

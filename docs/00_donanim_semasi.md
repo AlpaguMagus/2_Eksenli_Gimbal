@@ -101,6 +101,13 @@ bütçesi → asama_0 §8.5. Kaynaklar: `[Pololu_25D]` Page 1, `[TB6612_DS]` sf 
 
 ## 5. ACS712 akım sensörü — Faz-2 rezervi (şu an BAĞLI DEĞİL)
 
+> **Varyant:** ACS712**ELCTR-05B** (±5 A), duyarlılık **185 mV/A** TYP (180/185/190 min/typ/max),
+> sıfır-akım çıkışı $V_{CC}/2 = 2.5$ V, gürültü 21 mV pp @2 kHz BW → 21/185 ≈ **113 mA** çözünürlük;
+> 80 kHz BW, 5 V tek besleme (`[ACS712_DS]` sf 5, x05B performans tablosu). ±5 A varyant ≤1.1 A
+> akımımızda 2.5±0.21 V verir → 3.3 V ADC'ye doğrudan uyumlu (daha düşük-aralık ±5 A seçimi
+> duyarlılığı maksimize eder; 113 mA gürültü stall-tespiti için yeterli, serbest-koşu ince
+> ölçümü için sınırda — amper bütçesi asama_0 §8.5).
+
 **Durum:** ACS712 **henüz devrede yok.** PA1/PA2 (ADC1_IN1/2) onun için **rezerve, boş duruyor.**
 Şu anki devre 2 motor + 2 sürücü + IMU'dan ibarettir; akım koruması **yazılımdadır**
 (duty cap %50 + count-tabanlı stall detection).
@@ -113,9 +120,9 @@ gevşetmenin ön koşulu** (stall @12V 1.1 A > TB6612 sürekli 1.0 A → akım-k
 istendiğinde. O ana kadar rezerv.
 
 **Eklenince nasıl bağlanır (Faz-2):** ACS712 modülü motor güç hattına **SERİ** girer (akım
-içinden geçer); besleme 5V; çıkış (Vout = 2.5 V + 185 mV/A·I) → PA1/PA2 ADC. Bizim ≤1.1 A
+içinden geçer); besleme 5V; çıkış $V_{\text{out}} = 2.5\,\text{V} + 185\,\text{mV/A} \cdot I$ → PA1/PA2 ADC. Bizim ≤1.1 A
 aralığımızda çıkış 2.5±0.21 V → **3.3V ADC doğrudan uyumlu**. ⚠ ACS712 yazılım koruması
-MCU'ya bağımlıdır → **pasif backstop (polyfuse) yerine geçmez**, onu tamamlar. Kaynak: `[ACS712_DS]`.
+MCU'ya bağımlıdır → **pasif backstop (polyfuse) yerine geçmez**, onu tamamlar. Kaynak: `[ACS712_DS]` sf 1, 5.
 
 ## 6. Faz gerekçeleri (atıf — bu belge VERİ, gerekçeler fazda)
 
