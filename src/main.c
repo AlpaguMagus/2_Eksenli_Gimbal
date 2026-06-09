@@ -386,26 +386,6 @@ void MPU6050_DiagPrint(void)
     if (len > 0) CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
 }
 
-/* ENCDIAG — encoder pin-düzeyi teşhis (2026-06-09; tekrarlayan "encoder saymıyor").
- * PA15/PB3 (enc-1 A/B) + PA8/PA9 (enc-2 A/B) HAM seviyesi (IDR — AF modda bile geçerli)
- * + TIM2/TIM1 sayaçları. Mili çevirince:
- *   - pin 0↔1 OYNUYOR → sinyal MCU pinine ULAŞIYOR (sorun firmware/timer)
- *   - pin SABİT (hep 1) → sinyal hiç gelmiyor (sarı/beyaz kopuk/yanlış pin VEYA encoder beslenmez)
- *   - pin SABİT 0 → hat GND'ye çekili (kısa) veya encoder gücü yok
- * Sağlıklı (durağan): A/B genelde 1 (dahili pull-up), çevirince ikisi de toggle eder. */
-void Encoder_DiagPrint(void)
-{
-    int e1a = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) == GPIO_PIN_SET);
-    int e1b = (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_3)  == GPIO_PIN_SET);
-    int e2a = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8)  == GPIO_PIN_SET);
-    int e2b = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9)  == GPIO_PIN_SET);
-    char buf[80];
-    int len = snprintf(buf, sizeof(buf),
-        "ENCDIAG e1A:%d e1B:%d e2A:%d e2B:%d TIM2:%ld TIM1:%ld\r\n",
-        e1a, e1b, e2a, e2b, (long)Encoder_GetCount(), (long)Encoder2_GetCount());
-    if (len > 0) CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
-}
-
 /* ================================================================
    SAAT — HSE 25MHz → PLL → 96MHz SYSCLK, PLLQ=4 → 48MHz USB
    ================================================================ */
