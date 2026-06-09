@@ -332,3 +332,115 @@ void Motor_DebugInjectFakeStall(bool on)
 {
     fake_stall_inject = on;
 }
+
+/* ============================================================================
+ * MOTOR-2 (Aşama 3.2b) — 2. TB6612, A-kanalı. Detay → include/motor.h.
+ * htim3 PAYLAŞILIR (motor-1 ile aynı TIM3); motor-2 yalnız CH4 kullanır.
+ * MİNİMAL açık-döngü sürücü: stall/lockout YOK (3.3'te eklenecek).
+ * ============================================================================ */
+
+static float current_duty2 = 0.0f;   /* son uygulanan signed duty (telemetri) */
+
+static inline void _apply_pwm2(float mag)
+{
+    uint32_t ccr = (uint32_t)(mag * (float)(MOTOR_PWM_PERIOD + 1U));
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_4, ccr);
+}
+
+void Motor2_Init(void)
+{
+    /* GPIOB + TIM3 clock'ları Motor_Init'te zaten açıldı; tekrar zararsız. */
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+
+    /* ── PB4 (AIN1), PB5 (AIN2), PB10 (STBY-2) — GPIO output, başlangıç LOW.
+     * Motor-2 Hi-Z + sürücü standby → güvenli kapalı. PB4=JTRST: encoder-1
+     * (PA15/PB3) zaten SW-DP modunu zorladığından PB4 GPIO olarak serbest.
+     * TB6612 AIN pinlerinde dahili 200 kΩ pull-down (datasheet sf 2) → STBY=L
+     * iken motor seğirmez. */
+    GPIO_InitTypeDef gpio_out = {0};
+    gpio_out.Pin   = GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_10;
+    gpio_out.Mode  = GPIO_MODE_OUTPUT_PP;
+    gpio_out.Pull  = GPIO_NOPULL;
+    gpio_out.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOB, &gpio_out);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_10, GPIO_PIN_RESET);
+
+    /* ── PB1 — TIM3_CH4 PWM çıkışı (AF2_TIM3, motor-1 PB0=CH3 ile aynı timer) */
+    GPIO_InitTypeDef gpio_pwm = {0};
+    gpio_pwm.Pin       = GPIO_PIN_1;
+    gpio_pwm.Mode      = GPIO_MODE_AF_PP;
+    gpio_pwm.Pull      = GPIO_NOPULL;
+    gpio_pwm.Speed     = GPIO_SPEED_FREQ_HIGH;
+    gpio_pwm.Alternate = GPIO_AF2_TIM3;
+    HAL_GPIO_Init(GPIOB, &gpio_pwm);
+
+    /* ── CH4'ü çalışan htim3'e ekle (base + CH3 Motor_Init'te kuruldu) */
+    TIM_OC_InitTypeDef sConfigOC = {0};
+    sConfigOC.OCMode     = TIM_OCMODE_PWM1;
+    sConfigOC.Pulse      = 0;
+    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+    HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_4);
+    HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+
+    current_duty2 = 0.0f;
+}
+
+void Motor2_Enable(void)
+{
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_SET);    /* STBY-2 = HIGH */
+}
+
+void Motor2_Disable(void)
+{
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET);  /* STBY-2 = LOW  */
+}
+
+void Motor2_SetDir(MotorDir_t dir)
+{
+    /* TB6612 H-SW (motor-1 ile aynı, datasheet sf 4): AIN1=PB4, AIN2=PB5 */
+    GPIO_PinState a1, a2;
+    switch (dir) {
+        case MOTOR_CW:    a1 = GPIO_PIN_SET;   a2 = GPIO_PIN_RESET; break;
+        case MOTOR_CCW:   a1 = GPIO_PIN_RESET; a2 = GPIO_PIN_SET;   break;
+        case MOTOR_BRAKE: a1 = GPIO_PIN_SET;   a2 = GPIO_PIN_SET;   break;
+        case MOTOR_STOP:
+        default:          a1 = GPIO_PIN_RESET; a2 = GPIO_PIN_RESET; break;
+    }
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4, a1);   /* AIN1-2 */
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, a2);   /* AIN2-2 */
+}
+
+void Motor2_SetDutySigned(float duty)
+{
+    /* signed → yön + |duty|, RAMPASIZ (açık-döngü test aktüatörü).
+     * ±MOTOR_MAX_DUTY (0.50) clamp — motor-1 ile aynı emniyet kapağı. */
+    float d = duty;
+    if (d >  MOTOR_MAX_DUTY) d =  MOTOR_MAX_DUTY;
+    if (d < -MOTOR_MAX_DUTY) d = -MOTOR_MAX_DUTY;
+
+    float mag = (d >= 0.0f) ? d : -d;
+    Motor2_SetDir((d >= 0.0f) ? MOTOR_CW : MOTOR_CCW);
+    _apply_pwm2(mag);
+    current_duty2 = d;
+}
+
+void Motor2_Stop(void)
+{
+    Motor2_SetDir(MOTOR_STOP);
+    _apply_pwm2(0.0f);
+    current_duty2 = 0.0f;
+}
+
+void Motor2_EmergencyStop(void)
+{
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_10, GPIO_PIN_RESET);  /* STBY-2=L önce */
+    _apply_pwm2(0.0f);
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4 | GPIO_PIN_5, GPIO_PIN_RESET);  /* AIN=0 */
+    current_duty2 = 0.0f;
+}
+
+float Motor2_GetDutySigned(void)
+{
+    return current_duty2;
+}

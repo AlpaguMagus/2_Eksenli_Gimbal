@@ -36,13 +36,45 @@ kararı 2026-06-07). ACS712 → **PA1/PA2 (ADC1) rezerv** (Faz-2, henüz bağlı
 sarar → encoder-2'de **yazılım count-genişletme** (int16 delta extension) — `src/encoder.c`
 `Encoder2_GetCount` (3.2'de eklendi).
 
-### 12.3. Sistem tanımlama planı (3.3–3.4)
+### 12.3. Firmware — Encoder-2 + Motor-2 sürücü (3.2)
 
-*(SISO↔MIMO veri toplama: her motoru ayrı sür, diğer ekseni ölç; eleman-bazlı `tfest`.)*
+**3.2a — Encoder-2 (✅ bench PASS).** TIM1 (PA8/PA9) 16-bit quadrature + **yazılım 32-bit
+genişletme** (int16 delta birikimi, wrap-safe): TIM1 16-bit'tir (enc-1'in TIM2'si 32-bit'ti),
+466 count/devirde ±70 çıkış devrinde sarar; `Encoder2_GetCount` her okumada delta'yı 32-bit
+akümülatöre ekler. Telemetri alanı **`EC2`**. Bench: EC2 her iki yönde 4843 count menzili,
+çapraz-konuşma (motor-1 sürülürken EC2 kayması) 0 → `artifacts/3/enc2_test/`. Nerede:
+`src/encoder.c` `Encoder2_Init/GetCount/Reset`.
 
-### 12.4. Açık konular
+**3.2b — Motor-2 sürücü (firmware ✅, bench testi bekliyor).**
+
+- **Ne:** 2. TB6612'nin A-kanalı için **minimal açık-döngü** sürücü — `Motor2_Init/Enable/
+  SetDutySigned/Stop/EmergencyStop` (`src/motor.c`). PWM **PB1=TIM3_CH4**, motor-1 ile **aynı
+  `htim3`** üzerinde (bağımsız CCR, ekstra timer yok); yön **PB4/PB5** (GPIO), STBY-2 **PB10**.
+- **Neden minimal (stall yok):** 3.2b yalnız yön/kimlik doğrulaması ister. Stall-detection +
+  shared-struct refactor **3.3 baseline'a** ertelendi (motor-2 kapalı-döngüye geçince, her iki
+  motor da stall'a ihtiyaç duyduğunda tek-kaynak refactor değerlendirilir). Sertifikalı motor-1
+  kodu **dokunulmadı** (sıfır regresyon). Emniyet: watchdog (1 sn komutsuz → her iki motor durur)
+  + duty-cap %50 (stall ≤0.8 A < TB6612 1.0 A, `[TB6612_DS]` sf 3) + denetimli kısa sürüş.
+- **Nasıl kullanılır:** `DUTY2:<signed>` komutu (mod-bağımsız, rampasız, ±%50 clamp); telemetri
+  alanı **`U2`** (motor-2 uygulanan signed duty) → EC2 ile yön korelasyonu. `STOP`/`RESET`/watchdog
+  motor-2'yi de durdurur.
+- **Doğrulama testi (kimlik/yön):** `scripts/motor2_sign_test.py` — motor-1'i referans sürer,
+  motor-2'yi ±duty'de sürer, **polariteyi ampirik saptar** (motor-2 duty→encoder işareti motor-1
+  ile **AYNI mı TERS mi**). Bu, 3.3 baseline'da Aşama-2 cascade'inin geri-besleme işareti için
+  kritik: ters polarite → pozitif geri besleme → kaçış. PASS = motor-2 iki yönde döndü + işaretler
+  zıt + ref döndü (FALSE-PASS önleme: ölü motor PASS vermez). Çıktı: `artifacts/3/motor2_sign/`.
+- **Build:** PASS (Flash %8.4). **Bench:** kullanıcı "hazırım" sonrası.
+
+### 12.4. Sistem tanımlama planı (3.4–3.5)
+
+*(SISO↔MIMO veri toplama: her motoru ayrı sür, diğer ekseni ölç; eleman-bazlı `tfest`. Yöntem:
+baseline-önce — 3.3'te Aşama-2 cascade'i iki eksene yeniden-kullanılır, sonra kuplaj ölçülüp
+kanıta-dayalı MIMO kontrolcü, ROADMAP §3.)*
+
+### 12.5. Açık konular
 
 - ✅ Pin planı (3.1) — KARAR verildi, kablolama tamamlandı (2026-06-08); §12.2 şema
-- ⬜ Encoder-2 firmware: TIM1 16-bit quadrature + **yazılım count-genişletme** (3.2)
-- ⬜ Motor-2 sürücü katmanı (2. TB6612 — PB1/PB4/PB5/PB10) + iki-kanal yön/duty (3.2)
+- ✅ Encoder-2 firmware (3.2a): TIM1 16-bit + yazılım count-genişletme — bench PASS
+- 🟡 Motor-2 sürücü (3.2b): firmware ✅ (minimal açık-döngü, build PASS) — **bench yön/kimlik testi bekliyor**
+- ⬜ Baseline 2-eksen (3.3): motor-2 polaritesi doğrulanınca Aşama-2 cascade yeniden-kullanım + motor-2 stall
 - ⬜ ACS712 Faz-2 entegrasyonu (duty %100 gevşetme ön koşulu)

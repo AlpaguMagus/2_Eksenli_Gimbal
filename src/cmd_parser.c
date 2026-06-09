@@ -105,6 +105,15 @@ static void parse_line(const char *line)
         return;
     }
 
+    /* ── DUTY2 komutu — motor-2 açık-döngü signed duty (Aşama 3.2b yön/kimlik testi).
+     * MOD-BAĞIMSIZ: motor-2 ayrı eksendir, motor-1 modlarından (DUTY/SP_W/POS/MIRROR)
+     * etkilenmez. Rampasız, ±MOTOR_MAX_DUTY clamp. Watchdog (1 sn komut yok) durdurur. */
+    if (strncmp(line, "DUTY2:", 6) == 0) {
+        Motor2_SetDutySigned(strtof(line + 6, NULL));
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
     /* ── SP_W komutu — sadece SP_W modda etkili ──────────────────── */
     if (strncmp(line, "SP_W:", 5) == 0) {
         float r = strtof(line + 5, NULL);
@@ -153,6 +162,7 @@ static void parse_line(const char *line)
     /* ── Mod-bağımsız komutlar ──────────────────────────────────── */
     if (strcmp(line, "STOP") == 0) {
         Motor_Stop();
+        Motor2_Stop();          /* motor-2 de dursun (Aşama 3.2b) */
         SpeedPI_Reset();
         Encoder_FilterReset();
         /* POS modda main loop PositionP'den setpoint alır → hedefi mevcut konuma
@@ -166,6 +176,7 @@ static void parse_line(const char *line)
     }
     if (strcmp(line, "RESET") == 0) {
         Motor_ResetLockout();
+        Motor2_Stop();          /* motor-2 güvenli duruma (Aşama 3.2b) */
         SpeedPI_Reset();
         Encoder_FilterReset();
         if (current_mode == CMD_MODE_POS) PositionP_SetSetpoint(PositionP_GetThetaOut());

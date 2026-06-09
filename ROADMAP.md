@@ -3,7 +3,7 @@
 > **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
 > - **Son güncelleme:** 2026-06-09 (Aşama 3 ilerliyor — **3.1 pin planı ✅ ONAYLANDI** + kablolama tamam; **3.2a encoder-2 bench PASS**; motor-2 sürücü + IMU self-heal firmware. Aşama-2-sonrası paket main'de `512e796`: mirror Kp=6 4.02°, amper bütçesi, count-stall fix, IMUDIAG)
-> - **Aktif aşama:** **Aşama 3 (İki Motor MIMO Model) 🟡 AKTİF** — branch `feature/asama-3-mimo-model`; sıradaki **3.2b motor-2 sürücü + kimlik/yön doğrulaması**
+> - **Aktif aşama:** **Aşama 3 (İki Motor MIMO Model) 🟡 AKTİF** — branch `feature/asama-3-mimo-model`; **3.2b motor-2 sürücü firmware ✅** (build PASS), sıradaki **bench yön/kimlik testi** (`scripts/motor2_sign_test.py`, "hazırım" sonrası) → 3.3 baseline
 > - **Dokümantasyon:** Aşama-bazlı `docs/` ekosistemi (README vitrin + `docs/asama_<N>_*.md` derin içerik)
 > - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
 
@@ -352,7 +352,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 - **3.1 — Pin planı** ✅ KARAR (2026-06-07): docs §12.2 — kablolama tamam
 - **3.2 — Encoder-2 + motor-2 sürücü firmware**
   - 3.2a — encoder-2 (TIM1 PA8/PA9, 16-bit→32-bit) ✅ **PASS** (`artifacts/3/enc2_test/`)
-  - 3.2b — motor-2 sürücü (PB1/PB4/PB5/PB10) + **kimlik & yön doğrulaması** (rewire sonrası: hangi eksen, encoder işareti, dönüş yönü)
+  - 3.2b — motor-2 sürücü (PB1/PB4/PB5/PB10) — **firmware ✅** (minimal açık-döngü `Motor2_*`, `DUTY2:` komutu, `U2` telemetri, build PASS Flash %8.4); **kimlik & yön doğrulaması bench bekliyor** (`scripts/motor2_sign_test.py`: motor-2 döner mi + EC2 okur mu + polarite motor-1'e göre AYNI/TERS → 3.3 cascade geri-besleme işareti). Motor-2 stall + shared-struct refactor → 3.3'e ertelendi.
 - **3.3 — Baseline 2-eksen (yeniden kullan):** kanıtlı Aşama-2 cascade'ini her motora **bağımsız** uygula → 2-eksenli sistemi test et → çalışan referans + kuplajı **ampirik** gör
 - **3.4 — MIMO sistem tanımlama:** her motoru ayrı sür / diğer ekseni ölç → 2×2 $G(s)$ (`tfest`); $G_{22}$ = motor-2 modeli **bedavaya** çıkar (sıfırdan Aşama-1 kampanyası DEĞİL)
 - **3.5 — RGA + condition number:** kuplajı **sayıyla** ölç → decoupling potansiyeli

@@ -77,4 +77,35 @@ bool  Motor_PollStallEvent(void);             /* tek seferlik event flag (read-a
 /* Debug: fake stall injection (count deltasını 0 sayar) — sıfır-risk test için */
 void  Motor_DebugInjectFakeStall(bool on);
 
+/* ============================================================================
+ * MOTOR-2 (Aşama 3 — ikinci eksen) — 2. TB6612FNG, A-kanalı
+ *
+ * Donanım (00_donanim_semasi.md §2; gerekçe asama_3_mimo_model.md §12.2):
+ *   PB1  → TIM3_CH4 PWM (motor-1 ile AYNI timer/ARR, bağımsız CCR — ekstra
+ *          timer harcamaz; 20 kHz, 4800 step). AF2_TIM3.
+ *   PB4  → AIN1-2 (yön)   — GPIO output (PB4=JTRST, SW-DP modunda serbest)
+ *   PB5  → AIN2-2 (yön)   — GPIO output (genel-amaçlı, JTAG değil)
+ *   PB10 → STBY-2 (enable) — eksen-bağımsız acil kesme (paylaşımlı DEĞİL:
+ *          bir eksenin stall'ı diğerini söndürmesin, kullanıcı kararı 2026-06-07)
+ *
+ * Truth table + dead-time motor-1 ile AYNI (TB6612 datasheet sf 4-5, MotorDir_t).
+ *
+ * ⚠ KAPSAM (3.2b): bu MİNİMAL açık-döngü sürücüdür — stall-detection/lockout
+ *   YOK (motor-1'de var). Gerekçe: 3.2b yalnız yön/kimlik doğrulaması; emniyet
+ *   watchdog (1 sn) + duty-cap (%50, ≤0.8 A < TB6612 1.0 A) + denetimli bench
+ *   ile sağlanır. Motor-2 stall + shared-struct refactor → Aşama 3.3 (baseline,
+ *   motor-2 kapalı-döngüye geçince).
+ *
+ * Init sırası: Motor2_Init() Motor_Init()'TEN SONRA (htim3 base'ini Motor_Init
+ *   kurar; Motor2_Init yalnız CH4'ü ekler). Motor2_Enable() en sonda (STBY=H).
+ * ============================================================================ */
+void  Motor2_Init(void);                /* PB1 CH4 PWM + PB4/PB5/PB10 GPIO, STBY=LOW */
+void  Motor2_Enable(void);              /* PB10 = HIGH */
+void  Motor2_Disable(void);             /* PB10 = LOW  */
+void  Motor2_SetDir(MotorDir_t dir);    /* PB4=AIN1, PB5=AIN2 (motor-1 truth table) */
+void  Motor2_SetDutySigned(float duty); /* signed, rampasız, ±MOTOR_MAX_DUTY clamp */
+void  Motor2_Stop(void);                /* PWM=0, dir=STOP */
+void  Motor2_EmergencyStop(void);       /* STBY=L + duty=0 + AIN=0 */
+float Motor2_GetDutySigned(void);       /* son uygulanan signed duty (telemetri U2) */
+
 #endif /* MOTOR_H */

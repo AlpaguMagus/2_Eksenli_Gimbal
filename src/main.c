@@ -83,6 +83,7 @@ int main(void)
     Encoder_Init();           /* TIM2, PA15+PB3 (motor-1) */
     Encoder2_Init();          /* TIM1, PA8+PA9 (motor-2, Aşama 3 — 16-bit yazılım genişletme) */
     Motor_Init();              /* TIM3, PB0 PWM, PB12-14 GPIO, STBY=LOW */
+    Motor2_Init();             /* TIM3 CH4, PB1 PWM, PB4/PB5/PB10 GPIO, STBY-2=LOW (Aşama 3.2b) */
 
     /* Hız iç döngü PI kazançları.
      *
@@ -141,9 +142,10 @@ int main(void)
     HAL_Delay(2000);           /* Host'un /dev/ttyACM0'ı tanıması için bekle */
 
     Motor_Enable();            /* STBY=HIGH — sürücü artık aktif */
+    Motor2_Enable();           /* STBY-2=HIGH — motor-2 sürücü aktif (Aşama 3.2b) */
 
     int16_t ax, ay, az, gx, gy, gz;
-    char    buf[176];   /* +OMEGA, +SP, +U, +EC2 alanları için */
+    char    buf[192];   /* +OMEGA, +SP, +U, +EC2, +U2 alanları için */
 
     /* Complementary filter durumu */
     float fused_pitch = 0.0f;
@@ -223,6 +225,7 @@ int main(void)
         bool wd_active = (now - CmdParser_LastCmdTick() > 1000U);
         if (wd_active) {
             Motor_Stop();
+            Motor2_Stop();          /* motor-2 de dursun — komut akışı kesilince (Aşama 3.2b) */
             SpeedPI_Reset();
             if (!watchdog_tripped) {
                 static const char ev[] = "WATCHDOG_TIMEOUT\r\n";
@@ -293,17 +296,20 @@ int main(void)
          * SP: hız PI setpoint (rad/s) — sadece SP_W modda anlamlı, DUTY modda 0.
          * U:  hız PI kontrol çıkışı (signed duty) — son SpeedPI_Step sonucu.
          * TR: pozisyon hedefi (çıkış mili derece) — POS/MIRROR modda anlamlı (takip hatası
-         *     analizi: TR vs EC×360/466). MIRROR'da slew'li göreli pitch hedefi. */
+         *     analizi: TR vs EC×360/466). MIRROR'da slew'li göreli pitch hedefi.
+         * U2: motor-2 uygulanan signed duty (Aşama 3.2b) — DUTY2 testinde EC2 ile
+         *     yön/kimlik korelasyonu (U2>0 → EC2 artıyor mu?). */
         if (now - last_tx >= 25U) {
             uint32_t t_us = DWT->CYCCNT / 96U;
             float sp = SpeedPI_GetSetpoint();
             float u  = SpeedPI_GetControl();
             float tr = PositionP_GetSetpoint();   /* θ_ref derece (POS/MIRROR) */
+            float u2 = Motor2_GetDutySigned();     /* motor-2 signed duty (Aşama 3.2b) */
             int len = snprintf(buf, sizeof(buf),
-                "T_US:%lu,P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,EC2:%ld,OMEGA:%.1f,SP:%.1f,U:%.3f,TR:%.1f\r\n",
+                "T_US:%lu,P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,EC2:%ld,OMEGA:%.1f,SP:%.1f,U:%.3f,TR:%.1f,U2:%.3f\r\n",
                 (unsigned long)t_us,
                 pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll,
-                (long)enc_count, (long)enc2_count, enc_speed, sp, u, tr);
+                (long)enc_count, (long)enc2_count, enc_speed, sp, u, tr, u2);
             CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
             last_tx = now;
         }
