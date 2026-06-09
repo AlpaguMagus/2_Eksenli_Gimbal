@@ -118,6 +118,7 @@ python3 scripts/disturbance_test.py       # disturbance rejection
 | `KP:` / `KI:` / `SLEW:` / `KPP:` | Runtime kazanç ayarı (flash'sız) |
 | `STOP` / `RESET` / `PING` | Durdur / lockout temizle / handshake |
 | `IMUDIAG` / `IMUINIT` | IMU I2C sağlık teşhisi (bus/uyku/AD0) / çek-taksız uyandırma |
+| `ENCDIAG` | Encoder pin-düzeyi teşhis (PA15/PB3/PA8/PA9 ham seviye + TIM2/TIM1 sayaç) |
 
 Komut seti detayı → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md).
 

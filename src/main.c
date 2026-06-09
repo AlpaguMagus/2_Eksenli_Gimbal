@@ -77,7 +77,8 @@ int main(void)
     HAL_GPIO_Init(GPIOA, &key);
 
     MPU6050_Init();
-    Encoder_Init();           /* TIM2, PA15+PB3 */
+    Encoder_Init();           /* TIM2, PA15+PB3 (motor-1) */
+    Encoder2_Init();          /* TIM1, PA8+PA9 (motor-2, Aşama 3 — 16-bit yazılım genişletme) */
     Motor_Init();              /* TIM3, PB0 PWM, PB12-14 GPIO, STBY=LOW */
 
     /* Hız iç döngü PI kazançları.
@@ -139,7 +140,7 @@ int main(void)
     Motor_Enable();            /* STBY=HIGH — sürücü artık aktif */
 
     int16_t ax, ay, az, gx, gy, gz;
-    char    buf[160];   /* +OMEGA, +SP, +U alanları için */
+    char    buf[176];   /* +OMEGA, +SP, +U, +EC2 alanları için */
 
     /* Complementary filter durumu */
     float fused_pitch = 0.0f;
@@ -178,7 +179,8 @@ int main(void)
         float dt = (float)cyc_diff / 96000000.0f;     /* SYSCLK 96 MHz */
         if (dt <= 0.0f || dt > 0.5f) dt = 0.005f;     /* ilk döngü / overflow koruması */
 
-        int32_t enc_count = Encoder_GetCount();
+        int32_t enc_count  = Encoder_GetCount();
+        int32_t enc2_count = Encoder2_GetCount();   /* motor-2 (Aşama 3) — telemetri EC2 */
         float   enc_speed = Encoder_GetSpeed(dt);            /* ham motor şaftı rad/s */
         float   enc_speed_filt = Encoder_FilterSpeed(enc_speed);  /* moving avg — PI girişi */
 
@@ -265,7 +267,8 @@ int main(void)
         /* USB CDC transmit — 40 Hz throttle (her 25 ms'de bir).
          * T_US: DWT.CYCCNT / 96 → mikrosaniye timestamp ([ARM_DWT]).
          * OMEGA: firmware'in hesapladığı motor şaftı hızı (rad/s, signed).
-         * EC: ham encoder count (long, signed).
+         * EC:  ham encoder-1 count (motor-1, TIM2 32-bit, long signed).
+         * EC2: ham encoder-2 count (motor-2, TIM1 16-bit→yazılım 32-bit, Aşama 3).
          * SP: hız PI setpoint (rad/s) — sadece SP_W modda anlamlı, DUTY modda 0.
          * U:  hız PI kontrol çıkışı (signed duty) — son SpeedPI_Step sonucu.
          * TR: pozisyon hedefi (çıkış mili derece) — POS/MIRROR modda anlamlı (takip hatası
@@ -276,10 +279,10 @@ int main(void)
             float u  = SpeedPI_GetControl();
             float tr = PositionP_GetSetpoint();   /* θ_ref derece (POS/MIRROR) */
             int len = snprintf(buf, sizeof(buf),
-                "T_US:%lu,P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,OMEGA:%.1f,SP:%.1f,U:%.3f,TR:%.1f\r\n",
+                "T_US:%lu,P:%.1f,R:%.1f,GX:%.1f,GY:%.1f,FP:%.1f,FR:%.1f,EC:%ld,EC2:%ld,OMEGA:%.1f,SP:%.1f,U:%.3f,TR:%.1f\r\n",
                 (unsigned long)t_us,
                 pitch, roll, gx_dps, gy_dps, fused_pitch, fused_roll,
-                (long)enc_count, enc_speed, sp, u, tr);
+                (long)enc_count, (long)enc2_count, enc_speed, sp, u, tr);
             CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
             last_tx = now;
         }
@@ -380,6 +383,26 @@ void MPU6050_DiagPrint(void)
     int len = snprintf(buf, sizeof(buf),
         "IMUDIAG r68:%d r69:%d who:%02X(rc%d) pwr:%02X(rc%d) sleep:%d\r\n",
         (int)r68, (int)r69, who, (int)rw, pwr, (int)rp, ((pwr & 0x40U) != 0U) ? 1 : 0);
+    if (len > 0) CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
+}
+
+/* ENCDIAG — encoder pin-düzeyi teşhis (2026-06-09; tekrarlayan "encoder saymıyor").
+ * PA15/PB3 (enc-1 A/B) + PA8/PA9 (enc-2 A/B) HAM seviyesi (IDR — AF modda bile geçerli)
+ * + TIM2/TIM1 sayaçları. Mili çevirince:
+ *   - pin 0↔1 OYNUYOR → sinyal MCU pinine ULAŞIYOR (sorun firmware/timer)
+ *   - pin SABİT (hep 1) → sinyal hiç gelmiyor (sarı/beyaz kopuk/yanlış pin VEYA encoder beslenmez)
+ *   - pin SABİT 0 → hat GND'ye çekili (kısa) veya encoder gücü yok
+ * Sağlıklı (durağan): A/B genelde 1 (dahili pull-up), çevirince ikisi de toggle eder. */
+void Encoder_DiagPrint(void)
+{
+    int e1a = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) == GPIO_PIN_SET);
+    int e1b = (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_3)  == GPIO_PIN_SET);
+    int e2a = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_8)  == GPIO_PIN_SET);
+    int e2b = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_9)  == GPIO_PIN_SET);
+    char buf[80];
+    int len = snprintf(buf, sizeof(buf),
+        "ENCDIAG e1A:%d e1B:%d e2A:%d e2B:%d TIM2:%ld TIM1:%ld\r\n",
+        e1a, e1b, e2a, e2b, (long)Encoder_GetCount(), (long)Encoder2_GetCount());
     if (len > 0) CDC_Transmit_FS((uint8_t *)buf, (uint16_t)len);
 }
 

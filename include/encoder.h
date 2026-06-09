@@ -31,6 +31,17 @@ int32_t Encoder_GetCount(void);          /* TIM2->CNT, signed 32-bit */
 void    Encoder_Reset(void);             /* sayacı sıfırla */
 float   Encoder_GetSpeed(float dt_sec);  /* MOTOR ŞAFTI rad/s (ham). Çıkış mili için 9.7'ye böl. */
 
+/* ── Encoder-2 (Aşama 3 MIMO — TIM1 quadrature, PA8/PA9) ───────────────────
+ * Motor-2'nin encoder'ı. TIM1 **16-bit** (TIM2 enc-1 32-bit'ti) → donanım sayacı
+ * 0..65535 sarar; Encoder2_GetCount yazılımda 32-bit'e genişletir (int16 delta
+ * birikimi — her çağrıda |Δ|<32768 varsayımı, ~140 Hz loop'ta fazlasıyla güvenli:
+ * 48 CPR'de 32768 count = ~682 motor devri/loop, fiziksel olarak imkânsız).
+ * Pinler: PA8=CH1 (🟡 sarı), PA9=CH2 (⚪ beyaz), AF1. 48 CPR (motor şaftı, 4× decoded).
+ * Pin planı + şema → docs/asama_3_mimo_model.md §12.2. */
+void    Encoder2_Init(void);
+int32_t Encoder2_GetCount(void);         /* yazılım-genişletilmiş 32-bit signed */
+void    Encoder2_Reset(void);            /* sayacı + birikimi sıfırla */
+
 /* ── Filtrelenmiş hız ölçümü (Aşama 2.3) ───────────────────────────────────
  * SORUN: Encoder_GetSpeed ham çıktısı çok kuantize — 1 count ≈ 18.7 rad/s
  *   (Δt≈7 ms, 48 olay/devir). Hız PI bu kuantize ölçüme tepki verince
