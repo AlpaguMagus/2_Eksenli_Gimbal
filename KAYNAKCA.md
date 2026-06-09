@@ -4,7 +4,7 @@
 > Her giriş **etiketli** (`[Yazar+Yıl]`), commit mesajlarında, kod yorumlarında
 > ve ROADMAP'te bu etiketle referans verilir.
 >
-> **Son güncelleme:** 2026-05-28
+> **Son güncelleme:** 2026-06-09 (doküman denetimi — DOI/ISBN/üretici-URL'ler eklendi)
 >
 > Bu dosya canlıdır — her yeni teknik karar için ek girişler eklenir.
 > BibTeX/LaTeX yok (gerekirse sonra dönüşüm).
@@ -13,27 +13,27 @@
 
 ## Sistem Tanımlama
 
-- **[Ljung1999]** L. Ljung, *"System Identification: Theory for the User"*, 2nd ed., Prentice Hall, 1999.
+- **[Ljung1999]** L. Ljung, *"System Identification: Theory for the User"*, 2nd ed., Prentice Hall, 1999. ISBN 978-0-13-656695-3.
   - §3: parametrik model yapıları (ARX, output-error, state-space)
   - §4: prediction error methods, lineer 1. derece fit
   - §16: model validation (residual analysis, K-fold cross-validation)
 
-- **[Soderstrom1989]** T. Söderström, P. Stoica, *"System Identification"*, Prentice Hall, 1989.
+- **[Soderstrom1989]** T. Söderström, P. Stoica, *"System Identification"*, Prentice Hall, 1989. ISBN 0-13-881236-5.
   - Daha eski ama kapsamlı; least-squares fit derivation için temel
 
-- **[Olsson1998]** H. Olsson, K.J. Åström, C. Canudas de Wit, M. Gäfvert, P. Lischinsky, *"Friction Models and Friction Compensation"*, European Journal of Control, 1998.
+- **[Olsson1998]** H. Olsson, K.J. Åström, C. Canudas de Wit, M. Gäfvert, P. Lischinsky, *"Friction Models and Friction Compensation"*, European Journal of Control, vol. 4, no. 3, pp. 176-195, 1998. DOI: <https://doi.org/10.1016/S0947-3580(98)70113-X>
   - Coulomb + viskoz + stiction (statik) sürtünme modelleri; LuGre dinamik model
   - Aşama 2.6.5: cascade gerçekçi simde Coulomb/stiction (Karnopp minimal hali) — sürtünme limit-cycle'ı söndürdü, sim-to-real gap kapandı
 
 ## Klasik Kontrol (PID, Cascade)
 
-- **[Franklin2010]** G. Franklin, J.D. Powell, A. Emami-Naeini, *"Feedback Control of Dynamic Systems"*, 6th ed., Pearson, 2010.
+- **[Franklin2010]** G. Franklin, J.D. Powell, A. Emami-Naeini, *"Feedback Control of Dynamic Systems"*, 6th ed., Pearson, 2010. ISBN 978-0-13-601969-5.
   - §3: dinamik model çıkarımı
   - §4-6: root locus + PID design
   - §6.4: cascade kontrol, iç döngü en az 5× daha hızlı kuralı
   - §9: durum uzayı + pole placement
 
-- **[Ogata2010]** K. Ogata, *"Modern Control Engineering"*, 5th ed., Prentice Hall, 2010.
+- **[Ogata2010]** K. Ogata, *"Modern Control Engineering"*, 5th ed., Prentice Hall, 2010. ISBN 978-0-13-615673-4.
   - Daha klasik yaklaşım, Türkçe çevirisi de var
   - §5: PID tuning yöntemleri (Ziegler-Nichols, Cohen-Coon)
 
@@ -44,17 +44,17 @@
 
 ## Modern / Optimal Kontrol (LQR, LQG)
 
-- **[Anderson2007]** B.D.O. Anderson, J.B. Moore, *"Optimal Control: Linear Quadratic Methods"*, Dover, 2007 (orig. Prentice Hall, 1989).
+- **[Anderson2007]** B.D.O. Anderson, J.B. Moore, *"Optimal Control: Linear Quadratic Methods"*, Dover, 2007 (orig. Prentice Hall, 1989). ISBN 978-0-486-45766-6.
   - §2: LQR formülasyonu ve Riccati denklemi
   - §3: closed-loop özellikleri, stability margin
   - §6: LQG kombinasyonu
 
-- **[Friedland2005]** B. Friedland, *"Control System Design: An Introduction to State-Space Methods"*, Dover, 2005.
+- **[Friedland2005]** B. Friedland, *"Control System Design: An Introduction to State-Space Methods"*, Dover, 2005. ISBN 978-0-486-44278-5.
   - State-space yaklaşımına giriş, MIMO için temel
 
 ## State Estimation (Kalman, Luenberger)
 
-- **[Simon2006]** D. Simon, *"Optimal State Estimation: Kalman, H∞, and Nonlinear Approaches"*, Wiley, 2006.
+- **[Simon2006]** D. Simon, *"Optimal State Estimation: Kalman, H∞, and Nonlinear Approaches"*, Wiley, 2006. ISBN 978-0-471-70858-2.
   - §5: Kalman filter ayrıntılı derivation
   - §6: extended Kalman filter (EKF)
   - §13: H∞ filter
@@ -64,7 +64,7 @@
 
 ## MIMO Sistemler
 
-- **[Skogestad2005]** S. Skogestad, I. Postlethwaite, *"Multivariable Feedback Control: Analysis and Design"*, 2nd ed., Wiley, 2005.
+- **[Skogestad2005]** S. Skogestad, I. Postlethwaite, *"Multivariable Feedback Control: Analysis and Design"*, 2nd ed., Wiley, 2005. ISBN 978-0-470-01168-3.
   - §3: MIMO sistemler giriş
   - §10: decoupling, condition number, RGA (Relative Gain Array)
   - §11: H∞ ve µ-synthesis (ileri seviye)
@@ -79,23 +79,25 @@
   - Madgwick ve quaternion füzyon için temel
   - Mevcut complementary filter (Aşama 0) lineer versiyon — bu makale nonlinear genişletmeyi anlatır
 
-- **[Madgwick2010]** S.O.H. Madgwick, *"An efficient orientation filter for inertial and inertial/magnetic sensor arrays"*, 2010.
+- **[Madgwick2010]** S.O.H. Madgwick, *"An efficient orientation filter for inertial and inertial/magnetic sensor arrays"*, Technical report, University of Bristol / x-io, 30 April 2010.
   - <https://x-io.co.uk/open-source-imu-and-ahrs-algorithms/>
   - Madgwick filter — ±90° singülarite çözümü için (Aşama 5 sonrası opsiyonel)
 
-- **[IEEE952]** IEEE Std 952-1997, *"IEEE Standard Specification Format Guide and Test Procedure for Single-Axis Interferometric Fiber Optic Gyros"*, Annex C: Allan variance.
+- **[IEEE952]** IEEE Std 952-1997, *"IEEE Standard Specification Format Guide and Test Procedure for Single-Axis Interferometric Fiber Optic Gyros"*, Annex C: Allan variance. DOI: <https://doi.org/10.1109/IEEESTD.1998.86153>
   - Overlapping Allan deviation ile gyro gürültü karakterizasyonu: angle random walk (ARW, slope −1/2), bias instability (minimum, /0.664)
   - Aşama 0: MPU6050 statik logundan (`imu_noise_log.py`) ARW=1.09°/√hr, bias instab.≈3°/hr ölçüldü → complementary filter α=0.98 robustluk gerekçesi (`analyze_allan_variance.m`)
 
 ## Donanım — Datasheet'ler ve Üretici Belgeleri
 
 - **[TB6612_DS]** Toshiba, *"TB6612FNG — Dual-channel motor driver"* datasheet.
+  - Resmi: <https://toshiba.semicon-storage.com/info/TB6612FNG_datasheet_en_20141001.pdf>
   - Yerel: `datasheets/TB6612FNG/TB6612FNG.pdf`
   - §1.3: VM=2.5-13.5V, Vcc=2.7-5.5V (Aşama 0'da 3V3+12V seçildi)
   - §1.5: dead-time 50ns/230ns (yön değişim yazılım dead-band gerekmez)
   - §4: H-SW kontrol tablosu (Motor_SetDir mantığı)
 
-- **[MPU6050_DS]** InvenSense, *"MPU-6050 6-axis MotionTracking Device"* datasheet.
+- **[MPU6050_DS]** InvenSense (TDK), *"MPU-6050 6-axis MotionTracking Device"* datasheet.
+  - Ürün sayfası: <https://invensense.tdk.com/products/motion-tracking/6-axis/mpu-6050/>
   - Yerel: `datasheets/MPU6050/ps-mpu-6000a-00-mpu-6000-and-mpu-6050-datasheet.pdf`
 
 - **[MPU6050_RM]** InvenSense, *"MPU-6050 Register Map and Descriptions"*.
@@ -104,11 +106,13 @@
   - Register 0x3B-0x48: ACCEL + TEMP + GYRO burst okuma adresleri
 
 - **[STM32F411_DS]** STMicroelectronics, *"STM32F411xC/xE Datasheet"*.
+  - Resmi: <https://www.st.com/resource/en/datasheet/stm32f411ce.pdf>
   - Yerel: `datasheets/WeAct Black Pill V2.0 STM32F411CEU6/STM32F411_datasheet.pdf`
   - Sf 28: TIM2/TIM5 32-bit, TIM3/TIM4 16-bit
   - Sf 38-52: Alternate function tablosu
 
 - **[RM0383]** STMicroelectronics, *"RM0383 — STM32F411xC/E Reference Manual"*.
+  - Resmi: <https://www.st.com/resource/en/reference_manual/rm0383-stm32f411xce-advanced-armbased-32bit-mcus-stmicroelectronics.pdf>
   - Yerel: `datasheets/WeAct Black Pill V2.0 STM32F411CEU6/STM32F411CEU6_manual.pdf`
   - §13.3.12 (sf 340-342): Encoder Interface Mode, Tablo 52
   - §23.3 (sf 808): SWJ debug port — PA15/PB3 SWD modunda serbest
@@ -125,7 +129,8 @@
   - **LP 12V 9.68:1 elektriksel değerler (Page 1, amper bütçesi dayanağı):** stall 1100 mA @12V / 550 mA @6V; yüksüz 100 mA @12V; 560 rpm @12V; redüktör 9.68:1 (ürün adı 9.7:1 yuvarlama)
   - **48 CPR konvansiyon kararı:** Robotsepeti sayfası — *"Kuadratür enkoder her iki kanalda kenarlar için sayım yapması durumunda 48 CPR'lık bir çözünürlük sağlar"* → 48 zaten 4× decoded sayım (Aşama 0 Test 2A.T1'de doğrulandı)
 
-- **[ACS712_DS]** Allegro MicroSystems, *"ACS712 — Fully Integrated, Hall-Effect-Based Linear Current Sensor IC"* datasheet.
+- **[ACS712_DS]** Allegro MicroSystems, *"ACS712 — Fully Integrated, Hall-Effect-Based Linear Current Sensor IC"* datasheet (varyant: ACS712ELCTR-05B, ±5A).
+  - Resmi: <https://www.allegromicro.com/-/media/files/datasheets/acs712-datasheet.pdf>
   - Yerel: `datasheets/ACS712/acs712-datasheet.pdf`
   - ±5A varyant (x05B): sensitivity 185 mV/A (sf 5); Vout(0A) = Vcc/2 (sf 4); bant genişliği 80 kHz (sf 4); toplam hata ±%1.5 (sf 5); gürültü 21 mV pp ≈ 113 mA (sf 5); izolasyon 2.1 kVRMS (sf 2); iletken direnci 1.2 mΩ (sf 4)
   - Aşama 3+ planlı kullanım: eksen-başı akım ölçümü + duty %100 gevşetmenin foldback ön koşulu (ROADMAP "Aşama 3 güç & koruma planı"); ≤1.1 A aralığımızda çıkış 2.5±0.21 V → 3.3V ADC doğrudan uyumlu
@@ -137,11 +142,12 @@
 
 ## Yazılım / Kütüphaneler
 
-- **[STM32_HAL]** STMicroelectronics, *"STM32Cube HAL Driver"* dokümantasyonu.
+- **[STM32_HAL]** STMicroelectronics, *"UM1725 — Description of STM32F4 HAL and low-layer drivers"*.
+  - Resmi: <https://www.st.com/resource/en/user_manual/um1725-description-of-stm32f4-hal-and-lowlayer-drivers-stmicroelectronics.pdf>
   - PlatformIO `framework-stm32cubef4` v1.28.1 ile geliyor
   - `HAL_TIM_Encoder_Init`, `HAL_TIM_PWM_Start`, vb. API'ler
 
-- **[Hunter2007]** J.D. Hunter, *"Matplotlib: A 2D graphics environment"*, Computing in Science & Engineering, vol. 9, no. 3, pp. 90-95, 2007.
+- **[Hunter2007]** J.D. Hunter, *"Matplotlib: A 2D graphics environment"*, Computing in Science & Engineering, vol. 9, no. 3, pp. 90-95, 2007. DOI: <https://doi.org/10.1109/MCSE.2007.55>
   - Python görselleştirme (plot_angles.py, analiz grafikleri)
 
 - **[pyMuPDF]** Artifex Software, *"PyMuPDF (fitz)"*.
@@ -151,7 +157,7 @@
 - **[NumPy_SciPy]** SciPy ekosistemi (NumPy, SciPy, pandas).
   - `scipy.optimize.curve_fit` — Aşama 1.3 motor model fitting
 
-- **[MATLAB_R20XX]** MathWorks MATLAB.
+- **[MATLAB]** MathWorks MATLAB R2024b. <https://www.mathworks.com/products/matlab.html>
   - Control System Toolbox, System Identification Toolbox, Simulink, Optimization Toolbox
   - Aşama 1-4: modelleme, kontrolcü tasarımı, simülasyon
 
@@ -174,12 +180,13 @@ Kod yorumlarında:
 
 Commit mesajında:
 ```
-feat(control): cascade PID hız iç döngü PI implementasyonu
+feat(control): cascade hız iç döngü PI implementasyonu
 
-İç hız döngüsü 200 Hz fixed sample. Kp/Ki pole placement ile:
-  τ_cl = τ_ol / 5  [Franklin2010 §6.4 — cascade hızlık oranı]
+İç hız döngüsü 200 Hz fixed sample. Kp/Ki analitik:
+  doyum-kısıtı Kp≈duty_max/ω_max + doğru-plant pole placement
+  ω_n = 2/τ  [Franklin2010 §6 — pole placement; §6.4 cascade hızlık oranı]
 
-Kazançlar matlab/asama_2_kontrol/cascade_pi.m'de hesaplandı.
+Kazançlar matlab/asama_2_kontrol/design_speed_pi_corrected.m'de hesaplandı.
 Anti-windup back-calculation [AstromMurray2008 §10.4].
 ```
 
