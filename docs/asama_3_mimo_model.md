@@ -63,7 +63,19 @@ akümülatöre ekler. Telemetri alanı **`EC2`**. Bench: EC2 her iki yönde 4843
   ile **AYNI mı TERS mi**). Bu, 3.3 baseline'da Aşama-2 cascade'inin geri-besleme işareti için
   kritik: ters polarite → pozitif geri besleme → kaçış. PASS = motor-2 iki yönde döndü + işaretler
   zıt + ref döndü (FALSE-PASS önleme: ölü motor PASS vermez). Çıktı: `artifacts/3/motor2_sign/`.
-- **Build:** PASS (Flash %8.4). **Bench:** kullanıcı "hazırım" sonrası.
+- **Build:** PASS (Flash %8.4). **Bench (2026-06-09):** Motor-2 ✅ **PASS** — `DUTY2:±0.30`'da
+  +1203 / −1199 count/s (simetrik, temiz), EC2 her iki yönde takip etti; **polarite +duty→+count
+  = motor-1 ile AYNI** → 3.3 baseline'da Aşama-2 cascade'i motor-2'ye **işaret çevirmeden**
+  yeniden kullanılabilir. `artifacts/3/motor2_sign/20260609_175520/`.
+
+> **⚠ Bench bulgusu — motorların karakteri farklı:** Rewire'da fiziksel roller değişti —
+> Aşama 1-2'de karakterize edilen **sağlıklı ünite şimdi motor-2** (K=53.89, τ=60.5 ms; bench'te
+> de iki yön simetrik). **Motor-1 fiziksel ünitesinde yöne-bağlı mekanik kusur var:** CCW serbest
+> döner (−2065 count/s) ama **CW yönünde 0.50 duty'de bile periyodik takılır** (fit-fit, sürekli
+> stall'a düşer; elle de bir yön belirgin zor). Görünür dış engel yok → gearbox-içi asimetri.
+> Sonuç: 3.4 MIMO tanımlamada motor-1 ekseni **asimetrik/nonlineer** $G_{11}$ verecek (kullanıcı
+> kararı 2026-06-09: olduğu gibi devam, kusur akademik olarak karakterize edilecek). 3.3 baseline'da
+> motor-1'in CW kapalı-döngü performansı takılma noktasıyla sınırlı olabilir.
 
 ### 12.4. Sistem tanımlama planı (3.4–3.5)
 
@@ -75,6 +87,7 @@ kanıta-dayalı MIMO kontrolcü, ROADMAP §3.)*
 
 - ✅ Pin planı (3.1) — KARAR verildi, kablolama tamamlandı (2026-06-08); §12.2 şema
 - ✅ Encoder-2 firmware (3.2a): TIM1 16-bit + yazılım count-genişletme — bench PASS
-- 🟡 Motor-2 sürücü (3.2b): firmware ✅ (minimal açık-döngü, build PASS) — **bench yön/kimlik testi bekliyor**
-- ⬜ Baseline 2-eksen (3.3): motor-2 polaritesi doğrulanınca Aşama-2 cascade yeniden-kullanım + motor-2 stall
+- ✅ Motor-2 sürücü (3.2b): firmware + bench PASS (polarite +duty→+count = motor-1 ile AYNI)
+- ⚠ **Motor-1 fiziksel ünitesinde CW yöne-bağlı mekanik kusur** (CCW serbest, CW takılır) — 3.4'te asimetrik $G_{11}$ olarak karakterize edilecek (kullanıcı: olduğu gibi devam)
+- ⬜ Baseline 2-eksen (3.3): Aşama-2 cascade'i her eksene (işaret çevirme YOK) + motor-2 stall + shared-struct refactor
 - ⬜ ACS712 Faz-2 entegrasyonu (duty %100 gevşetme ön koşulu)

@@ -1,0 +1,43 @@
+{
+  "test_id": "20260609_175520",
+  "title": "Aşama 3.2b motor-2 yön/kimlik",
+  "timestamp": "2026-06-09T17:55:26",
+  "commit": "63e50e9",
+  "status": "PASS",
+  "duty": 0.3,
+  "hold_s": 2.0,
+  "polarity": "AYNI (varsayılan: +duty→+count)",
+  "checks": {
+    "spun_plus": true,
+    "spun_minus": true,
+    "opposite": true,
+    "m1_spun": true
+  },
+  "min_rate_cps": 200.0,
+  "segments": [
+    {
+      "label": "motor-2 ileri +",
+      "cmd": "DUTY2:0.3",
+      "ec_key": "EC2",
+      "n": 70,
+      "rate_cps": 1202.8,
+      "c_start": 8227,
+      "c_end": 10146,
+      "dt_s": 1.6
+    },
+    {
+      "label": "motor-2 geri -",
+      "cmd": "DUTY2:-0.3",
+      "ec_key": "EC2",
+      "n": 90,
+      "rate_cps": -1198.8,
+      "c_start": 10178,
+      "c_end": 7818,
+      "dt_s": 1.97
+    }
+  ],
+  "artifacts": [
+    "data.csv",
+    "motor2_sign_plot.png"
+  ]
+}
