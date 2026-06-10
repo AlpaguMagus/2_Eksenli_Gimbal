@@ -36,7 +36,7 @@ kararı 2026-06-07). ACS712 → **PA1/PA2 (ADC1) rezerv** (Faz-2, henüz bağlı
 sarar → encoder-2'de **yazılım count-genişletme** (int16 delta extension) — `src/encoder.c`
 `Encoder2_GetCount` (3.2'de eklendi).
 
-### 12.3. Firmware — Encoder-2 + Motor-2 sürücü (3.2)
+### 12.3. Firmware — Encoder-2 + Motor-2 sürücü + eksen mimarisi (3.2–3.3)
 
 **3.2a — Encoder-2 (✅ bench PASS).** TIM1 (PA8/PA9) 16-bit quadrature + **yazılım 32-bit
 genişletme** (int16 delta birikimi, wrap-safe): TIM1 16-bit'tir (enc-1'in TIM2'si 32-bit'ti),
@@ -68,14 +68,34 @@ akümülatöre ekler. Telemetri alanı **`EC2`**. Bench: EC2 her iki yönde 4843
   = motor-1 ile AYNI** → 3.3 baseline'da Aşama-2 cascade'i motor-2'ye **işaret çevirmeden**
   yeniden kullanılabilir. `artifacts/3/motor2_sign/20260609_175520/`.
 
+**3.3 — Instance-based eksen mimarisi (firmware ✅, 2026-06-11).** Tek-motor-ilerleme kararı
+(aşağıdaki bulgu kutusu) üzerine tüm kontrol/güvenlik modülleri **instance-based** refactor edildi
+(commit `9def197`): `SpeedPI_t`/`PositionP_t`/`SpeedFilter_t`/`MotorCh_t` + `axis.h` `g_axis[2]`
+eksen demeti. **Cascade + MIRROR artık eksen-1'de (motor-2) bugün kullanılabilir** — komutlar
+kök+`2` sonekiyle eksen-1'e yönlenir (`MODE2:POS`, `POS_DEG2:`, `KPP2:` …); eski komutlar
+eksen-0'a (geriye uyumlu). Motor-2 böylece **stall-detection da kazandı** (3.2b'de ertelenen).
+Telemetri eski alanları birebir korur + `OMEGA2/SP2/TR2` (10/10 script regex'i doğrulandı —
+mevcut bench scriptleri değişmeden çalışır). Davranış-koruma: **21-ajanlı adversarial denetim**
+(eski-HEAD vs yeni, her bulgu bağımsız doğrulama) 3 gerçek farkı yakaladı → 2'si düzeltildi
+(RESET'te düşen motor-2 Stop; geçersiz `MODE:X`'in watchdog'u beslemesi), 1'i bilinçli kabul
+(`DUTY2` artık eksen-1 DUTY-modu şartlı — `MODE2:POS`'tayken açık-döngü komutu cascade ile
+çakışamaz; eski mod-bağımsız 3.2b semantiğinin güvenli daraltılması). Yeni motor entegrasyonu:
+yalnız ünite değişir + yön/kimlik testi — **kod değişikliği gerekmez**.
+
 > **⚠ Bench bulgusu — motorların karakteri farklı:** Rewire'da fiziksel roller değişti —
 > Aşama 1-2'de karakterize edilen **sağlıklı ünite şimdi motor-2** (K=53.89, τ=60.5 ms; bench'te
 > de iki yön simetrik). **Motor-1 fiziksel ünitesinde yöne-bağlı mekanik kusur var:** CCW serbest
 > döner (−2065 count/s) ama **CW yönünde 0.50 duty'de bile periyodik takılır** (fit-fit, sürekli
 > stall'a düşer; elle de bir yön belirgin zor). Görünür dış engel yok → gearbox-içi asimetri.
-> Sonuç: 3.4 MIMO tanımlamada motor-1 ekseni **asimetrik/nonlineer** $G_{11}$ verecek (kullanıcı
-> kararı 2026-06-09: olduğu gibi devam, kusur akademik olarak karakterize edilecek). 3.3 baseline'da
-> motor-1'in CW kapalı-döngü performansı takılma noktasıyla sınırlı olabilir.
+> Derin teşhis (2026-06-09/11): yüksek tork (0.8 duty) catch'i AŞMADI (tork↑ → CW rate↓:
+> 165→40 count/s — stiction değil, sert mekanik blok); gearbox çıkarılınca da bind sürdü
+> (motor-içi); dislodge/agitasyon çözmedi; CCW 2.5 sn'de 26.5 tur pürüzsüz → sargı/sürücü sağlam.
+> **Kurtarılamaz — iki-yönlü kontrol için ünite değişmeli.**
+>
+> **Karar (kullanıcı, 2026-06-11):** Aynı motorun **redüktörsüzü sipariş edildi**; sağlam gearbox
+> ona takılacak (eksen mekanik birebir korunur). O gelene kadar **proje TEK SAĞLAM MOTOR
+> (motor-2 ekseni) üzerinden ilerletilip tamamlanır** — 3.3 instance-based mimari bunu sağlar.
+> Yeni motor gelince: yön/kimlik testi (`motor2_sign_test.py` benzeri) + entegrasyon; kod değişmez.
 
 ### 12.4. Sistem tanımlama planı (3.4–3.5)
 
@@ -88,6 +108,6 @@ kanıta-dayalı MIMO kontrolcü, ROADMAP §3.)*
 - ✅ Pin planı (3.1) — KARAR verildi, kablolama tamamlandı (2026-06-08); §12.2 şema
 - ✅ Encoder-2 firmware (3.2a): TIM1 16-bit + yazılım count-genişletme — bench PASS
 - ✅ Motor-2 sürücü (3.2b): firmware + bench PASS (polarite +duty→+count = motor-1 ile AYNI)
-- ⚠ **Motor-1 fiziksel ünitesinde CW yöne-bağlı mekanik kusur** (CCW serbest, CW takılır) — 3.4'te asimetrik $G_{11}$ olarak karakterize edilecek (kullanıcı: olduğu gibi devam)
-- ⬜ Baseline 2-eksen (3.3): Aşama-2 cascade'i her eksene (işaret çevirme YOK) + motor-2 stall + shared-struct refactor
+- ⚠ **Motor-1 ünitesi CW'de kurtarılamaz mekanik kusurlu** (teşhis tamam: motor-içi, tork/dislodge çözmedi) — **redüktörsüz yedek sipariş edildi** (sağlam gearbox ona takılacak); o gelene kadar **tek sağlam motor (motor-2 ekseni) ile ilerleme** (kullanıcı kararı 2026-06-11)
+- 🟡 Eksen mimarisi (3.3): **firmware ✅** (instance-based `g_axis[2]`, motor-2 stall dahil, 21-ajan davranış-denetimi geçti, build PASS) — **motor-2 cascade bench (MODE2:POS) USB yeniden bağlanınca**
 - ⬜ ACS712 Faz-2 entegrasyonu (duty %100 gevşetme ön koşulu)
