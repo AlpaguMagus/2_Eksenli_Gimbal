@@ -87,30 +87,26 @@ float Encoder_GetSpeed(float dt_sec)
     return ((float)delta * TWO_PI) / ((float)EVENTS_PER_REV * dt_sec);
 }
 
-/* ── Filtrelenmiş hız (N-örnek moving average) ─────────────────────────────
+/* ── Filtrelenmiş hız (N-örnek moving average) — instance-based (Aşama 3.3) ──
  * Detay → include/encoder.h. dt sabit varsayımıyla hem pencere (B) hem
- * filtre (A) etkisi. Ham hız Encoder_GetSpeed'ten alınıp buraya verilir
+ * filtre (A) etkisi. Ham hız GetSpeed'ten alınıp buraya verilir
  * (tek count okuma — çift okuma last_count'u bozmaz). */
-static float speed_hist[ENCODER_SPEED_WINDOW] = {0};
-static int   speed_idx   = 0;
-static int   speed_fill  = 0;
-
-float Encoder_FilterSpeed(float raw_speed_radps)
+float SpeedFilter_Step(SpeedFilter_t *f, float raw_speed_radps)
 {
-    speed_hist[speed_idx] = raw_speed_radps;
-    speed_idx = (speed_idx + 1) % ENCODER_SPEED_WINDOW;
-    if (speed_fill < ENCODER_SPEED_WINDOW) speed_fill++;
+    f->hist[f->idx] = raw_speed_radps;
+    f->idx = (f->idx + 1) % ENCODER_SPEED_WINDOW;
+    if (f->fill < ENCODER_SPEED_WINDOW) f->fill++;
 
     float sum = 0.0f;
-    for (int i = 0; i < speed_fill; i++) sum += speed_hist[i];
-    return sum / (float)speed_fill;
+    for (int i = 0; i < f->fill; i++) sum += f->hist[i];
+    return sum / (float)f->fill;
 }
 
-void Encoder_FilterReset(void)
+void SpeedFilter_Reset(SpeedFilter_t *f)
 {
-    for (int i = 0; i < ENCODER_SPEED_WINDOW; i++) speed_hist[i] = 0.0f;
-    speed_idx  = 0;
-    speed_fill = 0;
+    for (int i = 0; i < ENCODER_SPEED_WINDOW; i++) f->hist[i] = 0.0f;
+    f->idx  = 0;
+    f->fill = 0;
 }
 
 /* ============================================================================
@@ -119,8 +115,9 @@ void Encoder_FilterReset(void)
  * ============================================================================ */
 
 static TIM_HandleTypeDef htim1;
-static uint16_t          enc2_last_raw = 0;
-static int32_t           enc2_accum    = 0;
+static uint16_t          enc2_last_raw   = 0;
+static int32_t           enc2_accum      = 0;
+static int32_t           enc2_speed_last = 0;   /* Encoder2_GetSpeed referansı */
 
 void Encoder2_Init(void)
 {
@@ -181,4 +178,21 @@ void Encoder2_Reset(void)
     __HAL_TIM_SET_COUNTER(&htim1, 0);
     enc2_last_raw = 0;
     enc2_accum    = 0;
+    /* hız ölçümü referansı da sıfırlanmalı (Reset sonrası dev hız sıçraması olmasın) */
+    enc2_speed_last = 0;
+}
+
+/* Ham hız — enc-1 Encoder_GetSpeed eşdeğeri (motor şaftı rad/s).
+ * Kendi last-count state'i ile çalışır; Encoder2_GetCount'ı çağırır (accum
+ * tutarlı kalır — GetCount her çağrıda raw delta'yı biriktirir, çift çağrı
+ * birikimi bozmaz). */
+float Encoder2_GetSpeed(float dt_sec)
+{
+    if (dt_sec <= 0.0f) return 0.0f;
+
+    int32_t now   = Encoder2_GetCount();
+    int32_t delta = now - enc2_speed_last;
+    enc2_speed_last = now;
+
+    return ((float)delta * TWO_PI) / ((float)EVENTS_PER_REV * dt_sec);
 }

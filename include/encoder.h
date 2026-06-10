@@ -41,6 +41,8 @@ float   Encoder_GetSpeed(float dt_sec);  /* MOTOR ŞAFTI rad/s (ham). Çıkış 
 void    Encoder2_Init(void);
 int32_t Encoder2_GetCount(void);         /* yazılım-genişletilmiş 32-bit signed */
 void    Encoder2_Reset(void);            /* sayacı + birikimi sıfırla */
+float   Encoder2_GetSpeed(float dt_sec); /* MOTOR ŞAFTI rad/s (ham) — enc-1 GetSpeed eşdeğeri
+                                          * (kendi last-count state'i; GetCount'tan bağımsız) */
 
 /* ── Filtrelenmiş hız ölçümü (Aşama 2.3) ───────────────────────────────────
  * SORUN: Encoder_GetSpeed ham çıktısı çok kuantize — 1 count ≈ 18.7 rad/s
@@ -56,9 +58,19 @@ void    Encoder2_Reset(void);            /* sayacı + birikimi sıfırla */
  *   spec ≥45°'nin marjinal altında (C1 efektif-Ki düşüklüğü ωc'yi indirip kısmen telafi eder; docs §11.11.8).
  *   [Eski conservative Kp=0.1163 PM=80.8° KULLANILMIYOR — ωc=1259'da MA fazı zaten battırır.]
  * Ham Encoder_GetSpeed korunur (Aşama 1 reproducibility için; stall check
- * 2026-05-31'den beri COUNT-tabanlı — Encoder_GetCount + motor.h gerekçesi). */
+ * 2026-05-31'den beri COUNT-tabanlı — Encoder_GetCount + motor.h gerekçesi).
+ *
+ * Aşama 3.3: filtre INSTANCE-BASED (SpeedFilter_t) — her eksen kendi penceresini
+ * taşır (g_axis[i].filt). Davranış tek-pencereli Aşama-2 koduyla birebir. */
 #define ENCODER_SPEED_WINDOW  5
-float   Encoder_FilterSpeed(float raw_speed_radps);  /* moving average, SP_W PI girişi */
-void    Encoder_FilterReset(void);                   /* pencere temizle (mod geçişi/STOP) */
+
+typedef struct {
+    float hist[ENCODER_SPEED_WINDOW];
+    int   idx;
+    int   fill;
+} SpeedFilter_t;
+
+float   SpeedFilter_Step(SpeedFilter_t *f, float raw_speed_radps); /* moving average, PI girişi */
+void    SpeedFilter_Reset(SpeedFilter_t *f);                       /* pencere temizle (mod geçişi/STOP) */
 
 #endif /* ENCODER_H */

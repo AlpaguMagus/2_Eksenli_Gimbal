@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 /* ============================================================================
- * Hız iç döngü PI kontrolcü (Aşama 2.2)
+ * Hız iç döngü PI kontrolcü (Aşama 2.2; Aşama 3.3'te instance-based)
  *
  * Tustin (bilinear) z-dönüşümü ile discrete-time ayrıştırma + back-calculation
  * anti-windup.
@@ -16,7 +16,7 @@
  *     Kp=0.1163, Ki=4.0447, ζ=1.0, ω_n=60 rad/s — İKİ hata (yanlış plant K=53.89 yerine
  *     Kg=654.8; doyum yok sayıldı) → gerçek motorda bang-bang. matlab/.../results/2_1_speed_pi/
  *
- * Model: Aşama 1 motor parametreleri
+ * Model: Aşama 1 motor parametreleri (karakterize ünite — rewire sonrası motor-2 ekseni)
  *   G(s) = K / (τs + 1),  K=53.89 rad/s/V, τ=60.5 ms
  *
  * Form: paralel — P + I integrator ayrı state'te tutulur, anti-windup için
@@ -32,39 +32,52 @@
  *   T_t     = T_i = Kp/Ki  (varsayılan tracking time)
  *
  * Çıktı: signed duty [-duty_max, +duty_max].
- * main.c bu işareti kullanarak Motor_SetDir + Motor_SetDuty çağırır.
+ *
+ * INSTANCE-BASED (Aşama 3.3): tüm state SpeedPI_t içinde — her eksen kendi
+ * örneğini taşır (g_axis[i].spi). Davranış tek-örnekli Aşama-2 koduyla birebir.
  * ============================================================================ */
 
 typedef struct {
     float Kp;
     float Ki;
     float Ts;        /* Tustin SABIT adımı (s) — 0.005 (5 ms = 200 Hz nominal).
-                      * Gerçek döngü ~7 ms/~140 Hz → efektif Ki ~0.71×; bkz main.c:101 notu */
+                      * Gerçek döngü ~7 ms/~140 Hz → efektif Ki ~0.71×; bkz main.c notu */
     float duty_max;  /* saturation (0.50 = MOTOR_MAX_DUTY) */
     float T_t;       /* anti-windup tracking time (s) — tipik Kp/Ki */
 } SpeedPI_Config;
 
-void  SpeedPI_Init(const SpeedPI_Config *cfg);
-void  SpeedPI_Reset(void);                  /* integrator = 0, prev_error = 0 */
+typedef struct {
+    SpeedPI_Config cfg;
+    float integrator;
+    float prev_error;
+    float last_output;
+    float setpoint_target;   /* kullanıcı komutu (SP_W) */
+    float setpoint_actual;   /* slew-limited, PI'nin gördüğü */
+    float slew_rate;         /* rad/s/s, 0 = slew kapalı (ani step) */
+    bool  initialized;
+} SpeedPI_t;
 
-/* Runtime kazanç ayarı (Aşama 2.3 — 5 kazanç setini yeniden flash'sız dene).
+void  SpeedPI_Init(SpeedPI_t *h, const SpeedPI_Config *cfg);
+void  SpeedPI_Reset(SpeedPI_t *h);          /* integrator = 0, prev_error = 0, setpoint = 0 */
+
+/* Runtime kazanç ayarı (Aşama 2.3 — kazanç setlerini yeniden flash'sız dene).
  * T_t = Kp/Ki otomatik güncellenir (Kp=0 ise T_t değişmez). Integrator resetlenir. */
-void  SpeedPI_SetGains(float Kp, float Ki);
-float SpeedPI_GetKp(void);
-float SpeedPI_GetKi(void);
+void  SpeedPI_SetGains(SpeedPI_t *h, float Kp, float Ki);
+float SpeedPI_GetKp(const SpeedPI_t *h);
+float SpeedPI_GetKi(const SpeedPI_t *h);
 
-void  SpeedPI_SetSetpoint(float omega_ref); /* rad/s, signed — hedef setpoint */
-float SpeedPI_GetSetpoint(void);            /* USB TX SP: — slew sonrası gerçek uygulanan */
-float SpeedPI_GetControl(void);             /* USB TX U: alanı için (son u_sat) */
+void  SpeedPI_SetSetpoint(SpeedPI_t *h, float omega_ref); /* rad/s, signed */
+float SpeedPI_GetSetpoint(const SpeedPI_t *h);  /* USB TX SP: — slew sonrası gerçek uygulanan */
+float SpeedPI_GetControl(const SpeedPI_t *h);   /* USB TX U: alanı için (son u_sat) */
 
 /* Setpoint slew rate (Aşama 2.3 — ani step limit cycle'a sokuyordu).
  * rad/s/s; 0 = slew kapalı (ani step). Runtime SLEW: komutu ile ayarlanır. */
-void  SpeedPI_SetSlewRate(float rate_radps_per_s);
-float SpeedPI_GetSlewRate(void);
+void  SpeedPI_SetSlewRate(SpeedPI_t *h, float rate_radps_per_s);
+float SpeedPI_GetSlewRate(const SpeedPI_t *h);
 
 /* Tek adım: error hesabı + P + I (Tustin) + anti-windup back-calculation.
  * omega_measured: motor şaftı hızı (rad/s, signed — encoder'dan).
  * Dönüş: signed duty komutu [-duty_max, +duty_max]. */
-float SpeedPI_Step(float omega_measured);
+float SpeedPI_Step(SpeedPI_t *h, float omega_measured);
 
 #endif /* SPEED_PI_H */
