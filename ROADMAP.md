@@ -2,8 +2,8 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
-> - **Son güncelleme:** 2026-06-09 (Aşama 3 ilerliyor — **3.1 pin planı ✅ ONAYLANDI** + kablolama tamam; **3.2a encoder-2 bench PASS**; motor-2 sürücü + IMU self-heal firmware. Aşama-2-sonrası paket main'de `512e796`: mirror Kp=6 4.02°, amper bütçesi, count-stall fix, IMUDIAG)
-> - **Aktif aşama:** **Aşama 3 (İki Motor MIMO Model) 🟡 AKTİF** — branch `feature/asama-3-mimo-model`; **3.2b ✅ PASS; 3.3 eksen-mimarisi firmware ✅** (`9def197`, instance-based `g_axis[2]`); ⚠ motor-1 ünitesi kurtarılamaz (CW catch) → **redüktörsüz yedek siparişte, tek sağlam motorla (motor-2) ilerleme**; sıradaki **motor-2 cascade bench** (USB bağlanınca)
+> - **Son güncelleme:** 2026-06-12 (**Kontrol Yöntemleri Merdiveni** eklendi — decentralized cascade → en ileri, kanıta-bağlı; 7-aile/30-yöntem tarama kararı. **3.3 motor-2 cascade/mirror/stab bench PASS**; Aşama 4 kanıta-bağlı rafine; K2 gyro-FF + K3 gain-scheduling adayları)
+> - **Aktif aşama:** **Aşama 3 (İki Motor MIMO Model) 🟡 AKTİF** — branch `feature/asama-3-mimo-model`; **3.3 tek-eksen (K0) ✅ bench PASS** (cascade/mirror/stab, motor-2); ⚠ motor-1 kurtarılamaz → **redüktörsüz yedek siparişte, tek sağlam motorla ilerleme**; sıradaki donanımsız: **K2/K6/K7 tasarım + Aşama 3 akademik doc**, K1 (2-eksen) yeni motoru bekliyor
 > - **Dokümantasyon:** Aşama-bazlı `docs/` ekosistemi (README vitrin + `docs/asama_<N>_*.md` derin içerik)
 > - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
 
@@ -320,6 +320,42 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
 ---
 
+## 🪜 Kontrol Yöntemleri Merdiveni — decentralized → en ileri  *(2026-06-12 kararı)*
+
+> **İlke:** Kanıtlı **decentralized cascade PID**'den başlayıp her basamakta bir kademe
+> yükseliriz; **her basamak kendi başına kapatılabilir bir kilometre taşıdır** — zaman/donanım
+> kısıtında bulunulan basamakta *"elimizde bu var"* deyip projeyi tutarlı bir noktada
+> kapatabiliriz. **Hiçbir basamak gerekçesiz eklenmez** (baseline-önce + analitik-önce): bir üst
+> basamak ancak somut kazanç (kuplaj, gecikme, robustluk, kısıt, gürültü) **ölçülünce** devreye
+> girer. Karar temeli: kontrol-yöntemleri taraması (7 aile, 30 yöntem, adversarial doğrulama).
+>
+> ⚠ Terminoloji: cascade PID **SISO'ya mahkûm değildir** — kontrolcü matrisi $K(s)$'nin **köşegen
+> (decentralized) MIMO** hâlidir (`[Skogestad2005] §10.6.4`); çapraz-kuplajı *aktif* kompanze etmez,
+> onu bozucuya bırakır. RGA ≈ birim ise (kuplaj zayıf) bu zaten optimale yakındır.
+
+| # | Basamak | Ne ekler | Kapı (ne zaman gerekçeli) | "Elde" çıktı | Faz |
+|---|---|---|---|---|---|
+| **K0** ✅ | Decentralized cascade PID (tek eksen) | poz P → hız PI, per-eksen | — (kanıtlı) | tek-eksen mirror/stab PASS | 2–3.3 |
+| **K1** | 2-eksen decentralized cascade | 2. ekseni entegre | yeni motor (donanım) | 2-eksen cascade gimbal | 3.3 |
+| **K2** | + **Gyro feedforward** (2-DOF) | bozucuyu doğrudan ileri-besle (gy_dps) | bedava sinyal — hep gerekçeli | düşük-gecikme stabilizasyon | 3.x |
+| **K3** | + **Gain scheduling** | çalışma-noktası kazanç tablosu | τ-bağımlılığı (43→134ms) kazancı ölçülünce | uyarlı cascade | 3.x |
+| **K4** | Kuplaj karakterizasyonu (MIMO ID + **RGA**) | 2×2 $G(s)$, RGA, condition no. | 2 motor mekanik bağlı | **KARAR KAPISI:** decentralized yeter mi? | 3.4–3.5 |
+| **K5** | **Decoupling** ($D(s)$ / feedforward) | çapraz kuplajı iptal | RGA kuplaj gösterirse | decoupled MIMO cascade | 4 |
+| **K6** | LQR → **LQI** (optimal MIMO) | optimal centralized durum-geri-besleme | K4 kuplaj kanıtı / akademik kıyas | optimal MIMO kontrol | 4 |
+| **K7** | Kalman → **LQG** | optimal kestirim (IMU+bias füzyonu) | IMU payload'a + gürültü/bozucu | LQG stabilizasyon | 5 |
+| **K8** | İleri/robust/öngörülü | H∞·μ-synth, MPC, SMC/adaptif, DOB, notch | belirsizlik/kısıt/rezonans **ölçülünce** | tez zirvesi | 5+ |
+
+> **Paralel kestirim izi:** complementary ✅ → Mahony/Madgwick (singülarite) → EKF/Kalman (bias/füzyon).
+>
+> **Şu an:** K0 ✅; K1 yeni motoru bekliyor. **Donanımsız hazırlanabilir:** K2 (gyro-FF analitik tasarım),
+> K6 (tek-eksen LQR/LQI MATLAB tasarımı + cascade kıyası, sim), K7 (tek-eksen Kalman sim), K3 (mevcut
+> Aşama-1 τ-veri'siyle ön-tasarım), K4 (RGA/ID prosedür + script çerçevesi).
+>
+> Kaynaklar: `[Skogestad2005] §10` (decentralized/RGA), `[Franklin2010] §6.4` (cascade),
+> `[Anderson2007]` (LQR), `[Simon2006]` (Kalman). Tarama detayı: yöntem-bazlı gerekçe + verdict.
+
+---
+
 ## 🟡 Aşama 3 — İki Motor MIMO Modelleme  *(AKTİF — 2026-06-07 açıldı)*
 
 ### Vizyon
@@ -357,10 +393,13 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 - **3.3 — Baseline 2-eksen (yeniden kullan):** kanıtlı Aşama-2 cascade'ini her motora **bağımsız** uygula → 2-eksenli sistemi test et → çalışan referans + kuplajı **ampirik** gör
   - **Firmware ✅ (2026-06-11, `9def197`):** instance-based eksen mimarisi — `SpeedPI_t`/`PositionP_t`/`MotorCh_t` + `g_axis[2]`; cascade/MIRROR eksen-1'de (motor-2) bugün kullanılabilir (`MODE2:`/`POS_DEG2:`/`KPP2:` …); motor-2 stall kazandı; telemetri +`OMEGA2/SP2/TR2` (eski script regex'leri korunur). 21-ajan adversarial davranış-denetimi: 3 gerçek fark → 2 düzeltildi (RESET motor-Stop, geçersiz MODE watchdog), 1 bilinçli kabul (DUTY2 mod-şartı).
   - **Strateji (kullanıcı 2026-06-11):** motor-1 ünitesi kurtarılamaz (CW catch) → **redüktörsüz yedek sipariş edildi**; gelene kadar **tek sağlam motor (motor-2 ekseni) üzerinden proje tamamlanır**; yeni motor tak-çalıştır entegre (yalnız yön/kimlik testi).
-  - ⬜ Motor-2 cascade bench (`MODE2:POS` step + `MODE2:MIRROR`) — USB yeniden bağlanınca
-- **3.4 — MIMO sistem tanımlama:** her motoru ayrı sür / diğer ekseni ölç → 2×2 $G(s)$ (`tfest`); $G_{22}$ = motor-2 modeli **bedavaya** çıkar (sıfırdan Aşama-1 kampanyası DEĞİL)
-- **3.5 — RGA + condition number:** kuplajı **sayıyla** ölç → decoupling potansiyeli
-- **3.6 — Kanıta-dayalı kontrolcü kararı:** RGA ≈ birim → decoupled SISO yeterli (bitti); güçlü kuplaj → decoupler / MIMO (Aşama 4'e devir)
+  - ✅ **Motor-2 cascade/mirror/stab bench PASS (2026-06-12)** [merdiven K0 tek-eksen tamam]: `MODE2:POS` 6/6 (ss_err<1°, Test 2.5 ile birebir); `MODE2:MIRROR` RMS 5.53°; `MODE2:STAB` motor IMU'ya TERS döndü (stabilizasyon yasası demoland), RMS 6.72°. IMU sertleştirme (uyku auto-wake) `94a36e3`. `artifacts/3/{cascade,mirror,stab}_m2/`
+  - ⬜ **K1 — 2-eksen cascade:** yeni motor gelince motor-1 ekseni entegre + 2-eksen mirror/stab
+- **3.8 — K2: Gyro feedforward (aday, 2026-06-12 onaylı):** IMU gyro hızı (gy_dps, bedava sinyal) → motor hız-ref'e 2-DOF ileri-besle → yavaş (~0.3 Hz) cascade dış-döngüsünü atla, stabilizasyon gecikmesini düşür. Analitik $k_{ff}$=redüktör oranı (deneme-yanılma değil). **Donanımsız tasarlanır**; STAB ref'iyle çift-sayım önlenir; bench sıra gelince. Cascade'i bozmaz (üstüne eklenir).
+- **3.9 — K3: Gain scheduling (kanıtla-sonra aday):** τ duty-bağımlılığı (43→134ms, Aşama-1 NRMSE U-eğrisi) tek-kazancın uçlarda sub-optimalliğini gösteriyor. **Önce** uçlarda before/after step ile somut kazanç ölç; kanıtlanırsa çalışma-noktası kazanç tablosu. Mevcut Aşama-1 verisiyle ön-tasarım donanımsız.
+- **3.4 — K4/MIMO sistem tanımlama:** her motoru ayrı sür / diğer ekseni ölç → 2×2 $G(s)$ (`tfest`); $G_{22}$ = motor-2 modeli **bedavaya** çıkar (sıfırdan Aşama-1 kampanyası DEĞİL). ⚠ 2 motor mekanik bağlı olmadan çapraz terimler ~0 → anlamlı kuplaj yüklü gimbalda
+- **3.5 — K4/RGA + condition number:** kuplajı **sayıyla** ölç → decoupling potansiyeli → **KARAR KAPISI**
+- **3.6 — Kanıta-dayalı kontrolcü kararı:** RGA ≈ birim → decoupled SISO yeterli (K0/K1 kalır); güçlü kuplaj → decoupler/MIMO (K5/K6, Aşama 4'e devir)
 - **3.7 — Coupling derecesinin akademik raporu**
 
 > **Yöntem (Sokratik karar 2026-06-09 — baseline-önce, analitik iterasyon):** Bütün
@@ -377,15 +416,22 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
 ---
 
-## 🚀 Aşama 4 — İki Motor Modern Kontrol (LQR/LQG + Kalman)  *(planlanan)*
+## 🚀 Aşama 4 — İki Motor Optimal Kontrol (Decoupling + LQR/LQI)  *(planlanan — merdiven K5–K6)*
 
 ### Vizyon
 
+> **Merdiven konumu:** K5 (decoupling, kuplaj VARSA) + K6 (optimal MIMO state-feedback).
+> **Kanıta-bağlı (2026-06-12 rafine):** bu aşamanın gerekçesi **Aşama 3.5 RGA ölçümüne** bağlıdır —
+> RGA ≈ birim ise decentralized cascade zaten optimal (`[Skogestad2005] §10`), LQR/decoupling
+> *akademik kıyas* değeri taşır; RGA anlamlı off-diagonal ise centralized optimal kontrol **net
+> gerekçeli**. LQG/Kalman (K7) bu aşamada DEĞİL → gerçek değeri IMU payload'a taşınınca = **Aşama 5**
+> (saf-encoder tam-durumda Kalman overkill; encoder-hızı kuantizasyonu Gauss değil).
+
 MIMO sistemde:
-- **Decoupling** (basit P diagonal + RGA kompansatör)
-- **LQR** durum geri-besleme `[Anderson2007] §2`
-- **Kalman filter** state estimation `[Simon2006] §5` — IMU + encoder füzyonu
-- **LQG = LQR + Kalman** kombinasyonu
+- **Decoupling** (statik $D=G(0)^{-1}$ veya feedforward decoupling) — **yalnız RGA kuplaj gösterirse**
+- **LQI** (LQR + integral durum genişletmesi) `[Anderson2007] §2` — saf LQR ss-error verir (cascade'den
+  geri adım); **LQI doğru form**, tek K matrisi, doğal MIMO
+- **Cascade ile sayısal kıyas** (ss-error, margin, bozucu reddi) — akademik omurga
 
 **MATLAB:** `matlab/asama_4_mimo_kontrol/`
 - `lqr_design.m` — Q, R tuning + Riccati çözümü
@@ -401,13 +447,14 @@ MIMO sistemde:
 - **4.1 — Klasik vs LQR karşılaştırma** (akademik tartışma)
 - **4.2 — Q ve R matris tasarımı** — fiziksel anlam
 - **4.3 — LQR firmware implementasyonu** (durum geri-besleme)
-- **4.4 — Kalman filter tasarımı** (MATLAB) — Q ve R matrisleri MPU6050 datasheet'inden
-- **4.5 — Kalman firmware implementasyonu** (3 durumlu, float)
-- **4.6 — LQG kapalı döngü testi**
-- **4.7 — Complementary vs Kalman karşılaştırma** (gürültü RMS)
-- **4.8 — Akademik karşılaştırma raporu** — klasik PID vs LQG
+- **4.4 — Akademik karşılaştırma raporu** — decentralized cascade vs decoupled-cascade vs LQI
+  (ss-error, margin, kuplaj reddi, başarım)
 
-> Kaynaklar: `[Anderson2007]`, `[Friedland2005]`, `[Simon2006]`, `[Luenberger1971]`.
+> **NOT (2026-06-12):** Kalman/LQG (eski 4.4–4.7) **Aşama 5'e taşındı** (merdiven K7) — gerçek değeri
+> IMU payload'a + gürültü/bozucu olunca doğar. Robust (H∞/μ), MPC, SMC, adaptif, DOB, notch (K8) =
+> opsiyonel akademik zirveler, ihtiyaç/ölçüm doğunca Aşama 5+.
+>
+> Kaynaklar: `[Anderson2007]`, `[Friedland2005]`, `[Skogestad2005]`, `[Luenberger1971]`.
 
 ---
 
@@ -415,10 +462,16 @@ MIMO sistemde:
 
 ### Vizyon
 
-Tüm yazılım altyapısı hazır → 3D-print gimbal şasisi + iki motor + IMU. **Gerçek gimbal** senaryosu (IMU motor şaftında, **ters çevirme** ile stabilizasyon — mirror değil).
+Tüm yazılım altyapısı hazır → 3D-print gimbal şasisi + iki motor + IMU. **Gerçek gimbal** senaryosu (IMU **payload'da/motor çıkışında**, **ters çevirme** ile stabilizasyon — mirror değil). Bu kurulumda K0–K3'te demolanan stabilizasyon yasası **tam eylemsiz doğrulanır**.
+
+> **Merdiven konumu:** K7 (**LQG/Kalman** — IMU payload'a taşınınca gerçek değeri doğar: gürültü/bias/füzyon)
+> + K8 (**robust/öngörülü/nonlineer** opsiyonel zirveler: H∞·μ, MPC, SMC, adaptif, DOB, notch — yük
+> belirsizliği/rezonans/kısıt **ölçülünce**) + **kestirim yükseltmeleri** (Mahony/Madgwick singülarite,
+> EKF). Yük altında **K0–K6 kazançları yeniden-ID** (serbest-mil → yüklü plant değişir).
 
 ### Önkoşul
-- Aşama 4 LQG simülasyonda stabil
+- Aşama 4 (K5–K6) tamam **veya** kanıta-bağlı atlandı (RGA decentralized'i doğruladıysa)
+- Aşama 4 LQG simülasyonda stabil *(K7 — Aşama 5 ön-çalışması)*
 - 3D-print şasi tasarımı (Fusion 360 / FreeCAD)
 - Motor mount + IMU mount
 - Slip-ring veya esnek kablo (kabloların kopmaması)
