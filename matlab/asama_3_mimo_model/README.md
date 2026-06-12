@@ -27,6 +27,14 @@
 
 > ⚠ İç-döngü plant'ı **duty-domeni** $K_g=K\cdot V_s=654.8$ kullanılmalı (Aşama 2.3 H1 — voltaj $K=53.89$ değil); `analyze_mirror_stab.m` de bu konvansiyona göre düzeltildi.
 
+### K3 gain scheduling ön-tasarım (3.9, ✅ analiz — mevcut veriden)
+
+| Script | Amaç | Çıktı | Durum |
+|---|---|---|---|
+| `design_gain_schedule.m` | Aşama-1 ölçülen $\tau$(duty) (43→133 ms) → duty-indeksli $K_i$ schedule ($K_i\propto\tau$, sabit $\omega_n=33$); sabit-kazançla step kıyası + LUT | `results/3_9_gain_sched/` (4-panel PNG + JSON LUT) | ✅ analiz |
+
+> **Sonuç (dürüst):** schedule $\omega_n$'i sabitler (sabit-kazanç 38→22 rad/s değişir) AMA $K_p$ doyum-kısıtında (0.002) sabit kaldığından **ζ yüksek-duty'de azalır** (tam ζ sabitliği $K_p>0.002$ ister). Saturation-kısıtlı aktüatörde fayda **marjinal** → firmware'in **"gain scheduling default KAPALI"** kararını destekler (sigorta gelince $K_p$ gevşer, schedule değerlenir). LUT hazır.
+
 ### MIMO ID (3.4–3.5, planlı — iki sağlam eksen gelince)
 
 | Script | Amaç | Durum |
