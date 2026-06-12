@@ -163,7 +163,8 @@ int main(void)
     MotorCh_Enable(&Motor1);   /* STBY=HIGH — sürücüler artık aktif */
     MotorCh_Enable(&Motor2);
 
-    int16_t ax_, ay_, az_, gx_, gy_, gz_;
+    int16_t ax_=0, ay_=0, az_=0, gx_=0, gy_=0, gz_=0;   /* 0-init: ilk-döngü çöp okuması
+                                                          * uyku-tespitini yanıltmasın */
     char    buf[240];   /* telemetri: eksen-0 alanları (eski format) + OMEGA2/SP2/TR2 */
 
     /* Complementary filter durumu */
@@ -198,17 +199,29 @@ int main(void)
 
         uint32_t now = HAL_GetTick();   /* ms — watchdog / TX throttle / LED için */
 
-        /* IMU KENDİNİ-İYİLEŞTİRME (2026-06-09): okuma başarısızsa say; ardışık
-         * IMU_FAIL_LIMIT'e ulaşınca bus-clear + re-init (MPU6050_Recover) → sarsıntı
-         * sonrası USB çek-tak GEREKMEZ. ≥2 s cooldown: kalıcı arızada kontrol döngüsünü
-         * sürekli hitch'lemesin; her gerçek iyileştirmede USB'ye 'IMU_RECOVER'. */
-        if (imu_st != HAL_OK) {
+        /* IMU KENDİNİ-İYİLEŞTİRME — İKİ ARIZA MODU (2026-06-09 bus; 2026-06-12 uyku):
+         * (1) BUS hatası: read != HAL_OK (timeout/stuck SDA) → I2C bus-clear + re-init
+         *     (MPU6050_Recover) → 'IMU_RECOVER'.
+         * (2) UYKU: read HAL_OK ama TÜM 6 eksen tam 0 → motor anahtarlama güç-glitch'i
+         *     çipi uykuya soktu (canlı IMU asla 6-sıfır okumaz; yerçekimi bir eksende
+         *     ~16384). Bus sağlam → yalnız uyandır (MPU6050_Init, non-blocking) →
+         *     'IMU_WAKE'. (Mirror incident 2026-06-12: eski self-heal yalnız bus-hatası
+         *     yakalıyordu; uyku sıfır-veri HAL_OK ile geçip FP=0 sabit kalıyordu.)
+         * İkisi de IMU_FAIL_LIMIT ardışık + ≥2 s cooldown (kontrol döngüsünü hitch'lemesin). */
+        bool imu_zero = (ax_==0 && ay_==0 && az_==0 && gx_==0 && gy_==0 && gz_==0);
+        if (imu_st != HAL_OK || imu_zero) {
             if (++imu_fail >= IMU_FAIL_LIMIT && (now - last_imu_recover) >= 2000U) {
-                MPU6050_Recover();
+                if (imu_st == HAL_OK) {            /* uyku: bus sağlam, yalnız uyandır */
+                    MPU6050_Init();
+                    static const char ev[] = "IMU_WAKE\r\n";
+                    CDC_Transmit_FS((uint8_t *)ev, (uint16_t)(sizeof(ev) - 1U));
+                } else {                           /* bus hatası: tam kurtarma */
+                    MPU6050_Recover();
+                    static const char ev[] = "IMU_RECOVER\r\n";
+                    CDC_Transmit_FS((uint8_t *)ev, (uint16_t)(sizeof(ev) - 1U));
+                }
                 last_imu_recover = now;
                 imu_fail = 0;
-                static const char ev[] = "IMU_RECOVER\r\n";
-                CDC_Transmit_FS((uint8_t *)ev, (uint16_t)(sizeof(ev) - 1U));
             }
         } else {
             imu_fail = 0;
@@ -401,10 +414,14 @@ void I2C1_Init(void)
    ================================================================ */
 void MPU6050_Init(void)
 {
+    /* PWR_MGMT_1 = 0 → uykudan uyandır + saat kaynağı internal.
+     * ⚠ SONLU timeout (eski HAL_MAX_DELAY DEĞİL): IMU/bus wedge'liyken bloklayan
+     * yazı ana döngüyü (ve boot'u) sonsuza kilitliyordu — 2026-06-12 mirror
+     * incident'i. Başarısız olursa main loop'taki sleep-auto-recovery tekrar dener. */
     uint8_t data = 0x00;
     HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, MPU6050_PWR_MGMT_1,
-                      I2C_MEMADD_SIZE_8BIT, &data, 1, HAL_MAX_DELAY);
-    HAL_Delay(100);
+                      I2C_MEMADD_SIZE_8BIT, &data, 1, 5U);   /* 5 ms timeout */
+    HAL_Delay(50);
 }
 
 HAL_StatusTypeDef MPU6050_Read(int16_t *ax, int16_t *ay, int16_t *az,
