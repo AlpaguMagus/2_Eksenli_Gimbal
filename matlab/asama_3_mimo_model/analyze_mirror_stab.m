@@ -26,8 +26,10 @@ function analyze_mirror_stab()
         'defaultAxesGridColor',[0.15 0.15 0.15], 'defaultAxesGridAlpha',0.3);
 
     % ── cascade kapalı-döngü modeli (Aşama 2 parametreleri) ──
-    K=53.89; tau=0.0605; Kp_i=0.002; Ki_i=0.1; Kp_pos=6;
-    G = tf(K,[tau 1]); C = pid(Kp_i,Ki_i);
+    % İç-döngü plant'ı DUTY-domeni: u(duty)→ω, DC kazancı Kg=K·Vs=654.8 (Aşama 2.3 H1
+    % düzeltmesi — K=53.89 voltaj-domeni DEĞİL; K kullanılırsa iç-döngü 12× yavaş ωn 33→9.4).
+    K=53.89; Vs=12.15; Kg=K*Vs; tau=0.0605; Kp_i=0.002; Ki_i=0.1; Kp_pos=6;
+    G = tf(Kg,[tau 1]); C = pid(Kp_i,Ki_i);
     T_inner = feedback(G*C,1);
     P_outer = T_inner * tf(1,[1 0]);
     L = Kp_pos * P_outer;

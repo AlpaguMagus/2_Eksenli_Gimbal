@@ -19,6 +19,14 @@
 > Derin anlatı: [`../../docs/asama_3_mimo_model.md`](../../docs/asama_3_mimo_model.md) §12.4 (K0 kapanışı).
 > Tümünü üret: `matlab -batch "cd('matlab/asama_3_mimo_model'); create_axis_architecture_diagram; plot_bench_results; analyze_mirror_stab"`
 
+### K2 gyro feedforward (3.8, ✅ tasarım+sim — donanımsız)
+
+| Script | Amaç | Çıktı | Durum |
+|---|---|---|---|
+| `design_gyro_feedforward.m` | Analitik $k_{ff}=$ redüktör $=9.7$ türetme; 2-DOF bozucu-reddi: $S_{fb}=1/(1+L_{out})$ vs $S_{ff}=1-T_{in}$ vs FB+FF; reddi-bant 0.89→3.63 Hz (**4.1×**); zaman-domeni (2 Hz sentetik + gerçek base) | `results/3_8_gyro_ff/` (design + block PNG + JSON) | ✅ tasarım/sim (firmware bekliyor) |
+
+> ⚠ İç-döngü plant'ı **duty-domeni** $K_g=K\cdot V_s=654.8$ kullanılmalı (Aşama 2.3 H1 — voltaj $K=53.89$ değil); `analyze_mirror_stab.m` de bu konvansiyona göre düzeltildi.
+
 ### MIMO ID (3.4–3.5, planlı — iki sağlam eksen gelince)
 
 | Script | Amaç | Durum |

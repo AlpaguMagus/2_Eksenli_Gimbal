@@ -206,32 +206,37 @@ olduğundan kapalı-çevrim $T(s)$ ölçülen referansı süzer ([Franklin2010] 
 
 $$T(s) = \frac{L(s)}{1 + L(s)}, \qquad L(s) = K_{p,pos}\,T_{ic}(s)\,\frac{1}{s}, \quad K_{p,pos}=6,$$
 
-burada $T_{ic}(s)$ iç hız-döngüsünün kapalı-çevrimi (DC kazancı $1$; $K=53{,}89$, $\tau=60{,}5$ ms).
-Kapalı-çevrim kutupları $\lbrace -13{,}9,\ -2{,}21 \pm 5{,}80j \rbrace$ — kararlı, baskın çift
-$\approx 6{,}2$ rad/s. Ölçülen referans $\theta_{ref}(t)$ bu modele `lsim` ile verilip
+burada $T_{ic}(s)$ iç hız-döngüsünün kapalı-çevrimidir (DC kazancı $1$). İç-döngü plant'ı
+**duty-domeni**dir: kazanç $K_g = K\cdot V_s = 654{,}8$ rad/s/duty (Aşama 2.3 **H1 düzeltmesi** —
+voltaj-domeni $K=53{,}89$ DEĞİL; voltaj-gain kullanılırsa iç-döngü 12× yavaş, $\omega_n$ 33→9.4'e
+düşer). Kapalı-çevrim kutupları $\lbrace -6{,}44,\ -15{,}9 \pm 27{,}5j \rbrace$ — baskın (yavaş)
+kutup $-6{,}44$ (dış-döngü, $\approx 6{,}4$ rad/s), hızlı çift $\approx 31$ rad/s (iç-döngü,
+$\omega_n\approx 33$ ile uyumlu). Ölçülen referans $\theta_{ref}(t)$ bu modele `lsim` ile verilip
 $\theta_{pred}$ üretildi.
 
 | Mod | Ölçülen RMS | Model RMS (`lsim`) | Tek-ton $\lvert S\rvert$ alt-sınır |
 |---|---|---|---|
-| MIRROR | $5{,}52^\circ$ | $6{,}27^\circ$ | $2{,}97^\circ$ |
-| STAB | $6{,}66^\circ$ | $8{,}53^\circ$ | $1{,}35^\circ$ |
+| MIRROR | $5{,}52^\circ$ | $5{,}06^\circ$ | $2{,}95^\circ$ |
+| STAB | $6{,}66^\circ$ | $6{,}17^\circ$ | $1{,}35^\circ$ |
 
 ![Mirror sim-to-real — ölçülen vs cascade modeli](../matlab/asama_3_mimo_model/results/3_3_bench/mirror_model_validation.png)
 
 > 📊 **Üreten betik:** `matlab/asama_3_mimo_model/analyze_mirror_stab.m`
 > **Şekil 12.5** — Cascade modeli (yeşil) gerçek motor trajektorisini (mavi) neredeyse birebir
-> üretir; her ikisi de referansı (kırmızı) küçük gecikmeyle izler. Alt: model-hatası ölçülen-hatayı
-> sarar, hızlı dönüşlerde ($t \approx 6, 10, 26$ s) biraz **fazla** tahmin eder.
+> üretir; her ikisi de referansı (kırmızı) küçük gecikmeyle izler. Alt: model-hatası (yeşil)
+> ölçülen-hatayı (mor) sıkı izler; ölçülende ek **yüksek-frekans jitter** görülür (modellenmemiş
+> encoder kuantizasyonu + gyro/referans gürültüsü).
 
-**Yorum.** Ölçülen RMS iki analitik sınır arasında **kuşatılır**: tek baskın-ton
-$\lvert S(j\omega)\rvert$ tahmini (yavaş bileşen, $\sim 3^\circ$) alttan, tam-spektrum `lsim`
-modeli ($\sim 6$–$8{,}5^\circ$) üstten. Tek-ton tahmini iyimserdir çünkü el hareketinin
-geniş-bantlı yüksek-frekans bileşenlerini atar; `lsim` tüm spektrumu görür. Model **biraz
-kötümser** (hızlı dönüşlerde ölçülenden büyük hata) — bu, sürtünmesiz lineer modelin
-kötümserliği olup Aşama 2.6.5'teki "sürtünme limit-cycle'ı söndürür / kararlı-hâl takibini
-keskinleştirir" bulgusuyla **tutarlıdır** ([Ljung1999] §16, model-doğrulama). Sonuç: takip
-hatası cascade bant-genişliği + referans spektrumuyla **kestirilebilir**; gerçek motor, sürtünme
-katkısıyla model üst-sınırının biraz altında performans verir.
+**Yorum.** Tam-spektrum `lsim` modeli ölçülen RMS'i **yaklaşık %8 içinde**, hafifçe **alttan**
+öngörür (MIRROR 5,06° vs 5,52°; STAB 6,17° vs 6,66°) — el hareketinin geniş-bant spektrumunu
+gördüğü için ölçülene çok yakın. Tek baskın-ton $\lvert S(j\omega)\rvert$ tahmini ($\sim 3^\circ$)
+yalnız en yavaş bileşeni aldığından **iyimser alt-sınırdır** (geniş-bant jitter'ı atar). Model ile
+ölçülen arasındaki küçük artık fark ($\approx 0{,}5^\circ$) modele girmeyen gerçek etkilere
+yorulur: encoder hız kuantizasyonu ($\approx 18{,}7$ rad/s/count, §12.6 açık konu), gyro/referans
+gürültüsü ve sensör gecikmesi — bunlar hatayı **artırır** (azaltmaz). Sonuç: tek-eksen takip hatası
+cascade bant-genişliği + referans spektrumuyla **kestirilebilir** (yaklaşık yüzde 8 doğruluk); kalan
+fark modellenmemiş ölçüm gürültüsüdür ([Ljung1999] §16, model-doğrulama: artık = modellenmemiş
+dinamik + gürültü).
 
 #### 12.4.5. K0 değerlendirmesi & sonraki basamak
 
