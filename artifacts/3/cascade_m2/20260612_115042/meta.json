@@ -1,0 +1,113 @@
+{
+  "test_id": "20260612_115042",
+  "title": "Aşama 3.3 eksen-2 cascade step",
+  "timestamp": "2026-06-12T11:51:07",
+  "commit": "9d1a32c",
+  "status": "PASS",
+  "motor": 2,
+  "architecture": "cascade_pos_P_speed_PI",
+  "kp_pos": 2.0,
+  "inner": {
+    "Kp": 0.002,
+    "Ki": 0.1
+  },
+  "targets": [
+    30,
+    90,
+    45,
+    0,
+    -45,
+    0
+  ],
+  "note": "serbest mil; instance-based 2-eksen firmware (g_axis)",
+  "results": [
+    {
+      "target": 30,
+      "n": 144,
+      "valid": true,
+      "theta_start": 0.0,
+      "theta_ss": 30.04,
+      "ss_err_deg": 0.04,
+      "ss_err_pct": 0.1,
+      "overshoot_deg": 0.13,
+      "overshoot_pct": 0.4,
+      "settling_s": 1.169,
+      "theta_std_ss": 0.25,
+      "limit_cycle": false
+    },
+    {
+      "target": 90,
+      "n": 143,
+      "valid": true,
+      "theta_start": 30.1,
+      "theta_ss": 90.39,
+      "ss_err_deg": 0.39,
+      "ss_err_pct": 0.6,
+      "overshoot_deg": 0.39,
+      "overshoot_pct": 0.6,
+      "settling_s": 1.87,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false
+    },
+    {
+      "target": 45,
+      "n": 143,
+      "valid": true,
+      "theta_start": 90.4,
+      "theta_ss": 44.03,
+      "ss_err_deg": 0.97,
+      "ss_err_pct": 2.1,
+      "overshoot_deg": 0.97,
+      "overshoot_pct": 2.1,
+      "settling_s": 1.698,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false
+    },
+    {
+      "target": 0,
+      "n": 143,
+      "valid": true,
+      "theta_start": 44.0,
+      "theta_ss": 0.0,
+      "ss_err_deg": 0.0,
+      "ss_err_pct": 0.0,
+      "overshoot_deg": 0.0,
+      "overshoot_pct": 0.0,
+      "settling_s": 1.64,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false
+    },
+    {
+      "target": -45,
+      "n": 143,
+      "valid": true,
+      "theta_start": -0.8,
+      "theta_ss": -44.81,
+      "ss_err_deg": 0.19,
+      "ss_err_pct": 0.4,
+      "overshoot_deg": 0.0,
+      "overshoot_pct": 0.0,
+      "settling_s": 1.274,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false
+    },
+    {
+      "target": 0,
+      "n": 143,
+      "valid": true,
+      "theta_start": -44.8,
+      "theta_ss": 0.0,
+      "ss_err_deg": 0.0,
+      "ss_err_pct": 0.0,
+      "overshoot_deg": 0.0,
+      "overshoot_pct": 0.0,
+      "settling_s": 1.388,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false
+    }
+  ],
+  "artifacts": [
+    "data.csv",
+    "cascade_plot.png"
+  ]
+}

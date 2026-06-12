@@ -109,5 +109,7 @@ kanıta-dayalı MIMO kontrolcü, ROADMAP §3.)*
 - ✅ Encoder-2 firmware (3.2a): TIM1 16-bit + yazılım count-genişletme — bench PASS
 - ✅ Motor-2 sürücü (3.2b): firmware + bench PASS (polarite +duty→+count = motor-1 ile AYNI)
 - ⚠ **Motor-1 ünitesi CW'de kurtarılamaz mekanik kusurlu** (teşhis tamam: motor-içi, tork/dislodge çözmedi) — **redüktörsüz yedek sipariş edildi** (sağlam gearbox ona takılacak); o gelene kadar **tek sağlam motor (motor-2 ekseni) ile ilerleme** (kullanıcı kararı 2026-06-11)
-- 🟡 Eksen mimarisi (3.3): **firmware ✅** (instance-based `g_axis[2]`, motor-2 stall dahil, 21-ajan davranış-denetimi geçti, build PASS) — **motor-2 cascade bench (MODE2:POS) USB yeniden bağlanınca**
+- ✅ Eksen mimarisi (3.3): instance-based `g_axis[2]` firmware + **motor-2 cascade bench PASS** (2026-06-12): `MODE2:POS` 6/6 segment temiz (ss_err<1°, OS<1°, limit-cycle yok — Test 2.5 ile birebir), refactor davranış-koruma gerçek-donanımda kanıtlandı. `artifacts/3/cascade_m2/20260612_115042/`
+- ⬜ Tek-eksen MIRROR/stabilizasyon (motor-2): `MODE2:MIRROR` takip + stabilizasyon modu (−pitch)
+- ⬜ Yeni motor (redüktörsüz, siparişte) gelince: gearbox transferi + yön/kimlik testi + eksen-0 entegrasyon → 3.4 MIMO ID
 - ⬜ ACS712 Faz-2 entegrasyonu (duty %100 gevşetme ön koşulu)
