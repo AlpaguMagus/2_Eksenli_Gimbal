@@ -338,7 +338,13 @@ int main(void)
                 if (is_stab && axp->gyro_ff_en) {
                     float a_lpf = dt / (GYRO_FF_RC + dt);   /* tek-kutup ~12 Hz */
                     axp->gy_ff_lpf += a_lpf * (gy_dps - axp->gy_ff_lpf);
-                    omega_ref += axp->k_ff * axp->gy_ff_lpf * DEG2RAD;
+                    float omega_ff = axp->k_ff * axp->gy_ff_lpf * DEG2RAD;
+                    /* Anti-overdrive (bench bulgusu 2026-06-12): referans ±clamp'ta DOYGUNSA
+                     * ve FF clamp'ı DAHA DA aşacaksa FF'i kes — yoksa FF, ham gyro'yla motoru
+                     * ±60'ı aşırarak sürer (gözlenen θ→85°). Merkeze dönüş yönü serbest. */
+                    if (axp->mirror_ref >=  (MIRROR_CLAMP_DEG - 0.5f) && omega_ff > 0.0f) omega_ff = 0.0f;
+                    if (axp->mirror_ref <= -(MIRROR_CLAMP_DEG - 0.5f) && omega_ff < 0.0f) omega_ff = 0.0f;
+                    omega_ref += omega_ff;
                 }
                 SpeedPI_SetSetpoint(&axp->spi, omega_ref);
                 float u = SpeedPI_Step(&axp->spi, filt_w[i]);
