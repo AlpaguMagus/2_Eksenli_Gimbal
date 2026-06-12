@@ -1,0 +1,47 @@
+{
+  "plant": {
+    "Kg": 654.7635,
+    "tau_s": 0.0605,
+    "gear": 9.7
+  },
+  "bryson": {
+    "th_max_rad": 1.5707963267948966,
+    "wm_max_radps": 251,
+    "u_max": 0.5
+  },
+  "K_lqr": [
+    0.31830988618379075,
+    0.0019891243715134776
+  ],
+  "Nbar": 0.31830988618379075,
+  "riccati_residual": 2.2208609419022308E-16,
+  "K_lqi": [
+    4.3101762603886247,
+    0.0078757126759906922
+  ],
+  "Ki_lqi": -101.2855855676747,
+  "Kp_pos_si": 18.720999999999997,
+  "cascade": {
+    "settling_s": 1.984,
+    "overshoot_pct": 0,
+    "sserr_deg": 0.215,
+    "max_duty": 0.026
+  },
+  "lqr": {
+    "settling_s": 0.316,
+    "overshoot_pct": 0,
+    "sserr_deg": 0,
+    "max_duty": 0.167
+  },
+  "lqi": {
+    "settling_s": 0.143,
+    "overshoot_pct": 7.1,
+    "sserr_deg": 0,
+    "max_duty": 0.4
+  },
+  "kaynak": [
+    "Anderson2007 §2-3",
+    "Franklin2010 §7.9",
+    "Bryson rule"
+  ]
+}
