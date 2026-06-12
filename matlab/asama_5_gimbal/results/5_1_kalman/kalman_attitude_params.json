@@ -1,0 +1,23 @@
+{
+  "Ts": 0.005,
+  "ARW_deg_sqrt_hr": 1.09,
+  "bias_instab_deg_hr": 3,
+  "Q": [
+    1.6501388888888892E-6,
+    0.0001
+  ],
+  "R_deg2": 4,
+  "Kss": [
+    0.0070750390224178679,
+    -0.0049822810230258363
+  ],
+  "alpha_equiv": 0.99292496097758209,
+  "rms_complementary_deg": 0.56,
+  "rms_kalman_deg": 0.198,
+  "improvement_x": 2.83,
+  "kaynak": [
+    "Simon2006 Ch5,7",
+    "Higgins1975",
+    "IEEE952 Allan"
+  ]
+}
