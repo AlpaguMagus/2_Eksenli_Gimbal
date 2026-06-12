@@ -54,9 +54,12 @@ def main():
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--dur", type=float, default=30.0, help="kayıt süresi (s)")
     ap.add_argument("--test-id", default=None)
+    ap.add_argument("--kff", type=float, default=0.0,
+                    help="gyro feedforward kazancı (KFF2:); 0=kapalı, 9.7=analitik redüktör (YALNIZ stab). FF açık/kapalı A/B için.")
     args=ap.parse_args()
     sfx = "" if args.motor==1 else "2"
     mode_cmd = f"MODE{sfx}"
+    kff_cmd  = f"KFF{sfx}"
     mode_word = "MIRROR" if args.mode=="mirror" else "STAB"
     EC = re.compile(rf"EC{sfx}:(-?\d+)")
     FP = re.compile(r"FP:(-?[\d.]+)")
@@ -79,6 +82,9 @@ def main():
     try:
         ser.reset_input_buffer(); send(ser,"PING"); time.sleep(0.3)
         send(ser,f"{mode_cmd}:{mode_word}"); time.sleep(0.15)   # enc 0° = geçiş anı, pitch0 alınır
+        if args.kff != 0.0 and args.mode == "stab":             # gyro-FF aç (K2, yalnız stab)
+            send(ser,f"{kff_cmd}:{args.kff}"); time.sleep(0.1)
+            print(f"[{ts()}] gyro-FF AÇIK: {kff_cmd}:{args.kff} (2-DOF base-bozucu reddi)")
         ser.reset_input_buffer()
         t0=time.time(); last_hb=t0; last_p=t0
         with raw_csv.open("w",newline="") as fh:
@@ -97,6 +103,7 @@ def main():
                 if now-last_p>=1.0:
                     print(f"    t={t:4.1f}s  FP={fp:+6.1f}°  ref={tr:+6.1f}°  θ_motor={theta:+6.1f}°  hata={err:+5.1f}°")
                     last_p=now
+        if args.kff != 0.0: send(ser,f"{kff_cmd}:0")            # gyro-FF kapat (temizlik)
         send(ser,"STOP"); send(ser,f"{mode_cmd}:DUTY"); time.sleep(0.2)
     except KeyboardInterrupt:
         send(ser,"STOP"); print("\nCtrl-C — STOP")

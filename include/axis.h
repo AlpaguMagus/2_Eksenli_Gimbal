@@ -46,6 +46,15 @@ typedef struct {
     float mirror_pitch0;            /* göreli referans (geçiş anı pitch) */
     float mirror_ref;               /* slew sonrası uygulanan θ_ref (derece) */
     bool  mirror_prev;              /* MIRROR'a yeni giriş edge-detect */
+
+    /* Gyro feedforward (K2, Aşama 3.8) — YALNIZ STAB; 2-DOF base-bozucu reddi.
+     * ω_ff = k_ff·LPF(gy)·DEG2RAD motor-mili hız-setpoint'ine eklenir → yavaş dış
+     * pozisyon-döngüsünü baypas eder (reddi-bant ~4×, matlab design_gyro_feedforward).
+     * FF dışsal sinyal (gyro) → kapalı-döngü kararlılığını etkilemez. Kaynak:
+     * [Franklin2010] §7.3 (2-DOF feedforward), [Hilkert2008] (gimbal inertial-rate FF). */
+    float k_ff;                     /* FF kazancı = redüktör 9.7 (analitik); KFF2: ile ayar */
+    bool  gyro_ff_en;               /* GÜVENLİK: default KAPALI; KFF2:<≠0> açar, KFF2:0 kapar */
+    float gy_ff_lpf;                /* gyro LPF durumu (FF girişi HF gürültü süzme, ~12 Hz) */
 } Axis_t;
 
 #define AXIS_COUNT 2

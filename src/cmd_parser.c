@@ -176,6 +176,16 @@ static void parse_line(const char *line)
         return;
     }
 
+    /* ── KFF / KFF2 — gyro feedforward kazancı (K2, Aşama 3.8); ≠0 FF'i AÇAR (YALNIZ STAB) ──
+     * KFF2:9.7 → k_ff=9.7 + FF açık; KFF2:0 → FF kapalı. Güvenlik: default kapalı. */
+    if ((arg = match_axis_cmd(line, "KFF", &ax)) != 0) {
+        float v = strtof(arg, NULL);
+        ax->k_ff = v;
+        ax->gyro_ff_en = (v != 0.0f);
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
     /* ── KP / KI / SLEW (+2) — hız PI runtime ayarı (Aşama 2.3) ── */
     if ((arg = match_axis_cmd(line, "KP", &ax)) != 0) {
         SpeedPI_SetGains(&ax->spi, strtof(arg, NULL), SpeedPI_GetKi(&ax->spi));  /* Ki korunur */

@@ -15,6 +15,7 @@
 #include <math.h>
 
 #define RAD2DEG  (180.0f / 3.14159265f)
+#define DEG2RAD  (3.14159265f / 180.0f)
 
 /* --- Tanımlamalar --- */
 #define MPU6050_ADDR         (0x68 << 1)   /* AD0 GND'ye bağlı */
@@ -33,10 +34,10 @@ I2C_HandleTypeDef  hi2c1;
 Axis_t g_axis[AXIS_COUNT] = {
     { .motor = &Motor1, .enc_count = Encoder_GetCount,
       .enc_reset = Encoder_Reset,  .enc_speed = Encoder_GetSpeed,
-      .mode = CMD_MODE_DUTY },
+      .mode = CMD_MODE_DUTY, .k_ff = 9.7f },   /* gyro-FF default kazanç (analitik); en=false */
     { .motor = &Motor2, .enc_count = Encoder2_GetCount,
       .enc_reset = Encoder2_Reset, .enc_speed = Encoder2_GetSpeed,
-      .mode = CMD_MODE_DUTY },
+      .mode = CMD_MODE_DUTY, .k_ff = 9.7f },
 };
 
 /* --- Prototip --- */
@@ -182,6 +183,7 @@ int main(void)
      * Aşama 5'te eksen→pitch/roll eşlemesi yapılır. */
     const float MIRROR_CLAMP_DEG = 60.0f;
     const float MIRROR_SLEW_DPS  = 90.0f;
+    const float GYRO_FF_RC       = 0.0133f;  /* gyro-FF LPF zaman sabiti (~12 Hz tek-kutup) */
 
     uint32_t last_tx          = 0;
     uint32_t last_led         = 0;
@@ -297,7 +299,7 @@ int main(void)
             bool is_mirror = (axp->mode == CMD_MODE_MIRROR);
             bool is_stab   = (axp->mode == CMD_MODE_STAB);
             bool is_track  = is_mirror || is_stab;
-            if (is_track && !axp->mirror_prev) { axp->mirror_pitch0 = fused_pitch; axp->mirror_ref = 0.0f; }
+            if (is_track && !axp->mirror_prev) { axp->mirror_pitch0 = fused_pitch; axp->mirror_ref = 0.0f; axp->gy_ff_lpf = 0.0f; }
             axp->mirror_prev = is_track;
             if (wd_active) { axp->mirror_ref = 0.0f; continue; }   /* watchdog: hedef sıfırla */
 
@@ -328,6 +330,16 @@ int main(void)
                 /* Cascade: θ_ref → poz P → ω_ref → hız PI → motor */
                 PositionP_SetSetpoint(&axp->ppos, axp->mirror_ref);
                 float omega_ref = PositionP_Step(&axp->ppos, counts[i], NULL);
+                /* Gyro feedforward (K2, Aşama 3.8) — YALNIZ STAB, FF açıksa (KFF2:<≠0>):
+                 * 2-DOF — base açısal hızını (gyro) doğrudan hız-setpoint'ine besle →
+                 * yavaş dış pozisyon-döngüsünü baypas et (reddi-bant ~4×).
+                 * İşaret(+): STAB'da fused_pitch −gy entegre eder, ref=−rel → d(ref)/dt=+gy
+                 * → motor mili = k_ff·gy·DEG2RAD (cascade yönüyle aynı). LPF: HF gyro gürültü. */
+                if (is_stab && axp->gyro_ff_en) {
+                    float a_lpf = dt / (GYRO_FF_RC + dt);   /* tek-kutup ~12 Hz */
+                    axp->gy_ff_lpf += a_lpf * (gy_dps - axp->gy_ff_lpf);
+                    omega_ref += axp->k_ff * axp->gy_ff_lpf * DEG2RAD;
+                }
                 SpeedPI_SetSetpoint(&axp->spi, omega_ref);
                 float u = SpeedPI_Step(&axp->spi, filt_w[i]);
                 MotorCh_SetDutySigned(axp->motor, u);
