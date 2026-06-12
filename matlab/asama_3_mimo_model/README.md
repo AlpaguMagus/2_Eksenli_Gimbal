@@ -41,7 +41,7 @@
 |---|---|---|
 | `load_mimo_data.m` | SISO↔MIMO veri toplama CSV'lerini oku (her motoru ayrı sür, diğerini ölç) | ⬜ planlı |
 | `fit_transfer_matrix.m` | 2×2 $G(s)$ tahmini (`tfest`, eleman-bazlı) | ⬜ planlı |
-| `analyze_rga.m` | RGA $\Lambda = G(0) \circ (G(0)^{-1})^T$ + condition number | ⬜ planlı |
+| `analyze_rga.m` | RGA $\Lambda = G(0) \circ (G(0)^{-1})^T$ + condition number + **karar kuralı** (decentralized vs MIMO). **✅ çerçeve hazır** (sentetik doğrulandı: zayıf→λ11=1.01 "K1 yeter", güçlü→2.78 "MIMO"); gerçek 2-motor verisi beklemede | 🟡 çerçeve |
 | `create_mimo_diagrams.m` | MIMO blok diyagramları (programatik, beyaz tema) | ⬜ planlı |
 
 ## Klasör
