@@ -30,6 +30,8 @@
 - **[Franklin2010]** G. Franklin, J.D. Powell, A. Emami-Naeini, *"Feedback Control of Dynamic Systems"*, 6th ed., Pearson, 2010. ISBN 978-0-13-601969-5.
   - §3: dinamik model çıkarımı
   - §4-6: root locus + PID design
+  - §4.2: system type & error constants (tip-1 $K_v$, ramp takip hatası $e_{ss}=\omega/K_v$ — mirror $K_{p,pos}$)
+  - §6.1: reference tracking (kapalı-çevrim $T(s)$ ile takip hatası — Aşama 3.3 sim-to-real RMS doğrulama, docs §12.4.4)
   - §6.4: cascade kontrol, iç döngü en az 5× daha hızlı kuralı
   - §9: durum uzayı + pole placement
 
@@ -67,6 +69,7 @@
 - **[Skogestad2005]** S. Skogestad, I. Postlethwaite, *"Multivariable Feedback Control: Analysis and Design"*, 2nd ed., Wiley, 2005. ISBN 978-0-470-01168-3.
   - §3: MIMO sistemler giriş
   - §10: decoupling, condition number, RGA (Relative Gain Array)
+  - §10.6.4: decentralized (diyagonal) kontrol — cascade PID = MIMO $K(s)$'in köşegen formu (Aşama 3.3 K0, docs §12.4.1)
   - §11: H∞ ve µ-synthesis (ileri seviye)
 
 ## Gimbal / Kamera Stabilizasyonu

@@ -16,11 +16,11 @@
 | **0 — Altyapı** | ✅ KAPALI | Donanım + firmware + IMU füzyonu + USB CDC + koruma katmanları |
 | **1 — Sistem Tanımlama** | ✅ KAPALI | `K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0` — model NRMSE %11 (Test 1.T5 PASS) |
 | **2 — Tek Motor Kontrol** | ✅ KAPALI | Hız PI + sim-to-real gap + disturbance + pozisyon cascade + IMU mirror — **2.T1–T6 tüm testler PASS** (anti-windup sim+gerçek 637ms) |
-| 3 — MIMO Model | ⬜ | İki motor + decoupling |
-| 4 — MIMO Kontrol | ⬜ | LQR/LQG + Kalman |
-| 5 — Gerçek Gimbal | ⬜ | 3D-baskı + stabilizasyon |
+| **3 — MIMO Model** | 🟡 AÇIK | **K0 (cascade) kapandı** — tek-motor cascade/mirror/stab gerçek-donanımda PASS + sim-to-real doğrulandı; sırada K1 (iki-eksen) + MIMO ID |
+| 4 — MIMO Kontrol | ⬜ | Decoupling + LQR/LQI (kanıta-dayalı, RGA kapısı) |
+| 5 — Gerçek Gimbal | ⬜ | 3D-baskı + LQG/Kalman + stabilizasyon |
 
-**En son (2026-05-27):** **Aşama 2 KAPALI** — IMU mirror takip (motor IMU pitch'ini izler) Test 2.T6 PASS (gimbal-hızı RMS 4.02° @ Kp_pos=6 firmware default, gerçek motor; analitik Kv tasarımı). Aşama 2 tüm kontrol omurgası (hız PI → cascade → mirror) gerçek motorda doğrulandı. Sırada **Aşama 3 — MIMO model**. Detay → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md) §11.15 (kapanış sentezi). Güncel durum → [`PROJE_DURUMU.md`](PROJE_DURUMU.md).
+**En son (2026-06-12):** 🟡 **Aşama 3 (MIMO) açık.** 3.1 pin/kablolama ✅ · 3.2 encoder-2 + motor-2 sürücü ✅ · 3.3 instance-based 2-eksen mimari ✅. **K0 (decentralized cascade) kapandı** — tek sağlam motor (motor-2 ekseni) üzerinde cascade pozisyon **6/6 PASS**, IMU mirror **RMS 5.53°**, stabilizasyon (motor base eğimine TERS döner, corr **−0.95**, RMS 6.72°) gerçek-donanımda PASS + **sim-to-real** cascade modeliyle doğrulandı (model ölçüleni kuşatır). ⚠ Motor-1 ünitesi CW mekanik kusurlu → redüktörsüz yedek siparişte; gelene kadar tek-motor ilerleme. Tüm plan artık **[Kontrol Yöntemleri Merdiveni](ROADMAP.md)** (K0 decentralized → K8 ileri; her basamak kapatılabilir). Sırada K1 (iki-eksen, motor gelince) + 3.4 MIMO ID. Detay → [`docs/asama_3_mimo_model.md`](docs/asama_3_mimo_model.md) §12.4. Güncel durum → [`PROJE_DURUMU.md`](PROJE_DURUMU.md).
 
 ---
 

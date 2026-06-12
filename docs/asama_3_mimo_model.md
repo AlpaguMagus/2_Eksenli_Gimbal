@@ -97,13 +97,158 @@ yalnız ünite değişir + yön/kimlik testi — **kod değişikliği gerekmez**
 > (motor-2 ekseni) üzerinden ilerletilip tamamlanır** — 3.3 instance-based mimari bunu sağlar.
 > Yeni motor gelince: yön/kimlik testi (`motor2_sign_test.py` benzeri) + entegrasyon; kod değişmez.
 
-### 12.4. Sistem tanımlama planı (3.4–3.5)
+### 12.4. K0 Kapanışı — gerçek-donanım sonuçları & sim-to-real analizi
+
+> **Kontrol Yöntemleri Merdiveni'nde K0 ✅** (decentralized cascade, tek eksen). Bu bölüm,
+> 3.3 firmware'inin gerçek-donanımda (tek sağlam motor = motor-2 ekseni) ürettiği üç sonucu
+> — cascade pozisyon, IMU mirror, IMU stabilizasyon — ders-kitabı disipliniyle kapatır ve
+> takip hatasını **analitik cascade modeliyle doğrular** (sim-to-real).
+
+#### 12.4.1. Instance-based eksen mimarisi: decentralized $K(s)$
+
+3.3 refactor'ü tüm kontrol/güvenlik modüllerini **örnek-bazlı** (instance-based) yaptı:
+`SpeedPI_t`, `PositionP_t`, `SpeedFilter_t`, `MotorCh_t` yapıları + `axis.h` içinde
+`Axis_t g_axis[2]` eksen demeti (`9def197`). Her eksen kendi cascade zincirini (pozisyon
+$P$ → hız PI → PWM → encoder geri besleme) **bağımsız** taşır; komutlar kök/`2` sonekiyle
+ilgili eksene yönlenir.
+
+Kontrol-kuramsal okuma: iki-eksenli kontrolcü matrisi $K(s)$ burada **köşegen** (diagonal)
+seçilmiştir,
+
+$$K(s) = \mathrm{diag}\left(K_0(s),\,K_1(s)\right),$$
+
+yani her eksen yalnız kendi hatasından sürülür; çapraz (off-diagonal) kontrolcü terimi
+**yoktur**. Bu, cascade PID'nin "SISO" değil, MIMO $K(s)$'in **decentralized (merkezi-olmayan)
+formu** olduğu anlamına gelir ([Skogestad2005] §10.6.4). Merdivendeki K0 (tek eksen) ve K1
+(iki eksen) **aynı** decentralized yapıdır; fark yalnız etkin eksen sayısıdır. Gerçek yöntem
+sıçraması (decentralized → centralized) ileride RGA karar kapısından (K4) sonra LQR'de (K6) gelir.
+
+![Instance-based 2-eksen mimari — decentralized köşegen cascade](../matlab/asama_3_mimo_model/results/3_3_eksen_mimari/eksen_mimari.png)
+
+> 📊 **Üreten betik:** `matlab/asama_3_mimo_model/create_axis_architecture_diagram.m`
+> **Şekil 12.1** — Ortak `cmd_parser` iki bağımsız eksen zincirini besler. Axis 0 (motor-1)
+> CW mekanik kusurdan ötürü **devre dışı** (gri); Axis 1 (motor-2) **aktif** (yeşil). Köşegen
+> $K(s)$ kutusu çapraz-terimsizliği vurgular. Yeni motor gelince Axis 0 yalnız **ünite + yön/
+> kimlik testi** ile devreye girer — kod değişmez.
+
+#### 12.4.2. Cascade pozisyon step (`MODE2:POS`) — 6/6 PASS
+
+Aşama-2 cascade'i (dış pozisyon-P $K_{p,pos}=2{,}0$ → iç hız-PI $K_p=0{,}002$, $K_i=0{,}1$)
+motor-2 ekseninde **birebir yeniden kullanıldı** (işaret çevirme yok; polarite 3.2b'de motor-1
+ile AYNI bulundu). Serbest mil, yüksüz; hedefler $[30, 90, 45, 0, -45, 0]$ derece.
+
+| Hedef | $\theta_{ss}$ | ss-hata | Aşım (OS) | Yerleşme | Limit-cycle |
+|---|---|---|---|---|---|
+| $+30^\circ$ | $30{,}04^\circ$ | $0{,}04^\circ$ | $0{,}13^\circ$ | $1{,}17$ s | yok |
+| $+90^\circ$ | $90{,}39^\circ$ | $0{,}39^\circ$ | $0{,}39^\circ$ | $1{,}87$ s | yok |
+| $+45^\circ$ | $44{,}03^\circ$ | $0{,}97^\circ$ | $0{,}97^\circ$ | $1{,}70$ s | yok |
+| $0^\circ$ | $0{,}00^\circ$ | $0{,}00^\circ$ | $0{,}00^\circ$ | $1{,}64$ s | yok |
+| $-45^\circ$ | $-44{,}81^\circ$ | $0{,}19^\circ$ | $0{,}00^\circ$ | $1{,}27$ s | yok |
+| $0^\circ$ | $0{,}00^\circ$ | $0{,}00^\circ$ | $0{,}00^\circ$ | $1{,}39$ s | yok |
+
+Tüm segmentlerde ss-hata $<1^\circ$, aşım $<1^\circ$, limit-cycle yok → **6/6 PASS**, Test 2.5
+(motor-1 ekseni) ile birebir. Bu, instance-based refactor'ün **davranış-koruduğunu**
+gerçek-donanımda kanıtlar (21-ajanlı adversarial denetimi tamamlayan donanım-tarafı kanıt).
+
+![Axis-1 cascade pozisyon step — gerçek donanım](../matlab/asama_3_mimo_model/results/3_3_bench/cascade_step.png)
+
+> 📊 **Üreten betik:** `matlab/asama_3_mimo_model/plot_bench_results.m`
+> **Şekil 12.2** — Üst: $\theta$ hedef merdivenini aşımsız izler. Orta: iç-döngü hız $\omega$ ve
+> cascade'in ürettiği hız-referansı $\omega_{ref}$; $\omega$'daki ani sıçramalar **encoder hız
+> kuantizasyonudur** (T-metodu açık konusu, §12.6). Alt: uygulanan duty $u$, $\pm0{,}50$
+> güvenlik tavanının çok altında (serbest mil az tork ister). Ham veri:
+> `artifacts/3/cascade_m2/20260612_115042/`.
+
+#### 12.4.3. IMU mirror & stabilizasyon yasası (`MODE2:MIRROR` / `MODE2:STAB`)
+
+Tek-eksen taklit/stabilizasyon **aynı cascade'in üstünde**, yalnız referans işaretiyle ayrışır:
+
+$$\theta_{ref} = s_m\,(\theta_{pitch} - \theta_0), \qquad s_m = \begin{cases} +1, & \text{MIRROR} \\ -1, & \text{STAB} \end{cases}$$
+
+Burada $\theta_{pitch}$ IMU füzyon-pitch'i, $\theta_0$ moda-girişte yakalanan referans açı,
+$s_m=+1$ taklit (motor base ile birlikte döner), $s_m=-1$ stabilizasyon (motor base eğimine
+**ters** döner — gerçek gimbalda payload sabit kalır). Referans $\pm60^\circ$ clamp + $90^\circ$/s
+slew ile şekillenip cascade'e girer.
+
+![Mirror/stab yasası — işaret seçimi](../matlab/asama_3_mimo_model/results/3_3_bench/mirror_stab_law.png)
+
+> 📊 **Üreten betik:** `matlab/asama_3_mimo_model/create_axis_architecture_diagram.m`
+> **Şekil 12.3** — IMU → relative ($-\theta_0$) → işaret bloğu ($s_m$) → clamp/slew → cascade.
+> Tek bit'lik işaret seçimi taklit ile stabilizasyonu ayırır.
+
+**Sonuçlar (30 s, el ile eğme):**
+
+| Mod | Eğme genliği (FP) | Takip RMS | Max hata | corr(pitch, $\theta$) |
+|---|---|---|---|---|
+| MIRROR ($s_m=+1$) | $158{,}6^\circ$ | $5{,}53^\circ$ | $15{,}7^\circ$ | — (pozitif) |
+| STAB ($s_m=-1$) | $123{,}4^\circ$ | $6{,}72^\circ$ | $17{,}2^\circ$ | $-0{,}95$ |
+
+MIRROR'da motor pitch'i takip etti (RMS $5{,}53^\circ$, Aşama 2.7'nin $4{,}02^\circ$ değeriyle
+mertebe-uyumlu — fark daha geniş/hızlı el hareketinden). STAB'da $\mathrm{corr}(\text{pitch}, \theta) = -0{,}95$
+ölçüldü: motor base eğimine güçlü ters-korelasyonla karşı döndü → **stabilizasyon yasası
+gerçek-donanımda demoland**.
+
+![Stab takip — motor base eğimine karşı döner](../matlab/asama_3_mimo_model/results/3_3_bench/stab_track.png)
+
+> 📊 **Üreten betik:** `matlab/asama_3_mimo_model/plot_bench_results.m`
+> **Şekil 12.4** — STAB: gri IMU-pitch yükselince mavi motor-$\theta$ düşer (ve tersi),
+> $\mathrm{corr}=-0{,}95$. Motor, $-\theta_{pitch}$ referansını sıkı izler. Mirror takip grafiği
+> ayrıca `mirror_track.png`'de. Ham veri: `artifacts/3/stab_m2/20260612_121945/`.
+
+> ⚠ **Kapsam:** IMU şu an base'de (payload'da değil), mil yüksüz → bu, stabilizasyon
+> **yasasının** demosu. Tam eylemsiz doğrulama (IMU payload'a monte, yük altında reddetme)
+> Aşama 5'e aittir (gerçek gimbal).
+
+#### 12.4.4. Sim-to-real: takip hatasının analitik doğrulaması
+
+Takip RMS'i **deneyden önce** cascade modelinden kestirilebilir mi? Görev referans-takip
+olduğundan kapalı-çevrim $T(s)$ ölçülen referansı süzer ([Franklin2010] §6.1):
+
+$$T(s) = \frac{L(s)}{1 + L(s)}, \qquad L(s) = K_{p,pos}\,T_{ic}(s)\,\frac{1}{s}, \quad K_{p,pos}=6,$$
+
+burada $T_{ic}(s)$ iç hız-döngüsünün kapalı-çevrimi (DC kazancı $1$; $K=53{,}89$, $\tau=60{,}5$ ms).
+Kapalı-çevrim kutupları $\lbrace -13{,}9,\ -2{,}21 \pm 5{,}80j \rbrace$ — kararlı, baskın çift
+$\approx 6{,}2$ rad/s. Ölçülen referans $\theta_{ref}(t)$ bu modele `lsim` ile verilip
+$\theta_{pred}$ üretildi.
+
+| Mod | Ölçülen RMS | Model RMS (`lsim`) | Tek-ton $\lvert S\rvert$ alt-sınır |
+|---|---|---|---|
+| MIRROR | $5{,}52^\circ$ | $6{,}27^\circ$ | $2{,}97^\circ$ |
+| STAB | $6{,}66^\circ$ | $8{,}53^\circ$ | $1{,}35^\circ$ |
+
+![Mirror sim-to-real — ölçülen vs cascade modeli](../matlab/asama_3_mimo_model/results/3_3_bench/mirror_model_validation.png)
+
+> 📊 **Üreten betik:** `matlab/asama_3_mimo_model/analyze_mirror_stab.m`
+> **Şekil 12.5** — Cascade modeli (yeşil) gerçek motor trajektorisini (mavi) neredeyse birebir
+> üretir; her ikisi de referansı (kırmızı) küçük gecikmeyle izler. Alt: model-hatası ölçülen-hatayı
+> sarar, hızlı dönüşlerde ($t \approx 6, 10, 26$ s) biraz **fazla** tahmin eder.
+
+**Yorum.** Ölçülen RMS iki analitik sınır arasında **kuşatılır**: tek baskın-ton
+$\lvert S(j\omega)\rvert$ tahmini (yavaş bileşen, $\sim 3^\circ$) alttan, tam-spektrum `lsim`
+modeli ($\sim 6$–$8{,}5^\circ$) üstten. Tek-ton tahmini iyimserdir çünkü el hareketinin
+geniş-bantlı yüksek-frekans bileşenlerini atar; `lsim` tüm spektrumu görür. Model **biraz
+kötümser** (hızlı dönüşlerde ölçülenden büyük hata) — bu, sürtünmesiz lineer modelin
+kötümserliği olup Aşama 2.6.5'teki "sürtünme limit-cycle'ı söndürür / kararlı-hâl takibini
+keskinleştirir" bulgusuyla **tutarlıdır** ([Ljung1999] §16, model-doğrulama). Sonuç: takip
+hatası cascade bant-genişliği + referans spektrumuyla **kestirilebilir**; gerçek motor, sürtünme
+katkısıyla model üst-sınırının biraz altında performans verir.
+
+#### 12.4.5. K0 değerlendirmesi & sonraki basamak
+
+K0 (decentralized cascade, tek eksen) **kapandı**: pozisyon (6/6), taklit ($5{,}53^\circ$),
+stabilizasyon ($6{,}72^\circ$, corr $-0{,}95$) gerçek-donanımda PASS ve **analitik modelle
+doğrulandı**. Mimari instance-based olduğundan **K1 (iki-eksen decentralized cascade)** yeni
+motorun gelmesiyle yalnız ünite + yön/kimlik testi gerektirir — kod değişmez. Sonra K2 (gyro
+feedforward, donanımsız tasarlanabilir) ve RGA karar kapısı (K4) gelir. Merdivenin tam dökümü →
+[`ROADMAP.md`](../ROADMAP.md) "Kontrol Yöntemleri Merdiveni".
+
+### 12.5. Sistem tanımlama planı (3.4–3.5)
 
 *(SISO↔MIMO veri toplama: her motoru ayrı sür, diğer ekseni ölç; eleman-bazlı `tfest`. Yöntem:
 baseline-önce — 3.3'te Aşama-2 cascade'i iki eksene yeniden-kullanılır, sonra kuplaj ölçülüp
 kanıta-dayalı MIMO kontrolcü, ROADMAP §3.)*
 
-### 12.5. Açık konular
+### 12.6. Açık konular
 
 - ✅ Pin planı (3.1) — KARAR verildi, kablolama tamamlandı (2026-06-08); §12.2 şema
 - ✅ Encoder-2 firmware (3.2a): TIM1 16-bit + yazılım count-genişletme — bench PASS
