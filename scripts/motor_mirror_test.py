@@ -48,6 +48,8 @@ def send(ser, c): ser.write((c+"\n").encode())
 def main():
     ap=argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--motor", type=int, default=2, choices=[1,2])
+    ap.add_argument("--mode", default="mirror", choices=["mirror","stab"],
+                    help="mirror=+takip (taklit) / stab=−takip (base'i karşıla, payload sabit)")
     ap.add_argument("--port", default="/dev/ttyACM0")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--dur", type=float, default=30.0, help="kayıt süresi (s)")
@@ -55,17 +57,19 @@ def main():
     args=ap.parse_args()
     sfx = "" if args.motor==1 else "2"
     mode_cmd = f"MODE{sfx}"
+    mode_word = "MIRROR" if args.mode=="mirror" else "STAB"
     EC = re.compile(rf"EC{sfx}:(-?\d+)")
     FP = re.compile(r"FP:(-?[\d.]+)")
     TR = re.compile(rf"TR{sfx}:(-?[\d.]+)")
 
     test_id = args.test_id or dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    out = Path(f"artifacts/3/mirror_m{args.motor}")/test_id
+    out = Path(f"artifacts/3/{args.mode}_m{args.motor}")/test_id
     (out/"raw").mkdir(parents=True, exist_ok=True)
     raw_csv = out/"raw"/"data.csv"
 
-    print(f"[{ts()}] Eksen-{args.motor} MIRROR takip — {mode_cmd}:MIRROR, süre {args.dur:.0f}s")
-    print(f"[{ts()}] ⚠ BOARD'U YAVAŞ EĞ (pitch ±~30°, birkaç döngü), sonunda 1 hızlı eğ. Motor takip eder.\n")
+    act = "takip eder (taklit)" if args.mode=="mirror" else "TERS döner (base'i karşılar)"
+    print(f"[{ts()}] Eksen-{args.motor} {mode_word} — {mode_cmd}:{mode_word}, süre {args.dur:.0f}s")
+    print(f"[{ts()}] ⚠ BOARD'U YAVAŞ EĞ (pitch ±~30°, birkaç döngü), sonunda 1 hızlı eğ. Motor {act}.\n")
     try:
         ser=serial.Serial(args.port,args.baud,timeout=0.05)
     except serial.SerialException as e:
@@ -74,7 +78,7 @@ def main():
     samples=[]   # (t, fp, tr, theta)
     try:
         ser.reset_input_buffer(); send(ser,"PING"); time.sleep(0.3)
-        send(ser,f"{mode_cmd}:MIRROR"); time.sleep(0.15)   # enc 0° = geçiş anı, pitch0 alınır
+        send(ser,f"{mode_cmd}:{mode_word}"); time.sleep(0.15)   # enc 0° = geçiş anı, pitch0 alınır
         ser.reset_input_buffer()
         t0=time.time(); last_hb=t0; last_p=t0
         with raw_csv.open("w",newline="") as fh:
@@ -108,7 +112,7 @@ def main():
 
     # ── Analiz ──
     res = analyze(samples)
-    plot_path = make_plot(out, raw_final, args.motor, res)
+    plot_path = make_plot(out, raw_final, args.motor, args.mode, res)
     write_artifacts(out, test_id, args, res, raw_final, plot_path)
 
     print(f"\n[{ts()}] ── ÖZET ──")
@@ -138,7 +142,7 @@ def analyze(samples):
             "rms":round(r,2),"max_err":round(mx,1),"moving_rms":round(mrms,2)}
 
 
-def make_plot(out, raw, motor, res):
+def make_plot(out, raw, motor, mode, res):
     try:
         import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
     except Exception: return None
@@ -155,7 +159,8 @@ def make_plot(out, raw, motor, res):
     ax[0].plot(t,tr,"r--",lw=1.0,label="ref (slew+clamp)")
     ax[0].plot(t,th,"b",lw=1.3,label="θ_motor (EC)")
     ax[0].set_ylabel("açı (°)"); ax[0].legend(loc="best"); ax[0].grid(alpha=0.3)
-    ax[0].set_title(f"Aşama 3.3 — Eksen-{motor} IMU mirror takip (RMS {res['rms']:.2f}°)")
+    mlbl = "mirror (taklit)" if mode=="mirror" else "stabilizasyon (karşı)"
+    ax[0].set_title(f"Aşama 3.3 — Eksen-{motor} IMU {mlbl} (RMS {res['rms']:.2f}°)")
     ax[1].plot(t,er,"k",lw=0.9); ax[1].axhline(0,color="r",ls=":",lw=0.8)
     ax[1].set_ylabel("takip hatası θ−ref (°)"); ax[1].set_xlabel("t (s)"); ax[1].grid(alpha=0.3)
     fig.tight_layout()
@@ -164,11 +169,17 @@ def make_plot(out, raw, motor, res):
 
 
 def write_artifacts(out, test_id, args, res, raw, plot):
+    mword = "MIRROR" if args.mode=="mirror" else "STAB"
+    mtitle = "IMU Mirror Takip (taklit, +pitch)" if args.mode=="mirror" else "IMU Stabilizasyon (karşı, −pitch)"
     with (out/"summary.md").open("w") as f:
-        f.write(f"# Aşama 3.3 — Eksen-{args.motor} IMU Mirror Takip\n\n")
+        f.write(f"# Aşama 3.3 — Eksen-{args.motor} {mtitle}\n\n")
         f.write(f"- **Test ID:** {test_id}\n- **Tarih:** {dt.datetime.now():%Y-%m-%d %H:%M}\n")
         f.write(f"- **Commit:** `{commit()}`\n")
-        f.write(f"- **Eksen:** motor-{args.motor} (MODE{'' if args.motor==1 else '2'}:MIRROR)\n")
+        f.write(f"- **Eksen:** motor-{args.motor} (MODE{'' if args.motor==1 else '2'}:{mword})\n")
+        if args.mode=="stab":
+            f.write("- **Mod:** STAB — motor base eğimine TERS döner (gerçek gimbalda payload sabit). "
+                    "⚠ IMU base'de + mil boş → bu, stabilizasyon YASASININ demosu; tam eylemsiz "
+                    "doğrulama IMU payload'a taşınınca (Aşama 5).\n")
         f.write(f"- **Mimari:** cascade + canlı referans (clamp ±60°, slew 90°/s, Kp_pos=6 takip)\n")
         f.write(f"- **Komut:** `python3 scripts/motor_mirror_test.py --motor {args.motor} --dur {args.dur:.0f}`\n\n")
         f.write("## Sonuç (sayısal)\n\n| Metrik | Değer |\n|---|---|\n")
@@ -191,9 +202,9 @@ def write_artifacts(out, test_id, args, res, raw, plot):
                     "motor/kazanç sorunu — raw incele.\n")
         f.write(f"\n## Artifacts\n- `{raw.name}`\n")
         if plot: f.write(f"- `{plot.name}` (FP/ref/θ_motor + hata)\n")
-    meta={"test_id":test_id,"title":f"Aşama 3.3 eksen-{args.motor} IMU mirror",
+    meta={"test_id":test_id,"title":f"Aşama 3.3 eksen-{args.motor} IMU {args.mode}",
           "timestamp":dt.datetime.now().isoformat(timespec="seconds"),"commit":commit(),
-          "status":res['status'],"motor":args.motor,"metrics":res,
+          "status":res['status'],"motor":args.motor,"mode":args.mode,"metrics":res,
           "note":"serbest mil; instance-based 2-eksen firmware (g_axis); Kp_pos=6 takip",
           "artifacts":[raw.name]+([plot.name] if plot else [])}
     json.dump(meta,(out/"meta.json").open("w"),indent=2,ensure_ascii=False)

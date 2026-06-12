@@ -292,10 +292,13 @@ int main(void)
         for (int i = 0; i < AXIS_COUNT; i++) {
             Axis_t *axp = &g_axis[i];
 
-            /* MIRROR'a yeni giriş (edge): göreli referans pitch0 + slew durumu sıfırla */
+            /* MIRROR/STAB'a yeni giriş (edge): göreli referans pitch0 + slew durumu sıfırla.
+             * MIRROR = +göreli pitch (taklit); STAB = −göreli pitch (base'i karşıla). */
             bool is_mirror = (axp->mode == CMD_MODE_MIRROR);
-            if (is_mirror && !axp->mirror_prev) { axp->mirror_pitch0 = fused_pitch; axp->mirror_ref = 0.0f; }
-            axp->mirror_prev = is_mirror;
+            bool is_stab   = (axp->mode == CMD_MODE_STAB);
+            bool is_track  = is_mirror || is_stab;
+            if (is_track && !axp->mirror_prev) { axp->mirror_pitch0 = fused_pitch; axp->mirror_ref = 0.0f; }
+            axp->mirror_prev = is_track;
             if (wd_active) { axp->mirror_ref = 0.0f; continue; }   /* watchdog: hedef sıfırla */
 
             if (axp->mode == CMD_MODE_SP_W) {
@@ -307,9 +310,13 @@ int main(void)
                 SpeedPI_SetSetpoint(&axp->spi, omega_ref);   /* dış döngü → iç döngü setpoint */
                 float u = SpeedPI_Step(&axp->spi, filt_w[i]);
                 MotorCh_SetDutySigned(axp->motor, u);
-            } else if (is_mirror) {
-                /* Hedef: göreli pitch, ±60° clamp (singülarite + güvenlik) */
-                float target = fused_pitch - axp->mirror_pitch0;
+            } else if (is_track) {
+                /* Hedef: göreli pitch (MIRROR +, STAB −), ±60° clamp (singülarite + güvenlik).
+                 * STAB: motor base eğimine TERS döner → gerçek gimbalda payload sabit kalır
+                 * (bu kurulumda IMU base'de + mil boş → yasa demosu; tam eylemsiz doğrulama
+                 * IMU payload'a taşınınca Aşama 5). */
+                float rel    = fused_pitch - axp->mirror_pitch0;
+                float target = is_stab ? -rel : rel;
                 if (target >  MIRROR_CLAMP_DEG) target =  MIRROR_CLAMP_DEG;
                 if (target < -MIRROR_CLAMP_DEG) target = -MIRROR_CLAMP_DEG;
                 /* Slew limit (90°/s): ani IMU sıçramasını yumuşat (dt — DWT µs) */

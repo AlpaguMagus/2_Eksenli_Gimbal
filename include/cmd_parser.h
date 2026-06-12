@@ -39,7 +39,9 @@ typedef enum {
     CMD_MODE_DUTY   = 0,  /* varsayılan — geriye uyumlu */
     CMD_MODE_SP_W   = 1,  /* hız PI iç döngü */
     CMD_MODE_POS    = 2,  /* pozisyon cascade (poz P dış → hız PI iç) — Aşama 2.5 */
-    CMD_MODE_MIRROR = 3   /* IMU mirror — setpoint = göreli fused_pitch (cascade) — Aşama 2.7 */
+    CMD_MODE_MIRROR = 3,  /* IMU mirror — setpoint = +göreli fused_pitch (takip/taklit) — Aşama 2.7 */
+    CMD_MODE_STAB   = 4   /* IMU stabilizasyon — setpoint = −göreli fused_pitch (base'i karşıla,
+                           * payload sabit) — Aşama 3.3 demo / Aşama 5 tam doğrulama */
 } CmdMode_t;
 
 void      CmdParser_Feed(const uint8_t *buf, uint16_t len);  /* USB RX callback'ten */

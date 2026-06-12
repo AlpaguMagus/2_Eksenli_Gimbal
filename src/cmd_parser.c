@@ -51,10 +51,12 @@ static void cmd_set_mode(Axis_t *ax, CmdMode_t new_mode)
         PositionP_SetGain(&ax->ppos, 2.0f);   /* step: konservatif/overshootsuz (Aşama 2.5) */
         break;
     case CMD_MODE_MIRROR:
-        /* → MIRROR (Aşama 2.7): POS cascade ile aynı reset; ek olarak main loop
-         * geçiş edge'inde pitch0 (göreli referans) kaydeder. enc_reset →
+    case CMD_MODE_STAB:
+        /* → MIRROR/STAB (Aşama 2.7 / 3.3): POS cascade ile aynı reset; ek olarak main
+         * loop geçiş edge'inde pitch0 (göreli referans) kaydeder. enc_reset →
          * motor 0° = geçiş anı; θ_ref başlangıçta 0 → ani sıçrama yok.
-         * Dış döngü hedefi (θ_ref) main loop'ta fused_pitch'ten slew'li üretilir. */
+         * Dış döngü hedefi (θ_ref) main loop'ta fused_pitch'ten slew'li üretilir
+         * (MIRROR: +göreli pitch / STAB: −göreli pitch — yalnız işaret farkı). */
         MotorCh_Stop(ax->motor);
         SpeedPI_Reset(&ax->spi);
         SpeedFilter_Reset(&ax->filt);
@@ -82,9 +84,9 @@ static void cmd_stop_axis(Axis_t *ax)
      * çek (e=0 → ω_ref=0) ki STOP sonrası motor eski hedefe gitmesin (pozisyon tut). */
     if (ax->mode == CMD_MODE_POS)
         PositionP_SetSetpoint(&ax->ppos, PositionP_GetThetaOut(&ax->ppos));
-    /* MIRROR sürekli takip modu: STOP = takipten çık (yoksa main loop fused_pitch'ten
+    /* MIRROR/STAB sürekli takip modu: STOP = takipten çık (yoksa main loop fused_pitch'ten
      * setpoint üretip Stop'u ezer). DUTY'ye dön → motor güvenli durur. */
-    if (ax->mode == CMD_MODE_MIRROR) ax->mode = CMD_MODE_DUTY;
+    if (ax->mode == CMD_MODE_MIRROR || ax->mode == CMD_MODE_STAB) ax->mode = CMD_MODE_DUTY;
 }
 
 static void cmd_reset_axis(Axis_t *ax)
@@ -100,7 +102,7 @@ static void cmd_reset_axis(Axis_t *ax)
     SpeedFilter_Reset(&ax->filt);
     if (ax->mode == CMD_MODE_POS)
         PositionP_SetSetpoint(&ax->ppos, PositionP_GetThetaOut(&ax->ppos));
-    if (ax->mode == CMD_MODE_MIRROR) ax->mode = CMD_MODE_DUTY;
+    if (ax->mode == CMD_MODE_MIRROR || ax->mode == CMD_MODE_STAB) ax->mode = CMD_MODE_DUTY;
 }
 
 /* "<KÖKAD>[2]:" eşle: dönüş = arg pointer'ı (':'den sonrası), *ax_out hedef eksen.
@@ -125,6 +127,7 @@ static void parse_line(const char *line)
         else if (strcmp(arg, "SP_W")   == 0) cmd_set_mode(ax, CMD_MODE_SP_W);
         else if (strcmp(arg, "POS")    == 0) cmd_set_mode(ax, CMD_MODE_POS);
         else if (strcmp(arg, "MIRROR") == 0) cmd_set_mode(ax, CMD_MODE_MIRROR);
+        else if (strcmp(arg, "STAB")   == 0) cmd_set_mode(ax, CMD_MODE_STAB);
         else return;   /* tanınmayan mod adı → dead-letter: watchdog'u BESLEME
                         * (eski tam-dize strcmp semantiği; davranış-denetimi
                         * 2026-06-11 — geçersiz "MODE:X" akışı watchdog'u
