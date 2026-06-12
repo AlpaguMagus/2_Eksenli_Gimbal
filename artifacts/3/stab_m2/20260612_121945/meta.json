@@ -1,0 +1,24 @@
+{
+  "test_id": "20260612_121945",
+  "title": "Aşama 3.3 eksen-2 IMU stab",
+  "timestamp": "2026-06-12T12:20:16",
+  "commit": "bd88852",
+  "status": "PASS",
+  "motor": 2,
+  "mode": "stab",
+  "metrics": {
+    "status": "PASS",
+    "n": 1036,
+    "fp_range": 123.4,
+    "fp_min": -51.6,
+    "fp_max": 71.8,
+    "rms": 6.72,
+    "max_err": 17.2,
+    "moving_rms": 6.74
+  },
+  "note": "serbest mil; instance-based 2-eksen firmware (g_axis); Kp_pos=6 takip",
+  "artifacts": [
+    "data.csv",
+    "mirror_plot.png"
+  ]
+}
