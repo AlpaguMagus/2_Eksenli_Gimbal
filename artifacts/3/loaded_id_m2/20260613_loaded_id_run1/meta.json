@@ -1,0 +1,18 @@
+{
+  "test_id": "20260613_loaded_id_run1",
+  "timestamp": "2026-06-13T05:01:57.353479",
+  "commit": "2bf0b08",
+  "load": "son kol + bos telefon standi (sarkac)",
+  "method": "open-loop slow duty ramp + theta cutoff",
+  "model": "u = u_coulomb + (mgL/K)*sin(theta)",
+  "umax": 0.15,
+  "ramp_s": 18.0,
+  "cutoff_deg": 60.0,
+  "theta_max_deg": 45.6,
+  "stiction_breakaway_duty": 0.107,
+  "coulomb_friction_uc_duty": 0.09,
+  "gravity_coeff_a_mgL_over_K": 0.097,
+  "holding_90deg_total": 0.1871,
+  "fit_r2": 0.607,
+  "fit_n": 270
+}
