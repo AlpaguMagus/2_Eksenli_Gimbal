@@ -34,10 +34,12 @@ I2C_HandleTypeDef  hi2c1;
 Axis_t g_axis[AXIS_COUNT] = {
     { .motor = &Motor1, .enc_count = Encoder_GetCount,
       .enc_reset = Encoder_Reset,  .enc_speed = Encoder_GetSpeed,
-      .mode = CMD_MODE_DUTY, .k_ff = 9.7f },   /* gyro-FF default kazanç (analitik); en=false */
+      .mode = CMD_MODE_DUTY, .k_ff = 9.7f,   /* gyro-FF default kazanç (analitik); en=false */
+      .kff_grav = 0.097f, .kff_coul = 0.090f, .coul_db = 0.34f },  /* yüklü-FF ölçülen; load_ff_en=false */
     { .motor = &Motor2, .enc_count = Encoder2_GetCount,
       .enc_reset = Encoder2_Reset, .enc_speed = Encoder2_GetSpeed,
-      .mode = CMD_MODE_DUTY, .k_ff = 9.7f },
+      .mode = CMD_MODE_DUTY, .k_ff = 9.7f,
+      .kff_grav = 0.097f, .kff_coul = 0.090f, .coul_db = 0.34f },
 };
 
 /* --- Prototip --- */
@@ -47,6 +49,22 @@ void MPU6050_Init(void);
 HAL_StatusTypeDef MPU6050_Read(int16_t *ax, int16_t *ay, int16_t *az,
                                int16_t *gx, int16_t *gy, int16_t *gz);
 void MPU6050_Recover(void);   /* I2C bus-clear + re-init (kendini-iyileştirme) */
+
+/* Sürtünme+gravite feedforward (computed-torque, yüklü) — cascade duty'sine eklenir.
+ *   u_ff = kff_grav·sin(θ_out) + (|ω_ref|>coul_db ? kff_coul·sign(ω_ref) : 0)
+ * θ_out = çıkış mili açısı (derece, RESET=dip=0) → gravite torku a·sinθ telafisi;
+ * Coulomb ω_ref (=pozisyon hatası) yönünde, ölü-bant setpoint-civarı işaret-chatter'ını keser.
+ * Gyro-FF'ten FARKLI: bu bozucu DUTY-domeninde ölçüldü → duty'ye enjekte (ω_ref'e değil).
+ * SetDutySigned zaten ±MOTOR_MAX_DUTY clamp eder. design_loaded_feedforward.m; default KAPALI.
+ * [Franklin2010] §7.5 (bilinen-bozucu feedforward), [Olsson1998] §6 (sürtünme telafisi). */
+static float LoadFF_Apply(const Axis_t *axp, float theta_out_deg, float omega_ref, float u)
+{
+    if (!axp->load_ff_en) return u;
+    float u_ff = axp->kff_grav * sinf(theta_out_deg * DEG2RAD);
+    if (fabsf(omega_ref) > axp->coul_db)
+        u_ff += axp->kff_coul * (omega_ref >= 0.0f ? 1.0f : -1.0f);
+    return u + u_ff;   /* toplam clamp MotorCh_SetDutySigned içinde (±0.50) */
+}
 
 /* ================================================================
    MAIN
@@ -308,9 +326,11 @@ int main(void)
                 float u = SpeedPI_Step(&axp->spi, filt_w[i]);
                 MotorCh_SetDutySigned(axp->motor, u);   /* doğrudan, rampasız */
             } else if (axp->mode == CMD_MODE_POS) {
-                float omega_ref = PositionP_Step(&axp->ppos, counts[i], NULL);
+                float theta_out_deg;
+                float omega_ref = PositionP_Step(&axp->ppos, counts[i], &theta_out_deg);
                 SpeedPI_SetSetpoint(&axp->spi, omega_ref);   /* dış döngü → iç döngü setpoint */
                 float u = SpeedPI_Step(&axp->spi, filt_w[i]);
+                u = LoadFF_Apply(axp, theta_out_deg, omega_ref, u);  /* sürtünme+gravite FF (default kapalı) */
                 MotorCh_SetDutySigned(axp->motor, u);
             } else if (is_track) {
                 /* Hedef: göreli pitch (MIRROR +, STAB −), ±60° clamp (singülarite + güvenlik).
@@ -329,7 +349,9 @@ int main(void)
                 else                    axp->mirror_ref  = target;
                 /* Cascade: θ_ref → poz P → ω_ref → hız PI → motor */
                 PositionP_SetSetpoint(&axp->ppos, axp->mirror_ref);
-                float omega_ref = PositionP_Step(&axp->ppos, counts[i], NULL);
+                float theta_out_deg;
+                float omega_ref = PositionP_Step(&axp->ppos, counts[i], &theta_out_deg);
+                float omega_ref_pos = omega_ref;  /* gyro-FF ÖNCESİ — Coulomb FF işareti (gyro chatter'ı bulaşmasın) */
                 /* Gyro feedforward (K2, Aşama 3.8) — YALNIZ STAB, FF açıksa (KFF2:<≠0>):
                  * 2-DOF — base açısal hızını (gyro) doğrudan hız-setpoint'ine besle →
                  * yavaş dış pozisyon-döngüsünü baypas et (reddi-bant ~4×).
@@ -348,6 +370,7 @@ int main(void)
                 }
                 SpeedPI_SetSetpoint(&axp->spi, omega_ref);
                 float u = SpeedPI_Step(&axp->spi, filt_w[i]);
+                u = LoadFF_Apply(axp, theta_out_deg, omega_ref_pos, u);  /* sürtünme+gravite FF (default kapalı) */
                 MotorCh_SetDutySigned(axp->motor, u);
             } else {
                 MotorCh_Tick(axp->motor);             /* DUTY modu rampa */

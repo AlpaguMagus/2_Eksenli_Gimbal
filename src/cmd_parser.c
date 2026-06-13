@@ -186,6 +186,33 @@ static void parse_line(const char *line)
         return;
     }
 
+    /* ── LFFDB / LFFG / LFFC / LFF (+2) — yüklü sürtünme+gravite feedforward (computed-torque) ──
+     * Cascade modları (POS/MIRROR/STAB). u_ff=kff_grav·sin(θ)+(|ω_ref|>db?kff_coul·sign:0) → duty.
+     * Ölçülen default: kff_grav=0.097, kff_coul=0.090, db=0.34 (design_loaded_feedforward.m).
+     *   LFF:1 → FF AÇIK (LFF:0 kapalı; GÜVENLİK default kapalı) · LFFG:<a> grav · LFFC:<u_c> Coulomb
+     *   LFFDB:<rad/s> Coulomb ölü-bantı (db=0 → saf sign-FF; LFFC:0 → grav-only).
+     * NOT: LFF*'lar ':' şartı nedeniyle KFF/KP ile çakışmaz; uzun-kök önce sıralı. */
+    if ((arg = match_axis_cmd(line, "LFFDB", &ax)) != 0) {
+        ax->coul_db = strtof(arg, NULL);
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if ((arg = match_axis_cmd(line, "LFFG", &ax)) != 0) {
+        ax->kff_grav = strtof(arg, NULL);
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if ((arg = match_axis_cmd(line, "LFFC", &ax)) != 0) {
+        ax->kff_coul = strtof(arg, NULL);
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    if ((arg = match_axis_cmd(line, "LFF", &ax)) != 0) {
+        ax->load_ff_en = (strtof(arg, NULL) != 0.0f);
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
     /* ── KP / KI / SLEW (+2) — hız PI runtime ayarı (Aşama 2.3) ── */
     if ((arg = match_axis_cmd(line, "KP", &ax)) != 0) {
         SpeedPI_SetGains(&ax->spi, strtof(arg, NULL), SpeedPI_GetKi(&ax->spi));  /* Ki korunur */

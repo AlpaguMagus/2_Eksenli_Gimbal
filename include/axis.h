@@ -55,6 +55,20 @@ typedef struct {
     float k_ff;                     /* FF kazancı = redüktör 9.7 (analitik); KFF2: ile ayar */
     bool  gyro_ff_en;               /* GÜVENLİK: default KAPALI; KFF2:<≠0> açar, KFF2:0 kapar */
     float gy_ff_lpf;                /* gyro LPF durumu (FF girişi HF gürültü süzme, ~12 Hz) */
+
+    /* Sürtünme+gravite feedforward (yüklü, computed-torque) — cascade modları (POS/MIRROR/STAB).
+     * Bilinen bozucuyu plant-girişine (DUTY) enjekte eder → PI sürtünmeyi yenmek için
+     * integral biriktirmez → stick-slip limit-cycle bastırılır:
+     *   u_ff = kff_grav·sin(θ_out) + (|ω_ref|>coul_db ? kff_coul·sign(ω_ref) : 0)
+     * θ_out=çıkış mili açısı (RESET=dip=0). Gyro-FF'ten FARKLI enjeksiyon noktası: bu
+     * bozucu duty-domeninde (gravite/Coulomb duty olarak ölçüldü) → duty'ye, ω_ref'e değil.
+     * Ölçüm: artifacts/3/loaded_id_m2/20260613_loaded_id_run1 (a=0.097, u_c=0.090, u_s=0.107).
+     * Tasarım/sim: matlab/asama_3_mimo_model/design_loaded_feedforward.m (sign sim-ideal,
+     * ölü-bant chatter-safe). [Franklin2010] §7.5, [Olsson1998] §6. GÜVENLİK: default KAPALI. */
+    float kff_grav;                 /* gravite FF kazancı = a=mgL/K (ölçülen 0.097); LFFG: ile ayar */
+    float kff_coul;                 /* Coulomb FF kazancı = u_c (ölçülen 0.090); LFFC: ile ayar */
+    float coul_db;                  /* Coulomb ölü-bantı (|ω_ref| eşiği rad/s) — setpoint chatter koruması */
+    bool  load_ff_en;               /* GÜVENLİK: default KAPALI; LFF:<≠0> açar, LFF:0 kapar */
 } Axis_t;
 
 #define AXIS_COUNT 2
