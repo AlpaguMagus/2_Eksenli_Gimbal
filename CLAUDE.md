@@ -46,6 +46,17 @@ Genel kural global CLAUDE.md'de ("İzlenebilirlik kod yorumlarını da kapsar").
 
 > Bu sınıf hatalar `/asama-kapat` §7c'de mekanik taranır.
 
+### Atlamalı / ileri-prep iş sonrası faz-senkron (zorunlu)
+
+Sıradan atlayıp **ileri bir aşamanın basamağını** (Kontrol Merdiveni K-x) donanımsız ön-tasarımla yaptığında, iş **tek bir yeri değil, ona referans veren TÜM belgeleri** bayatlatır. Aynı commit'te şu zinciri senkronla:
+
+1. **Ön-tasarım zonu** — `docs/asama_3 §12.7` (olgunluk banner'ı + eklemeli sözleşme; **sim ≠ validasyon**, bench gelince EKLENİR, silinmez).
+2. **ROADMAP** — ladder olgunluk-rozeti (📐 sim / 🔧 fw / 🧪 bench / ✅ validated / ⛔ gated) **VE hedef faz-bölümü** (MATLAB dosya listesi, alt-adımlar, önkoşul — eski/yanlış-faz girdilerini ayıkla; ör. Kalman = K7 = Aşama 5, Aşama 4'te listelenmez).
+3. **Yapı belgeleri** — `matlab/README` (klasör listesi) + hedef faz klasörünün `README`'si.
+4. **PROJE_DURUMU** + gerekirse bu dosyanın MATLAB-yapı satırı.
+
+> **Tetik kuralı:** her donanımsız ileri-prep commit'inden sonra mekanik sor: *"bu hangi faz-bölümünü / yapı-belgesini bayatlattı?"* — `/asama-kapat` stale-taraması (§7c) **aşama kapanışı beklemeden** bu iş için de çalıştırılır. **Geçmiş ders (2026-06-13):** K6/K7 ileri-prep'inde `docs §12.7` + matlab klasörleri güncellendi ama **ROADMAP faz-bölümü (`kalman_design.m` yanlış-fazda) + `matlab/README` ("asama_4/5 henüz yok")** bayat kaldı — kullanıcı denetimi yakaladı. Birincil zon güncellemesi yeterli değil; yayılım zorunlu.
+
 ## Donanım (proje)
 
 - Datasheet'ler `datasheets/` klasöründe (ACS712, MPU6050, Pololu 25D, TB6612FNG, WeAct BlackPill F411). Datasheet-önce disiplini global CLAUDE.md'de.
@@ -65,7 +76,7 @@ Prensip global CLAUDE.md'de. Bu projede:
 
 Genel konvansiyonlar (versiyonlama, manuel transfer, Embedded Coder yok) global CLAUDE.md'de. Proje yapısı:
 
-- `matlab/<asama_adi>/` klasörleri: `00_genel_teori/`, `asama_0_altyapi/`, `asama_1_model/`, `asama_2_kontrol/`, (planlı: `asama_3_mimo_model/`, `asama_4_mimo_kontrol/`, `asama_5_gimbal/`)
+- `matlab/<asama_adi>/` klasörleri: `00_genel_teori/`, `asama_0_altyapi/`, `asama_1_model/`, `asama_2_kontrol/`, `asama_3_mimo_model/` (AKTİF + K2/K3/K4 ön-tasarım), `asama_4_mimo_kontrol/` (📐 K6 LQR/LQI ön-tasarım), `asama_5_gimbal/` (📐 K7 Kalman ön-tasarım) — son ikisi donanımsız ön-tasarımla oluşturuldu (2026-06-13, merdiven; `docs §12.7`)
 - Üretilen çıktılar konu-bazlı: `results/<konu>/` (ör. `2_5_cascade/`); Aşama 1 `results/<test_id>/` (tarihli — reproducibility kanıtı)
 - Ham veri `artifacts/<aşama>/<test_id>/raw/`'tan okunur
 - Toolbox'lar: Control System, System Identification, Optimization, Signal Processing, Simulink
