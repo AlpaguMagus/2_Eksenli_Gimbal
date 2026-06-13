@@ -442,9 +442,13 @@ MIMO sistemde:
 - **Cascade ile sayısal kıyas** (ss-error, margin, bozucu reddi) — akademik omurga
 
 **MATLAB:** `matlab/asama_4_mimo_kontrol/`
-- `lqr_design.m` — Q, R tuning + Riccati çözümü
-- `kalman_design.m` — 3 durum (`x = [θ, ω, gyro_bias]`)
-- `simulink_lqg.slx` — kapalı döngü simülasyon
+- ✅ `design_lqr_lqi_singleaxis.m` — 📐 **tek-eksen LQR/LQI ön-tasarım YAPILDI** (2026-06-13,
+  donanımsız): Bryson Q/R + Riccati doğrulama + LQI + cascade kıyası → cascade'i ~6× geçer (`docs §12.7.4`)
+- ⬜ `design_mimo_lqr.m` — 2×2 MIMO LQR (iki sağlam motor + RGA kuplaj gösterirse)
+- ⬜ `design_decoupling.m` — $D=G(0)^{-1}$ statik/feedforward (yalnız RGA kuplaj gösterirse)
+
+> ⚠ Eski `kalman_design.m` / `simulink_lqg.slx` Aşama 4 listesinden **ÇIKARILDI** — ladder'da
+> Kalman/LQG **K7 = Aşama 5** (`matlab/asama_5_gimbal/`). Vizyon ile uyumlu hâle getirildi (2026-06-13).
 
 ### Önkoşul
 - Aşama 3 MIMO modeli + RGA analizi
@@ -452,9 +456,11 @@ MIMO sistemde:
 
 ### Alt-Aşamalar (iskelet)
 
-- **4.1 — Klasik vs LQR karşılaştırma** (akademik tartışma)
-- **4.2 — Q ve R matris tasarımı** — fiziksel anlam
-- **4.3 — LQR firmware implementasyonu** (durum geri-besleme)
+- **4.1 — Klasik vs LQR karşılaştırma** (akademik tartışma) — 📐 **tek-eksen ön-tasarım YAPILDI**
+  (donanımsız, 2026-06-13): LQR/LQI cascade'i ~6× geçer (Riccati-doğrulama), `docs §12.7.4`.
+  2-eksen MIMO + bench-validasyon donanım bekler.
+- **4.2 — Q ve R matris tasarımı** — fiziksel anlam — 📐 **yapıldı** (Bryson kuralı, tek-eksen; §12.7.4)
+- **4.3 — LQR firmware implementasyonu** (durum geri-besleme) — ⬜ donanım bekler (bench-validasyon sonrası)
 - **4.4 — Akademik karşılaştırma raporu** — decentralized cascade vs decoupled-cascade vs LQI
   (ss-error, margin, kuplaj reddi, başarım)
 
@@ -476,10 +482,14 @@ Tüm yazılım altyapısı hazır → 3D-print gimbal şasisi + iki motor + IMU.
 > + K8 (**robust/öngörülü/nonlineer** opsiyonel zirveler: H∞·μ, MPC, SMC, adaptif, DOB, notch — yük
 > belirsizliği/rezonans/kısıt **ölçülünce**) + **kestirim yükseltmeleri** (Mahony/Madgwick singülarite,
 > EKF). Yük altında **K0–K6 kazançları yeniden-ID** (serbest-mil → yüklü plant değişir).
+>
+> 📐 **K7 tek-eksen ön-tasarım YAPILDI** (donanımsız, 2026-06-13): bias-augmented attitude Kalman
+> complementary'yi 2.8× geçer (bias kestirir), `matlab/asama_5_gimbal/design_kalman_attitude.m`,
+> `docs §12.7.5`. **LQG entegrasyonu** (Kalman ⊕ Aşama-4 LQR) + IMU-payload validasyonu Aşama 5'te kalır.
 
 ### Önkoşul
 - Aşama 4 (K5–K6) tamam **veya** kanıta-bağlı atlandı (RGA decentralized'i doğruladıysa)
-- Aşama 4 LQG simülasyonda stabil *(K7 — Aşama 5 ön-çalışması)*
+- K7 Kalman tek-eksen ön-tasarım ✅ (2026-06-13, §12.7.5: complementary'yi 2.8× geçer, bias kestirir); LQG entegrasyon sim (Kalman ⊕ Aşama-4 LQR) Aşama 5'te
 - 3D-print şasi tasarımı (Fusion 360 / FreeCAD)
 - Motor mount + IMU mount
 - Slip-ring veya esnek kablo (kabloların kopmaması)
