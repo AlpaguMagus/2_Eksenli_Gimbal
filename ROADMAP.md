@@ -333,23 +333,31 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 > (decentralized) MIMO** hâlidir (`[Skogestad2005] §10.6.4`); çapraz-kuplajı *aktif* kompanze etmez,
 > onu bozucuya bırakır. RGA ≈ birim ise (kuplaj zayıf) bu zaten optimale yakındır.
 
-| # | Basamak | Ne ekler | Kapı (ne zaman gerekçeli) | "Elde" çıktı | Faz |
+> **Olgunluk taksonomisi (atlamalı çalışmanın garantisi — sim ≠ validasyon):** 📐 tasarım/sim ·
+> 🔧 firmware · 🧪 bench · ✅ validated (bench PASS) · ⛔ donanım/koşul bekliyor. Her basamak ULAŞTIĞI
+> seviyeyi gösterir → fazla-iddia engellenir, hiçbir basamak unutulmaz, ders-kitabı (`§12.7` banner'lı
+> sim bölümleri) bench gelince **eklemeli** büyür (sim türetmesi silinmez).
+
+| # · olgunluk | Basamak | Ne ekler | Kapı (ne zaman gerekçeli) | "Elde" / sonuç | Faz |
 |---|---|---|---|---|---|
-| **K0** ✅ | Decentralized cascade PID (tek eksen) | poz P → hız PI, per-eksen | — (kanıtlı) | tek-eksen mirror/stab PASS | 2–3.3 |
-| **K1** | 2-eksen decentralized cascade | 2. ekseni entegre | yeni motor (donanım) | 2-eksen cascade gimbal | 3.3 |
-| **K2** | + **Gyro feedforward** (2-DOF) | bozucuyu doğrudan ileri-besle (gy_dps) | bedava sinyal — hep gerekçeli | düşük-gecikme stabilizasyon | 3.x |
-| **K3** | + **Gain scheduling** | çalışma-noktası kazanç tablosu | τ-bağımlılığı (43→134ms) kazancı ölçülünce | uyarlı cascade | 3.x |
-| **K4** | Kuplaj karakterizasyonu (MIMO ID + **RGA**) | 2×2 $G(s)$, RGA, condition no. | 2 motor mekanik bağlı | **KARAR KAPISI:** decentralized yeter mi? | 3.4–3.5 |
-| **K5** | **Decoupling** ($D(s)$ / feedforward) | çapraz kuplajı iptal | RGA kuplaj gösterirse | decoupled MIMO cascade | 4 |
-| **K6** | LQR → **LQI** (optimal MIMO) | optimal centralized durum-geri-besleme | K4 kuplaj kanıtı / akademik kıyas | optimal MIMO kontrol | 4 |
-| **K7** | Kalman → **LQG** | optimal kestirim (IMU+bias füzyonu) | IMU payload'a + gürültü/bozucu | LQG stabilizasyon | 5 |
-| **K8** | İleri/robust/öngörülü | H∞·μ-synth, MPC, SMC/adaptif, DOB, notch | belirsizlik/kısıt/rezonans **ölçülünce** | tez zirvesi | 5+ |
+| **K0** · ✅ validated | Decentralized cascade PID (tek eksen) | poz P → hız PI, per-eksen | — (kanıtlı) | mirror/stab bench PASS (`docs §12.4`) | 2–3.3 |
+| **K1** · ⛔ donanım | 2-eksen decentralized cascade | 2. ekseni entegre | yeni motor (donanım) | 2-eksen cascade gimbal | 3.3 |
+| **K2** · 🔧 firmware + 🧪 kısmi bench | + **Gyro feedforward** (2-DOF) | bozucuyu doğrudan ileri-besle (gy_dps) | bedava sinyal | sim 4.1× reddi-bant; firmware+gate; **FF-faydası belirsiz** (fast-rig bekler) `§12.7` | 3.8 |
+| **K3** · 📐 sim | + **Gain scheduling** | çalışma-noktası kazanç tablosu | τ-bağımlılığı (43→134ms) | τ(duty)→Ki LUT; saturation tavizi → "default kapalı" `§12.7` | 3.9 |
+| **K4** · 📐 çerçeve | Kuplaj karakterizasyonu (MIMO ID + **RGA**) | 2×2 $G(s)$, RGA, condition no. | 2 motor mekanik bağlı | **KARAR KAPISI**; sentetik doğrulandı, gerçek-veri bekler `§12.7` | 3.5 |
+| **K5** · ⛔ koşullu | **Decoupling** ($D(s)$ / feedforward) | çapraz kuplajı iptal | RGA kuplaj gösterirse | decoupled MIMO cascade | 4 |
+| **K6** · 📐 sim | LQR → **LQI** (optimal MIMO) | optimal centralized durum-geri-besleme | K4 kuplaj / akademik kıyas | sim: cascade'i ~6× geçer `§12.7` (`asama_4`) | 4 |
+| **K7** · 📐 sim | Kalman → **LQG** | optimal kestirim (IMU+bias füzyonu) | IMU payload'a + gürültü | sim: complementary'yi 2.8× geçer `§12.7` (`asama_5`) | 5 |
+| **K8** · ⛔ gelecek | İleri/robust/öngörülü | H∞·μ-synth, MPC, SMC/adaptif, DOB, notch | belirsizlik/kısıt/rezonans **ölçülünce** | tez zirvesi | 5+ |
 
 > **Paralel kestirim izi:** complementary ✅ → Mahony/Madgwick (singülarite) → EKF/Kalman (bias/füzyon).
 >
-> **Şu an:** K0 ✅; K1 yeni motoru bekliyor. **Donanımsız hazırlanabilir:** K2 (gyro-FF analitik tasarım),
-> K6 (tek-eksen LQR/LQI MATLAB tasarımı + cascade kıyası, sim), K7 (tek-eksen Kalman sim), K3 (mevcut
-> Aşama-1 τ-veri'siyle ön-tasarım), K4 (RGA/ID prosedür + script çerçevesi).
+> **Şu an (2026-06-13):** K0 ✅ validated. **Donanımsız ön-tasarımlar TAMAM** (2026-06-12/13, hepsi
+> analitik-önce + kaynaklı, `docs §12.7` banner'lı): K2 🔧 firmware+gate + 🧪 kısmi bench (FF-faydası
+> belirsiz), K3 📐 sim (Ki-LUT), K4 📐 çerçeve (sentetik), K6 📐 sim (cascade'i 6× geçer), K7 📐 sim
+> (complementary'yi 2.8× geçer). **Donanım bekleyen:** K1 (2-eksen, yeni motor), K4 gerçek-veri (MIMO ID),
+> K5 (RGA kuplaj gösterirse), tüm bench-validasyon + Aşama 5. **Sıradaki donanımsız:** yüklü tek-motor
+> testi (serbest-mil → yük geçişi) + tez düzeltmeleri.
 >
 > Kaynaklar: `[Skogestad2005] §10` (decentralized/RGA), `[Franklin2010] §6.4` (cascade),
 > `[Anderson2007]` (LQR), `[Simon2006]` (Kalman). Tarama detayı: yöntem-bazlı gerekçe + verdict.
