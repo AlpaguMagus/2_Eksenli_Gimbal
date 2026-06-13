@@ -357,7 +357,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 > belirsiz), K3 📐 sim (Ki-LUT), K4 📐 çerçeve (sentetik), K6 📐 sim (cascade'i 6× geçer), K7 📐 sim
 > (complementary'yi 2.8× geçer). **Yüklü tek-eksen sürtünme/gravite FF 🧪 bench PASS** (`docs §12.8`):
 > serbest-mil cascade yük altında stick-slip limit-cycle veriyordu; **computed-torque feedforward**
-> ([Franklin2010] §7.5, [Olsson1998] §6) bastırdı ($20^\circ$ $\theta_{std}$ $1.30^\circ\to0.00^\circ$, sim
+> ([Franklin2010] §7.5, [Olsson1998] §6) bastırdı ($20^\circ$ $\theta_{std}$ $1.41^\circ\to0.00^\circ$ — push'lanan firmware kanonik koşu; sim
 > doğrulandı). Coulomb FF ($u_c{=}0.090$) **transfer-edilebilir**; gravite ($a{=}0.097$) rig-spesifik
 > (dengesiz sarkaç). Bench iki firmware kusuru ortaya çıkardı: watchdog-heartbeat eksikliği + stall
 > yük-altı yanlış-pozitifi (`STALLEN` toggle eklendi). **Donanım bekleyen:** K1 (2-eksen, yeni motor),
