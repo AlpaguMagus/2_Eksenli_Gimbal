@@ -80,9 +80,11 @@ def main():
 
     rows = []   # (t, ff_mode, sp, theta, u, phase)
     def read_drain(duration, ff_mode, sp, phase, t0):
-        """duration boyunca telemetri oku + logla; θ-kesme kontrolü. theta listesi döndür."""
-        thetas=[]; end=time.time()+duration
+        """duration boyunca telemetri oku + logla; θ-kesme + watchdog heartbeat. theta listesi döndür."""
+        thetas=[]; end=time.time()+duration; last_hb=0.0
         while time.time() < end:
+            if time.time()-last_hb >= 0.4:           # command-watchdog (1 sn) canlı tut — yoksa motor sıfırlanır
+                send(ser,"PING"); last_hb=time.time()
             line = ser.readline().decode("utf-8","ignore").strip()
             if not line: continue
             mE=EC2.search(line)
@@ -102,6 +104,8 @@ def main():
         ser.reset_input_buffer()
         send(ser,"PING"); time.sleep(0.3)
         send(ser,"RESET"); time.sleep(0.3)         # enc-2 sıfırla (dip=0°)
+        send(ser,"STALLEN2:0"); time.sleep(0.1)    # yüklü stick-slip stall yanlış-pozitifini kapat
+                                                   # (süpervizeli; duty-cap %50 akım koruması aktif kalır)
         t0=time.time()
         for sp in setpoints:
             for ff in FF_ORDER:
@@ -124,12 +128,12 @@ def main():
                 # sıfıra dön + FF kapat
                 send(ser,"LFF2:0"); send(ser, "POS_DEG2:0.0")
                 read_drain(2.5, ff, sp, "return", t0)
-        send(ser,"DUTY2:0"); send(ser,"STOP"); time.sleep(0.2)
-        print(f"\n[{ts()}] tamam — aparat sıfıra döndü/durduruldu.")
+        send(ser,"STALLEN2:1"); send(ser,"DUTY2:0"); send(ser,"STOP"); time.sleep(0.2)  # emniyet geri aç
+        print(f"\n[{ts()}] tamam — aparat sıfıra döndü/durduruldu (stall algılama geri açıldı).")
     except KeyboardInterrupt:
-        send(ser,"DUTY2:0"); send(ser,"STOP"); print("\nCtrl-C/kesme — STOP")
+        send(ser,"STALLEN2:1"); send(ser,"DUTY2:0"); send(ser,"STOP"); print("\nCtrl-C/kesme — STOP")
     finally:
-        try: ser.write(b"LFF2:0\nDUTY2:0\nSTOP\n"); time.sleep(0.1); ser.close()
+        try: ser.write(b"STALLEN2:1\nLFF2:0\nDUTY2:0\nSTOP\n"); time.sleep(0.1); ser.close()  # emniyet geri aç
         except Exception: pass
 
     with open(out/"raw"/"data.csv","w",newline="") as fh:
