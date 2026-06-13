@@ -35,6 +35,14 @@
 
 > **Sonuç (dürüst):** schedule $\omega_n$'i sabitler (sabit-kazanç 38→22 rad/s değişir) AMA $K_p$ doyum-kısıtında (0.002) sabit kaldığından **ζ yüksek-duty'de azalır** (tam ζ sabitliği $K_p>0.002$ ister). Saturation-kısıtlı aktüatörde fayda **marjinal** → firmware'in **"gain scheduling default KAPALI"** kararını destekler (sigorta gelince $K_p$ gevşer, schedule değerlenir). LUT hazır.
 
+### Yüklü sürtünme/gravite feedforward (✅ tasarım+sim — 🧪 bench PASS)
+
+| Script | Amaç | Çıktı | Durum |
+|---|---|---|---|
+| `design_loaded_feedforward.m` | Yüklü cascade (Karnopp stick-slip + ölçülen $a$=0.097/$u_c$=0.090/$u_s$=0.107) üzerinde **computed-torque feedforward** 4 yapı × 3 setpoint kıyası; $\theta_{std}$ limit-cycle göstergesi | `results/loaded_ff/` (compare_50deg + thetastd_map PNG) | ✅ sim → 🧪 bench PASS |
+
+> **Sonuç:** FF-yok ort. $\theta_{std}$ 2.21° (limit-cycle), gravite-only 2.60° (daha kötü — Coulomb baskın), grav+Coulomb **sign 0.00°** / **ölü-bant 0.34°** (bastırır). **Bench (motor-2, 20°): off 1.30°→ db 0.00°** — sim doğrulandı. Firmware: `LFF/LFFG/LFFC/LFFDB` (default kapalı). Derin anlatı + bench: [`../../docs/asama_3_mimo_model.md`](../../docs/asama_3_mimo_model.md) §12.8. Yüklü-ID: `scripts/loaded_id_test.py`; bench: `scripts/loaded_ff_test.py`.
+
 ### MIMO ID (3.4–3.5, planlı — iki sağlam eksen gelince)
 
 | Script | Amaç | Durum |
@@ -52,9 +60,15 @@ matlab/asama_3_mimo_model/
 ├── create_axis_architecture_diagram.m
 ├── plot_bench_results.m
 ├── analyze_mirror_stab.m
+├── design_gyro_feedforward.m        (K2)
+├── design_gain_schedule.m           (K3)
+├── analyze_rga.m                    (K4)
+├── design_loaded_feedforward.m      (yüklü sürtünme/gravite FF — §12.8)
 └── results/
     ├── 3_3_eksen_mimari/   ← eksen_mimari.png
-    └── 3_3_bench/          ← cascade/mirror/stab + model_validation PNG + JSON
+    ├── 3_3_bench/          ← cascade/mirror/stab + model_validation PNG + JSON
+    ├── 3_8_gyro_ff/ · 3_9_gain_sched/ · 3_5_rga/
+    └── loaded_ff/         ← compare_50deg + thetastd_map PNG
 ```
 
 Ham veri `artifacts/3/<test_id>/raw/`'dan okunur (test artifact disiplini — global CLAUDE.md).

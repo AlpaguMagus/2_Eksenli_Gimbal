@@ -2,8 +2,8 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
-> - **Son güncelleme:** 2026-06-12 (**Kontrol Yöntemleri Merdiveni** eklendi — decentralized cascade → en ileri, kanıta-bağlı; 7-aile/30-yöntem tarama kararı. **3.3 motor-2 cascade/mirror/stab bench PASS**; Aşama 4 kanıta-bağlı rafine; K2 gyro-FF + K3 gain-scheduling adayları)
-> - **Aktif aşama:** **Aşama 3 (İki Motor MIMO Model) 🟡 AKTİF** — branch `feature/asama-3-mimo-model`; **3.3 tek-eksen (K0) ✅ bench PASS** (cascade/mirror/stab, motor-2); ⚠ motor-1 kurtarılamaz → **redüktörsüz yedek siparişte, tek sağlam motorla ilerleme**; sıradaki donanımsız: **K2/K6/K7 tasarım + Aşama 3 akademik doc**, K1 (2-eksen) yeni motoru bekliyor
+> - **Son güncelleme:** 2026-06-13 (**Yüklü tek-eksen sürtünme/gravite feedforward** 🧪 bench PASS — `docs §12.8`: serbest-mil cascade yük altında stick-slip limit-cycle; computed-torque FF bastırdı, sim doğrulandı; Coulomb FF transfer-edilebilir, gravite rig-spesifik; `STALLEN` toggle + watchdog-heartbeat fix. Önceki: **Kontrol Yöntemleri Merdiveni** + donanımsız ön-tasarımlar)
+> - **Aktif aşama:** **Aşama 3 (İki Motor MIMO Model) 🟡 AKTİF** — branch `feature/asama-3-mimo-model`; **3.3 tek-eksen (K0) ✅ bench PASS** (cascade/mirror/stab, motor-2) + **yüklü sürtünme FF 🧪 bench PASS** (`§12.8`); ⚠ motor-1 kurtarılamaz → **redüktörsüz yedek siparişte, tek sağlam motorla ilerleme**; sıradaki: tez düzeltmeleri, yeni motorla K1 (2-eksen) + 3.4 MIMO ID
 > - **Dokümantasyon:** Aşama-bazlı `docs/` ekosistemi (README vitrin + `docs/asama_<N>_*.md` derin içerik)
 > - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
 
@@ -355,9 +355,15 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 > **Şu an (2026-06-13):** K0 ✅ validated. **Donanımsız ön-tasarımlar TAMAM** (2026-06-12/13, hepsi
 > analitik-önce + kaynaklı, `docs §12.7` banner'lı): K2 🔧 firmware+gate + 🧪 kısmi bench (FF-faydası
 > belirsiz), K3 📐 sim (Ki-LUT), K4 📐 çerçeve (sentetik), K6 📐 sim (cascade'i 6× geçer), K7 📐 sim
-> (complementary'yi 2.8× geçer). **Donanım bekleyen:** K1 (2-eksen, yeni motor), K4 gerçek-veri (MIMO ID),
-> K5 (RGA kuplaj gösterirse), tüm bench-validasyon + Aşama 5. **Sıradaki donanımsız:** yüklü tek-motor
-> testi (serbest-mil → yük geçişi) + tez düzeltmeleri.
+> (complementary'yi 2.8× geçer). **Yüklü tek-eksen sürtünme/gravite FF 🧪 bench PASS** (`docs §12.8`):
+> serbest-mil cascade yük altında stick-slip limit-cycle veriyordu; **computed-torque feedforward**
+> ([Franklin2010] §7.5, [Olsson1998] §6) bastırdı ($20^\circ$ $\theta_{std}$ $1.30^\circ\to0.00^\circ$, sim
+> doğrulandı). Coulomb FF ($u_c{=}0.090$) **transfer-edilebilir**; gravite ($a{=}0.097$) rig-spesifik
+> (dengesiz sarkaç). Bench iki firmware kusuru ortaya çıkardı: watchdog-heartbeat eksikliği + stall
+> yük-altı yanlış-pozitifi (`STALLEN` toggle eklendi). **Donanım bekleyen:** K1 (2-eksen, yeni motor),
+> K4 gerçek-veri (MIMO ID), K5 (RGA kuplaj gösterirse), stall kriteri yük-bilinçli yeniden-tasarım
+> (Aşama 5), dengeli payload + gravite-yardımlı iniş kontrolü (Aşama 5). **Sıradaki:** tez düzeltmeleri;
+> yeni motor gelince K1 + 3.4 MIMO ID.
 >
 > Kaynaklar: `[Skogestad2005] §10` (decentralized/RGA), `[Franklin2010] §6.4` (cascade),
 > `[Anderson2007]` (LQR), `[Simon2006]` (Kalman). Tarama detayı: yöntem-bazlı gerekçe + verdict.
