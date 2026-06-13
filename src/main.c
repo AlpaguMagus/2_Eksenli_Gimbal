@@ -34,12 +34,12 @@ I2C_HandleTypeDef  hi2c1;
 Axis_t g_axis[AXIS_COUNT] = {
     { .motor = &Motor1, .enc_count = Encoder_GetCount,
       .enc_reset = Encoder_Reset,  .enc_speed = Encoder_GetSpeed,
-      .mode = CMD_MODE_DUTY, .k_ff = 9.7f,   /* gyro-FF default kazanç (analitik); en=false */
-      .kff_grav = 0.097f, .kff_coul = 0.090f, .coul_db = 0.34f },  /* yüklü-FF ölçülen; load_ff_en=false */
+      .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false,   /* gyro-FF default kazanç (analitik), KAPALI */
+      .kff_grav = 0.097f, .kff_coul = 0.090f, .coul_db = 0.34f, .load_ff_en = false },  /* yüklü-FF ölçülen, KAPALI (emniyet explicit) */
     { .motor = &Motor2, .enc_count = Encoder2_GetCount,
       .enc_reset = Encoder2_Reset, .enc_speed = Encoder2_GetSpeed,
-      .mode = CMD_MODE_DUTY, .k_ff = 9.7f,
-      .kff_grav = 0.097f, .kff_coul = 0.090f, .coul_db = 0.34f },
+      .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false,
+      .kff_grav = 0.097f, .kff_coul = 0.090f, .coul_db = 0.34f, .load_ff_en = false },
 };
 
 /* --- Prototip --- */
