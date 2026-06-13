@@ -17,14 +17,15 @@ matlab/
 ├── asama_0_altyapi/            ← Aşama 0: IMU Allan variance + complementary filter
 ├── asama_1_model/              ← Aşama 1: tek motor sistem tanımlama
 ├── asama_2_kontrol/            ← Aşama 2: tek motor kontrol (PI, cascade, mirror)
-├── asama_3_mimo_model/         ← Aşama 3: iki motor MIMO modelleme (AKTİF)
-├── asama_4_mimo_kontrol/       ← Aşama 4: MIMO kontrolcü (decoupling, LQR)   [PLANLI — henüz yok]
-└── asama_5_gimbal/             ← Aşama 5: gerçek 3D-print gimbal entegrasyon  [PLANLI — henüz yok]
+├── asama_3_mimo_model/         ← Aşama 3: iki motor MIMO modelleme (AKTİF) + K2/K3/K4 ön-tasarım
+├── asama_4_mimo_kontrol/       ← Aşama 4: MIMO kontrolcü — 📐 K6 LQR/LQI tek-eksen ÖN-TASARIM (donanımsız)
+└── asama_5_gimbal/             ← Aşama 5: gerçek gimbal — 📐 K7 Kalman attitude tek-eksen ÖN-TASARIM (donanımsız)
 ```
 
 > Her aşama klasörünün kendi `README.md`'si script listesini + `results/` yapısını tutar.
-> `asama_4`/`asama_5` ve aşamalar-arası ortak utility (`ortak/`) **henüz oluşturulmadı** —
-> ilgili aşama açılınca eklenir.
+> `asama_4`/`asama_5` **donanımsız ön-tasarımlarla oluşturuldu** (2026-06-13, merdiven K6/K7 — `docs §12.7`);
+> bench-validasyon + 2-eksen/payload işi ilgili aşama açılınca eklenir (eklemeli sözleşme). Ortak
+> utility (`ortak/`) henüz yok.
 
 ## Toolbox Bağımlılıkları
 
