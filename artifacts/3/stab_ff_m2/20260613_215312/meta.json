@@ -1,0 +1,35 @@
+{
+  "test_id": "20260613_215312",
+  "timestamp": "2026-06-13T21:56:30.682132",
+  "commit": "2e5d667",
+  "status": "FF_MIXED",
+  "mode": "STAB loaded friction-FF A/B (interleaved)",
+  "scope": "base-IMU law demo (payload inertial validation = Asama 5); hand-tilt semi-quantitative",
+  "ff_off": {
+    "n": 695,
+    "fp_range": 44.8,
+    "track_rms": 2.84,
+    "roughness": 2.058,
+    "norm_rough": 1.344,
+    "max_err": 13.3
+  },
+  "ff_on": {
+    "n": 702,
+    "fp_range": 50.1,
+    "track_rms": 1.81,
+    "roughness": 2.358,
+    "norm_rough": 1.412,
+    "max_err": 7.2
+  },
+  "seg_plan": [
+    "off",
+    "on",
+    "off",
+    "on"
+  ],
+  "seg_dur_s": 10.0,
+  "artifacts": [
+    "raw/data.csv",
+    "stab_ff_plot.png"
+  ]
+}
