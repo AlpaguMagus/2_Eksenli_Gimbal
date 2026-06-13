@@ -132,6 +132,27 @@
   - **LP 12V 9.68:1 elektriksel değerler (Page 1, amper bütçesi dayanağı):** stall 1100 mA @12V / 550 mA @6V; yüksüz 100 mA @12V; 560 rpm @12V; redüktör 9.68:1 (ürün adı 9.7:1 yuvarlama)
   - **48 CPR konvansiyon kararı:** Robotsepeti sayfası — *"Kuadratür enkoder her iki kanalda kenarlar için sayım yapması durumunda 48 CPR'lık bir çözünürlük sağlar"* → 48 zaten 4× decoded sayım (Aşama 0 Test 2A.T1'de doğrulandı)
 
+- **[Pololu_25D_HP]** Pololu Corp., *"HP 12V 25D Motor, 48 CPR Enkoderli"* (PL-4840) — **yeni yedek motorlar (2026-06-13), LP'den FARKLI**.
+  - Robotsepeti: <https://www.robotsepeti.com/pololu-hp-12v-motor-48-cpr-enkoderli-25d-reduktorlerle-uyumlu-pl-4840>
+  - Yerel: `datasheets/Pololu HP 12V 25D 48CPR (PL-4840)/specs.md` + `25d-metal-gearmotor-dimension-diagram.pdf`
+  - **HP 12V değerler:** boşta 10200 rpm, boşta 150 mA, **stall 5600 mA @12V**, stall tork 0.396 kg·cm; 48 CPR (LP ile aynı enkoder); K≈89 rad/s/V. **LP'nin ~5× stall akımı** → TB6612 (3.2A pik) AŞILIR, yüksek-akım sürücü (HW-039/BTS7960) gerekir. K=53.89 (LP) HP'de geçersiz.
+
+- **[BTS7960_DS]** Infineon, *"BTS7960B — NovalithIC Half-Bridge"*; modül: **HW-039** (çift BTS7960 = tek tam H-köprü, modül başına 1 motor).
+  - Yerel: `datasheets/BTS7960 (HW-039)/BTS7960-module-HW039-handsontec.pdf`
+  - ~10-15A sürekli (43A pik), giriş 6-27V, arayüz **RPWM/LPWM + R_EN/L_EN** (TB6612 IN1/IN2/PWM'den FARKLI → firmware sürüş katmanı değişir). HP Pololu (5.6A stall) için yeterli; aşırı-büyük → IS akım-okuma çözünürlüğü kaba; klon güvenilirlik uyarısı.
+
+- **[L298N_DS]** STMicroelectronics, *"L298 — Dual Full-Bridge Driver"*.
+  - Yerel: `datasheets/L298N/L298N-datasheet.pdf`
+  - ~1A gerçekçi sürekli (2A maks, heatsink), ~1.8-2.5V düşüm @1A → verim/ısı sorunu; HP (5.6A) SÜREMEZ; LP sürebilir ama TB6612 üstün. Atıl yedek.
+
+- **[LM2596_DS]** Texas Instruments, *"LM2596 — Simple Switcher Power Converter 3A Step-Down"*.
+  - Resmi: <https://www.ti.com/lit/ds/symlink/lm2596.pdf> · Yerel: `datasheets/LM2596/LM2596-TI-datasheet.pdf`
+  - Ayarlı buck, giriş 4.5-40V, çıkış 1.5-37V, ~2A güvenli sürekli (3A maks). Lojik beslemesi (5V/3.3V) veya HP'yi ~6V'ta sürme (stall 2.8A, TB6612 pikine sığar ama buck 2A limiti stall'da dar boğaz).
+
+- **[DFRobot_FIT0520]** DFRobot, *"Metal DC Geared Motor w/Encoder — 6V 300RPM 3.6Kg·cm"* (product-1619).
+  - <https://www.dfrobot.com/product-1619.html> · Yerel: `datasheets/DFRobot product-1619/specs.md`
+  - **6V** nominal, 20:1, stall 2.7A @6V, enkoder **44 sayım/dev motor şaftı (224.4 PPR çıkış — 48 CPR DEĞİL)**. Gimbal'de birincil aday değil (6V + farklı enkoder + Pololu gearbox uyumu doğrulanmadı).
+
 - **[ACS712_DS]** Allegro MicroSystems, *"ACS712 — Fully Integrated, Hall-Effect-Based Linear Current Sensor IC"* datasheet (varyant: ACS712ELCTR-05B, ±5A).
   - Resmi: <https://www.allegromicro.com/-/media/files/datasheets/acs712-datasheet.pdf>
   - Yerel: `datasheets/ACS712/acs712-datasheet.pdf`
