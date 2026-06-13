@@ -213,6 +213,16 @@ static void parse_line(const char *line)
         return;
     }
 
+    /* ── STALLEN (+2) — stall algılama AÇ/KAPA (default açık) ──
+     * STALLEN2:0 → yük altında count-tabanlı stall yanlış-pozitifini kapat (süpervizeli
+     * yüklü test); STALLEN2:1 → geri aç. Duty-cap %50 birincil akım koruması aktif kalır
+     * (motor.h stall_disabled notu). GÜVENLİK: yalnız geçici/süpervizeli kapat. */
+    if ((arg = match_axis_cmd(line, "STALLEN", &ax)) != 0) {
+        MotorCh_SetStallDetect(ax->motor, strtof(arg, NULL) != 0.0f);
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
     /* ── KP / KI / SLEW (+2) — hız PI runtime ayarı (Aşama 2.3) ── */
     if ((arg = match_axis_cmd(line, "KP", &ax)) != 0) {
         SpeedPI_SetGains(&ax->spi, strtof(arg, NULL), SpeedPI_GetKi(&ax->spi));  /* Ki korunur */

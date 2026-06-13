@@ -119,6 +119,7 @@ void MotorCh_Init(MotorCh_t *m)
     m->lockout_until_ms   = 0;
     m->stall_event_pending = false;
     m->fake_stall_inject  = false;
+    m->stall_disabled     = false;   /* algılama AÇIK (emniyet default) */
     m->last_check_tick    = 0;
 }
 
@@ -264,6 +265,21 @@ void MotorCh_StallCheck(MotorCh_t *m, int32_t enc_count)
 {
     uint32_t now = HAL_GetTick();
 
+    /* Runtime KAPALI (STALLEN:0) — yük altında stick-slip yanlış-pozitif verir.
+     * Pencereyi sıfırla, varsa lockout'u temizle (STBY=H), tetikleme. Duty-cap %50
+     * birincil akım koruması olarak AKTİF kalır (motor.h stall_disabled notu). */
+    if (m->stall_disabled) {
+        if (m->stall_active) {
+            m->stall_active     = false;
+            m->lockout_until_ms = 0;
+            HAL_GPIO_WritePin(GPIOB, m->stby_pin, GPIO_PIN_SET);
+        }
+        m->stall_count_ms  = 0;
+        m->stall_ref_count = enc_count;
+        m->last_check_tick = now;
+        return;
+    }
+
     /* Lockout otomatik açılma — süre dolunca sürücüyü tekrar aktive et */
     if (m->stall_active && now >= m->lockout_until_ms) {
         m->stall_active     = false;
@@ -353,4 +369,10 @@ float MotorCh_GetDutySigned(const MotorCh_t *m)
 void MotorCh_InjectFakeStall(MotorCh_t *m, bool on)
 {
     m->fake_stall_inject = on;
+}
+
+void MotorCh_SetStallDetect(MotorCh_t *m, bool enabled)
+{
+    m->stall_disabled = !enabled;
+    if (!enabled) MotorCh_ResetLockout(m);   /* kapatınca mevcut lockout'u da temizle */
 }

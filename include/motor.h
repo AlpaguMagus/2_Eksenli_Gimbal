@@ -82,6 +82,10 @@ typedef struct {
     uint32_t lockout_until_ms;
     bool     stall_event_pending;
     bool     fake_stall_inject;
+    bool     stall_disabled;    /* runtime: stall algılamayı KAPAT (STALLEN:0). Yük altında count-tabanlı
+                                 * stall yanlış-pozitif verir (stick-slip + duty>0.20). Birincil akım
+                                 * koruması duty-cap %50 (stall ~0.55-0.8 A < TB6612 1.0 A) AKTİF kalır.
+                                 * Default false (=algılama AÇIK, emniyet). Yalnız süpervizeli yüklü test. */
     uint32_t last_check_tick;
 } MotorCh_t;
 
@@ -105,6 +109,7 @@ void  MotorCh_EmergencyStop(MotorCh_t *m);    /* STBY=L + duty=0 + AIN=0 */
 void  MotorCh_StallCheck(MotorCh_t *m, int32_t enc_count); /* her iterasyonda kendi enkoderiyle */
 bool  MotorCh_IsStalled(const MotorCh_t *m);  /* lockout aktif mi? */
 void  MotorCh_ResetLockout(MotorCh_t *m);     /* lockout'u erken kapat (RESET komutu) */
+void  MotorCh_SetStallDetect(MotorCh_t *m, bool enabled); /* STALLEN: yük altında yanlış-pozitif → kapatılabilir (default açık) */
 bool  MotorCh_PollStallEvent(MotorCh_t *m);   /* tek seferlik event flag (read-and-clear) */
 
 float MotorCh_GetDutySigned(const MotorCh_t *m); /* son signed duty (telemetri) */
