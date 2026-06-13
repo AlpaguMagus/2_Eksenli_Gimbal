@@ -360,7 +360,9 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 > ([Franklin2010] §7.5, [Olsson1998] §6) bastırdı ($20^\circ$ $\theta_{std}$ $1.41^\circ\to0.00^\circ$ — push'lanan firmware kanonik koşu; sim
 > doğrulandı). Coulomb FF ($u_c{=}0.090$) **transfer-edilebilir**; gravite ($a{=}0.097$) rig-spesifik
 > (dengesiz sarkaç). Bench iki firmware kusuru ortaya çıkardı: watchdog-heartbeat eksikliği + stall
-> yük-altı yanlış-pozitifi (`STALLEN` toggle eklendi). **Donanım bekleyen:** K1 (2-eksen, yeni motor),
+> yük-altı yanlış-pozitifi (`STALLEN` toggle eklendi). **Asıl hedef — yük altında STAB bench** (`§12.8.7`):
+> STAB yasası yük altında çalışıyor; sürtünme FF takip-RMS'i $2.84\to1.81^\circ$ (yüzde 36), max hata
+> $13.3\to7.2^\circ$ iyileştirdi (base-IMU yasa demosu; payload inertial doğrulama Aşama 5). **Donanım bekleyen:** K1 (2-eksen, yeni motor),
 > K4 gerçek-veri (MIMO ID), K5 (RGA kuplaj gösterirse), stall kriteri yük-bilinçli yeniden-tasarım
 > (Aşama 5), dengeli payload + gravite-yardımlı iniş kontrolü (Aşama 5). **Sıradaki:** tez düzeltmeleri;
 > yeni motor gelince K1 + 3.4 MIMO ID.
