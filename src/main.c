@@ -377,14 +377,18 @@ int main(void)
             }
         }
 
-        /* USB CDC transmit — 40 Hz throttle (her 25 ms'de bir).
-         * T_US: DWT.CYCCNT / 96 → mikrosaniye timestamp ([ARM_DWT]).
+        /* USB CDC transmit — throttle 5 ms AMA gerçek rate LOOP-LİMİTLİ ~31 Hz (loop ~32 ms;
+         * T_US Δ ölçüldü 2026-06-15). Throttle 25→5 yapıldı ama bağlayıcı değil — loop her
+         * iterasyonda zaten >5 ms. ⚠ AÇIK: loop ~32 ms'nin ~27 ms'i IMU/işlem (HAL_Delay 5 ms hariç) —
+         * neden bu kadar yavaş, açık inceleme (sistem-ID/τ için hızlandırma ileride değerlendirilir).
+         * T_US: DWT.CYCCNT / 96 → mikrosaniye timestamp ([ARM_DWT]) — host-jitter'siz Δt için KULLAN
+         * (τ ölçümünde KRİTİK: host time.time() jitter'i fit'i bozuyordu).
          * Eksen-0 alanları (Aşama-2 script uyumlu, format korunur):
          *   EC, OMEGA (ham hız), SP, U (hız PI çıkışı), TR (poz hedefi, derece)
          * Eksen-1 alanları:
          *   EC2 (count), U2 (motor-2 uygulanan signed duty — 3.2b semantiği),
          *   OMEGA2/SP2/TR2 (yeni — satır SONUNDA, eski regex'leri bozmaz) */
-        if (now - last_tx >= 25U) {
+        if (now - last_tx >= 5U) {
             uint32_t t_us = DWT->CYCCNT / 96U;
             float sp  = SpeedPI_GetSetpoint(&g_axis[0].spi);
             float u   = SpeedPI_GetControl(&g_axis[0].spi);

@@ -1,0 +1,11 @@
+{
+  "test_id": "hp_stepid_20260615_024718_clean",
+  "timestamp": "2026-06-15T02:47:18",
+  "commit": "eefe935",
+  "status": "DATA",
+  "note": "T_US 31Hz clean step capture for MATLAB tfest (K + tau). HP eksen-0 HW-039 20kHz 20:1.",
+  "n_rows": 688,
+  "artifacts": [
+    "raw/data.csv"
+  ]
+}
