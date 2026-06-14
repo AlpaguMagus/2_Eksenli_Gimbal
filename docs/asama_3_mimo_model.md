@@ -283,8 +283,11 @@ kanıta-dayalı MIMO kontrolcü, ROADMAP §3.)*
 - 🔬 ⚠ **Efektif pozisyon-kazanç açığı (yeni, 2026-06-14):** §12.4.4 re-validate'i gösterdi ki gerçek sistem
   nominal $K_{p,pos}=2.0$ cascade modelinin öngördüğünden **iyi** izliyor (model $12.1/12.7^\circ$ vs ölçülen
   $5.5/6.7^\circ$, $\sim 2.2\times$); efektif $K_v \approx 6$ (lag-teşhisi $K_v^{eff}\sim 6$–$9$ ile tutarlı).
-  **Kök-neden açık:** (i) firmware ölçek/birim (`counts_per_rev`, gear ölçeği) efektif kazancı yükseltiyor mu,
-  yoksa (ii) iç-döngü modeli $T_{ic}$ fazla yavaş mı? → firmware audit + model karşılaştırması gerek (donanımsız başlanabilir).
+  **Elendi (2026-06-14):** (a) `lsim` sıfır-IC artefaktı — $tr(0){=}{-}1.7^\circ$ küçük; IC-düzeltme + ilk 3 s
+  atma RMS'i değiştirmedi ($12.1\to 12.7$) → **gerçek, artefakt değil**; (b) `position_p.c` P-yolu ölçeği temiz
+  ($e$[rad]$\cdot K_{p,pos}\cdot$gear doğru, efektif çıkış-çerçevesi $K_v{=}K_{p,pos}$). **Kalan şüphe:** iç-döngü
+  hız-geri-besleme ölçeği (encoder cpr / gear `SpeedPI`+`SpeedFilter`'da) veya gerçek plant iç-döngü modelinden hızlı →
+  firmware hız-yolu trace gerek (donanımsız). **Etki:** "conservative 2.0" pratikte ~3× agresif; kararlı (Test 2.5 6/6 PASS) ama belge↔gerçek açığı.
 
 ### 12.7. İleri-basamak ön-tasarımları (donanımsız — K2/K3/K4/K6/K7)
 
