@@ -1,0 +1,69 @@
+{
+  "test_id": "hp_stepid_20260615_021942",
+  "timestamp": "2026-06-15T02:19:42",
+  "commit": "f4267bf",
+  "status": "PARTIAL",
+  "axis": 0,
+  "driver": "HW-039/BTS7960",
+  "gearbox": "20:1",
+  "pwm_khz": 20,
+  "key_metrics": {
+    "Kg_duty": 1012.7,
+    "K_V": 83.35,
+    "tau_ms_auto": 514.9,
+    "tau_ms_rev_prelim": 235.0,
+    "V_dead_duty": 0.019,
+    "fit_r2": 0.987,
+    "Kg_rev_over_fwd": 1.067
+  },
+  "notes": "K_HP SOLID (R2=0.987, 1.55x LP, fwd 0.30/0.40/0.45 + rev). tau_ms_auto=514 CORRUPT (Test B forward 0.50 dropout). tau_ms_rev_prelim=235 (3/3 reverse, ama omega0 tutarsiz - SUSPECT, MATLAB cross-check gerek). FORWARD dropout (0.35/0.50) devam: CW=RPWM(PB8) marjinal baglanti hipotezi (CCW=LPWM temiz). Temiz tam karakterizasyon RPWM fix sonrasi.",
+  "steady_state": [
+    [
+      0.15,
+      0.0
+    ],
+    [
+      0.2,
+      -0.0
+    ],
+    [
+      0.25,
+      0.0
+    ],
+    [
+      0.3,
+      287.5
+    ],
+    [
+      0.35,
+      0.0
+    ],
+    [
+      0.4,
+      375.1
+    ],
+    [
+      0.45,
+      442.8
+    ],
+    [
+      0.5,
+      4.9
+    ],
+    [
+      -0.25,
+      -222.2
+    ],
+    [
+      -0.35,
+      -338.2
+    ],
+    [
+      -0.5,
+      -493.3
+    ]
+  ],
+  "artifacts": [
+    "raw/data.csv"
+  ]
+}
