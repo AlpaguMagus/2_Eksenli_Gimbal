@@ -5,28 +5,26 @@
 #include <stdbool.h>
 
 /* ============================================================================
- * TB6612FNG Motor Sürücü API — KANAL-INSTANCE (Aşama 3.3 refactor)
+ * Motor Sürücü API — KANAL-INSTANCE (Aşama 3.3 refactor + 3.5 asimetrik sürücü)
  *
- * İki motor kanalı, her biri kendi MotorCh_t örneğiyle (tüm state struct'ta):
+ * İki motor kanalı, her biri kendi MotorCh_t örneğiyle (tüm state struct'ta).
+ * ⚠ ASİMETRİK (2026-06-14): Motor1 = HW-039/BTS7960 (HP); Motor2 = TB6612 (LP).
  *
- *   Motor1 (eksen-0):                    Motor2 (eksen-1):
- *     PB0  → TIM3_CH3 PWM                  PB1  → TIM3_CH4 PWM
- *     PB12 → AIN1  (yön)                   PB4  → AIN1  (yön)
- *     PB13 → AIN2  (yön)                   PB5  → AIN2  (yön)
- *     PB14 → STBY  (enable)                PB10 → STBY  (eksen-bağımsız kesme)
+ *   Motor1 (eksen-0) — HW-039/BTS7960:   Motor2 (eksen-1) — TB6612FNG:
+ *     PB8  → TIM4_CH3 RPWM (CW yön)        PB1  → TIM3_CH4 PWM
+ *     PB9  → TIM4_CH4 LPWM (CCW yön)       PB4  → AIN1 (yön)
+ *     PB14 → R_EN+L_EN köprü (enable)      PB5  → AIN2 (yön)
+ *     (sign-magnitude; AIN/STBY YOK)       PB10 → STBY (eksen-bağımsız kesme)
  *
- *   PWM: TIM3 PAYLAŞILIR (aynı 20 kHz ARR=4799, bağımsız CCR) — base'i ilk
- *   MotorCh_Init kurar, sonraki yalnız kendi kanalını ekler.
+ *   PWM: Motor1 TIM4 (BTS7960, 20 kHz: ARR=4799 presc=0, [BTS7960_DS] ≤25 kHz);
+ *        Motor2 TIM3 (TB6612, 20 kHz: ARR=4799). AYRI timer'lar — her MotorCh_Init
+ *        kendi base'ini kurar. (Eski: ikisi de TB6612/TIM3; motor-1 HP+HW-039'a yükseltildi.)
  *
- * H-SW kontrol mantığı (TB6612FNG datasheet sf 4) — iki kanal AYNI:
- *   AIN1=H, AIN2=L  → CW   (ileri)
- *   AIN1=L, AIN2=H  → CCW  (geri)
- *   AIN1=H, AIN2=H  → BRAKE (kısa devre fren)
- *   AIN1=L, AIN2=L  → STOP  (Hi-Z, free-wheel)
- *   STBY=L          → sürücü standby
- *
- * Dahili dead-time (datasheet sf 5: 50 ns H→L, 230 ns L→H):
- *   Yön değiştirmede yazılım dead-band gerekmiyor — donanım hallediyor.
+ * Sürüş mantığı:
+ *  · Motor2 (TB6612, datasheet sf 4): AIN1=H,AIN2=L→CW; L,H→CCW; H,H→BRAKE; L,L→STOP; STBY=L→standby.
+ *    Dahili dead-time (sf 5: 50/230 ns) → yön değişiminde yazılım dead-band gerekmez.
+ *  · Motor1 (BTS7960 sign-magnitude): CW→RPWM=duty/LPWM=0; CCW→RPWM=0/LPWM=duty;
+ *    STOP/BRAKE→ikisi 0 (shoot-through koruması); enable=R_EN+L_EN=PB14. [BTS7960_module_DS handsontec].
  *
  * Init sırası (main.c):
  *   1) MotorCh_Init(&Motor1); MotorCh_Init(&Motor2);  — STBY=LOW, güvenli kapalı
@@ -98,7 +96,7 @@ typedef struct {
 } MotorCh_t;
 
 /* Kanal örnekleri (motor.c'de tanımlı — pin haritası orada) */
-extern MotorCh_t Motor1;   /* eksen-0: PB0/CH3, PB12/13/14 */
+extern MotorCh_t Motor1;   /* eksen-0: BTS7960 TIM4 RPWM=PB8/LPWM=PB9, EN=PB14 */
 extern MotorCh_t Motor2;   /* eksen-1: PB1/CH4, PB4/5/10  */
 
 void  MotorCh_Init(MotorCh_t *m);             /* GPIO + PWM kanal; ilk çağrı TIM3 base kurar; STBY=LOW */

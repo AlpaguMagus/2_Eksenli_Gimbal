@@ -70,7 +70,7 @@ static inline void _apply_pwm(MotorCh_t *m, float d)
     if (m->is_bts7960) {
         /* BTS7960: yöne göre RPWM VEYA LPWM; diğer kanal 0 (shoot-through koruması —
          * iki PWM aynı anda asla HIGH olmaz). STOP/BRAKE → ikisi de 0 (coast).
-         * ccr BTS7960'ın KENDİ ARR'siyle (~1 kHz), TB6612'den FARKLI. */
+         * ccr BTS7960'ın KENDİ ARR'siyle (BTS7960_PWM_ARR=4799, 20 kHz; TB6612'den ayrı timer/define). */
         uint32_t ccr = (uint32_t)(d * (float)(BTS7960_PWM_ARR + 1U));
         if (m->bts_dir == MOTOR_CW) {
             __HAL_TIM_SET_COMPARE(&htim4, m->pwm_channel,  ccr);   /* RPWM */

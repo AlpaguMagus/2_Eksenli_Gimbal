@@ -171,7 +171,7 @@ Fiziksel iskelet — 2 eksen, asimetrik kol geometrisi:
 
 | Eksen | Fiziksel rol | Motor | Sürücü | Redüktör | Firmware |
 |---|---|---|---|---|---|
-| **Dış (base)** | yük-taşıyan, 9 cm kaldıraç | **HP** Pololu 25D | HW-039/BTS7960 (~1 kHz) | **20:1** | `Motor1` / eksen-0 |
+| **Dış (base)** | yük-taşıyan, 9 cm kaldıraç | **HP** Pololu 25D | HW-039/BTS7960 (20 kHz) | **20:1** | `Motor1` / eksen-0 |
 | **İç (stand)** | telefon, hafif, hassas | **LP** Pololu 25D | TB6612 (20 kHz) | **9.7:1** | `Motor2` / eksen-1 |
 
 **Gerekçe (özet):** HP-tork yük-taşıyan dış eksende; hassas-LP kamera ekseninde. Hassasiyet önceliği için
