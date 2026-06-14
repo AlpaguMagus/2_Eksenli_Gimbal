@@ -11,12 +11,14 @@
  * ============================================================================ */
 
 #define MOTOR_PWM_PERIOD     4799U  /* TB6612 ARR — 20 kHz @ 96 MHz / (1 × 4800); hızlı MOSFET kaldırır */
-/* BTS7960/HW-039 — DÜŞÜK PWM frekansı (~1 kHz). BTS7960'ın slew-rate'i (EMI yavaşlatması,
- * modül SR direnci) ~µs mertebesinde anahtarlama verir → 20 kHz'de düşük-duty pulse'lar tam
- * açılmaz (motor "tık tık" seğirir, dönmez). 1 kHz'de 0.15 duty = 150 µs on >> slew → temiz.
- * [BTS7960_DS] / pratik BTS7960 kullanımı 1-10 kHz. @96MHz: (1+1)×(47999+1)=96000 → 1 kHz. */
-#define BTS7960_PWM_ARR      47999U
-#define BTS7960_PWM_PRESC    1U
+/* BTS7960/HW-039 — 20 kHz (işitme-üstü). [BTS7960_module_DS] (handsontec) sf1: "PWM capability of
+ * up to 25 kHz" → önceki 1 kHz GEREKSİZ düşüktü. 1 kHz semptomları (teşhis 2026-06-15): işitilebilir
+ * tiz whine (1 kHz tam işitme bandında) + yüksek tork-ripple ("geri tepme") + düşük-hız startup
+ * stiction dropout'u (0.30/0.40'ta aralıklı dönmeme, İKİ HP'de de). Önceki "20 kHz'de tık-tık dönmez"
+ * gözlemi aslında FİŞSİZ 12V idi (slew-rate DEĞİL) → yeniden-tanı 20 kHz'e çıkardı.
+ * @96MHz: (0+1)×(4799+1)=4800 → 20 kHz (TB6612 ile aynı, datasheet ≤25 kHz içinde). */
+#define BTS7960_PWM_ARR      4799U
+#define BTS7960_PWM_PRESC    0U
 #define MOTOR_MAX_DUTY       0.50f  /* hard cap. Stall@0.5≈0.55 A < TB6612 sürekli 1.0 A
                                      * (amper bütçesi asama_0 §8.5; sigorta yok → konservatif).
                                      * 2026-06-09: 0.70/0.85 denendi → motor-1 CW catch'i YENMEDİ
@@ -120,7 +122,7 @@ void MotorCh_Init(MotorCh_t *m)
         HAL_GPIO_Init(GPIOB, &gpio_pwm);
         if (!tim4_base_ready) {
             htim4.Instance               = TIM4;
-            htim4.Init.Prescaler         = BTS7960_PWM_PRESC;  /* ~1 kHz (BTS7960 slew-dostu) */
+            htim4.Init.Prescaler         = BTS7960_PWM_PRESC;  /* 20 kHz (datasheet ≤25 kHz; 1 kHz whine'dı) */
             htim4.Init.Period            = BTS7960_PWM_ARR;
             htim4.Init.CounterMode       = TIM_COUNTERMODE_UP;
             htim4.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
