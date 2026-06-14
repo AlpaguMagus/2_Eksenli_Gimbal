@@ -149,6 +149,14 @@ Fiziksel iskelet — 2 eksen, asimetrik kol geometrisi:
 
 ### 7.1. İki eksenin rolleri
 
+> 📐 **Terminoloji (mühendislik/gimbal standardı).** *Dış eksen (outer)* = base'e/ele en yakın, kinematik
+> zincirde **ilk**, tüm aşağı-akışı taşıyan eksen (iç içe gimbal çerçevelerinde **en dıştaki** halka →
+> yük-taşıyan). *İç eksen (inner)* = payload'a (telefona) en yakın, zincirde **son**, yalnız payload'ı taşıyan.
+> ⚠ Günlük-dil sezgisi bunu **ters** okuyabilir ("dış" = telefonun çıktığı taraf sanılır); bu projede
+> **standart konvansiyon** geçerlidir. Eşleme: **dış = `Motor1` / eksen-0 / HP / yük-taşıyan**;
+> **iç = `Motor2` / eksen-1 / LP / telefon-standı**. (3-eksenli kamera gimbal'ında: handle motoru = outer/pan,
+> kamera motoru = inner/roll.)
+
 - **Dış eksen (base, yük-taşıyan):** dış motor tüm aşağı-akış kütlesini taşır (iç motor + 9 cm kol +
   stand + telefon). Gimbal aşağı bakınca bu eksen **yatay mildedir** → 9 cm kaldıraçla **yüksek tork +
   yüksek eylemsizlik**. Kaba/ana yönelim.
