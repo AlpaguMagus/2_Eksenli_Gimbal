@@ -114,7 +114,7 @@ int main(void)
     MPU6050_Init();
     Encoder_Init();              /* TIM2, PA15+PB3 (eksen-0) */
     Encoder2_Init();             /* TIM1, PA8+PA9  (eksen-1, 16-bit→yazılım 32-bit) */
-    MotorCh_Init(&Motor1);       /* TIM3 base + CH3, PB0 PWM, PB12-14 GPIO, STBY=LOW */
+    MotorCh_Init(&Motor1);       /* HW-039/BTS7960: TIM4 RPWM=PB8/LPWM=PB9 (~1kHz), EN=PB14=LOW */
     MotorCh_Init(&Motor2);       /* TIM3 CH4, PB1 PWM, PB4/PB5/PB10 GPIO, STBY=LOW */
 
     /* Hız iç döngü PI kazançları — HER İKİ EKSENE AYNI set yüklenir:

@@ -64,11 +64,19 @@ typedef enum {
 
 typedef struct {
     /* ── Donanım konfig (instance tanımında sabitlenir — motor.c) ── */
-    uint32_t pwm_channel;       /* TIM_CHANNEL_3 (motor-1) / TIM_CHANNEL_4 (motor-2) */
-    uint16_t pwm_pin;           /* GPIOB: PB0 / PB1 */
-    uint16_t ain1_pin;          /* GPIOB: PB12 / PB4 */
-    uint16_t ain2_pin;          /* GPIOB: PB13 / PB5 */
-    uint16_t stby_pin;          /* GPIOB: PB14 / PB10 */
+    uint32_t pwm_channel;       /* TB6612: TIM3 kanalı | BTS7960: TIM4_CH3 (RPWM) */
+    uint16_t pwm_pin;           /* GPIOB: TB6612 PWM pini | BTS7960 RPWM pini (PB8) */
+    uint16_t ain1_pin;          /* GPIOB: TB6612 AIN1 | BTS7960'da 0 (kullanılmaz) */
+    uint16_t ain2_pin;          /* GPIOB: TB6612 AIN2 | BTS7960'da 0 (kullanılmaz) */
+    uint16_t stby_pin;          /* GPIOB: TB6612 STBY | BTS7960 R_EN+L_EN köprü (enable) */
+
+    /* ── Sürücü-tipi soyutlaması (Aşama 3.5 — eksen-0 HP Pololu + HW-039/BTS7960) ──
+     * Motor-1 = BTS7960 (RPWM/LPWM yön-başı PWM + enable); Motor-2 = TB6612 (IN1/IN2/PWM).
+     * BTS7960: yön = hangi PWM kanalı aktif; shoot-through koruması (_apply_pwm tek kanal). */
+    bool       is_bts7960;      /* true=BTS7960/HW-039 (motor-1) · false=TB6612 (motor-2) */
+    uint32_t   pwm_channel2;    /* BTS7960 LPWM kanalı (TIM4_CH4); TB6612'de kullanılmaz */
+    uint16_t   pwm_pin2;        /* BTS7960 LPWM pini (PB9); TB6612'de kullanılmaz */
+    MotorDir_t bts_dir;         /* BTS7960 son yön (CW=RPWM / CCW=LPWM); _apply_pwm kullanır */
 
     /* ── Duty / rampa state (Motor_Tick non-blocking rampası) ── */
     float current_duty;         /* uygulanan |duty| */

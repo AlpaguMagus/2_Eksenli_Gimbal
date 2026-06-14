@@ -10,7 +10,13 @@
  * taşınması (iki bağımsız örnek) + stall'ın motor-2'de de aktif olması.
  * ============================================================================ */
 
-#define MOTOR_PWM_PERIOD     4799U  /* ARR for 20 kHz @ 96 MHz / (1 × 4800) */
+#define MOTOR_PWM_PERIOD     4799U  /* TB6612 ARR — 20 kHz @ 96 MHz / (1 × 4800); hızlı MOSFET kaldırır */
+/* BTS7960/HW-039 — DÜŞÜK PWM frekansı (~1 kHz). BTS7960'ın slew-rate'i (EMI yavaşlatması,
+ * modül SR direnci) ~µs mertebesinde anahtarlama verir → 20 kHz'de düşük-duty pulse'lar tam
+ * açılmaz (motor "tık tık" seğirir, dönmez). 1 kHz'de 0.15 duty = 150 µs on >> slew → temiz.
+ * [BTS7960_DS] / pratik BTS7960 kullanımı 1-10 kHz. @96MHz: (1+1)×(47999+1)=96000 → 1 kHz. */
+#define BTS7960_PWM_ARR      47999U
+#define BTS7960_PWM_PRESC    1U
 #define MOTOR_MAX_DUTY       0.50f  /* hard cap. Stall@0.5≈0.55 A < TB6612 sürekli 1.0 A
                                      * (amper bütçesi asama_0 §8.5; sigorta yok → konservatif).
                                      * 2026-06-09: 0.70/0.85 denendi → motor-1 CW catch'i YENMEDİ
@@ -33,27 +39,51 @@
 #define STALL_DURATION_MS    200U    /* tetik penceresi */
 #define LOCKOUT_DURATION_MS  1000U   /* lockout süresi (5000→1000: yumuşatma) */
 
-/* TIM3 her iki kanalca paylaşılır — base bir kez kurulur (ilk MotorCh_Init). */
+/* TIM3 = TB6612 PWM (motor-2); TIM4 = BTS7960 RPWM/LPWM (motor-1 HP). Base bir kez kurulur. */
 static TIM_HandleTypeDef htim3;
 static bool              tim3_base_ready = false;
+static TIM_HandleTypeDef htim4;
+static bool              tim4_base_ready = false;
 
 /* ── Kanal örnekleri — pin haritası 00_donanim_semasi.md §2 ───────────────
- * Motor1 = eksen-0 (şu an kusurlu ünite — CW catch, bkz memory/ROADMAP;
- *          redüktörsüz yedek gelince değişecek).
- * Motor2 = eksen-1 (Aşama 1-2'de karakterize SAĞLIKLI ünite, K=53.89/τ=60.5ms). */
+ * Motor1 = eksen-0: HP Pololu (PL-4840, stall 5.6A) + HW-039/BTS7960 (Aşama 3.5,
+ *          2026-06-14; eski TB6612-1+LP yerine — bozuk LP değişti, HP TB6612'yi aşar).
+ *          RPWM=PB8(TIM4_CH3), LPWM=PB9(TIM4_CH4), R_EN+L_EN köprü=PB14. Enkoder DEĞİŞMEZ (PA15/PB3).
+ * Motor2 = eksen-1: SAĞLIKLI LP Pololu + TB6612 (K=53.89/τ=60.5ms, DOĞRULANMIŞ — dokunma). */
 MotorCh_t Motor1 = {
-    .pwm_channel = TIM_CHANNEL_3, .pwm_pin = GPIO_PIN_0,
-    .ain1_pin = GPIO_PIN_12, .ain2_pin = GPIO_PIN_13, .stby_pin = GPIO_PIN_14,
+    .is_bts7960 = true,
+    .pwm_channel  = TIM_CHANNEL_3, .pwm_pin  = GPIO_PIN_8,   /* RPWM = PB8 = TIM4_CH3 */
+    .pwm_channel2 = TIM_CHANNEL_4, .pwm_pin2 = GPIO_PIN_9,   /* LPWM = PB9 = TIM4_CH4 */
+    .stby_pin = GPIO_PIN_14,                                  /* R_EN+L_EN köprü = PB14 (enable) */
+    .ain1_pin = 0, .ain2_pin = 0,                            /* BTS7960'da kullanılmaz */
 };
 MotorCh_t Motor2 = {
+    .is_bts7960 = false,
     .pwm_channel = TIM_CHANNEL_4, .pwm_pin = GPIO_PIN_1,
     .ain1_pin = GPIO_PIN_4,  .ain2_pin = GPIO_PIN_5,  .stby_pin = GPIO_PIN_10,
 };
 
 static inline void _apply_pwm(MotorCh_t *m, float d)
 {
-    uint32_t ccr = (uint32_t)(d * (float)(MOTOR_PWM_PERIOD + 1U));
-    __HAL_TIM_SET_COMPARE(&htim3, m->pwm_channel, ccr);
+    if (m->is_bts7960) {
+        /* BTS7960: yöne göre RPWM VEYA LPWM; diğer kanal 0 (shoot-through koruması —
+         * iki PWM aynı anda asla HIGH olmaz). STOP/BRAKE → ikisi de 0 (coast).
+         * ccr BTS7960'ın KENDİ ARR'siyle (~1 kHz), TB6612'den FARKLI. */
+        uint32_t ccr = (uint32_t)(d * (float)(BTS7960_PWM_ARR + 1U));
+        if (m->bts_dir == MOTOR_CW) {
+            __HAL_TIM_SET_COMPARE(&htim4, m->pwm_channel,  ccr);   /* RPWM */
+            __HAL_TIM_SET_COMPARE(&htim4, m->pwm_channel2, 0);     /* LPWM */
+        } else if (m->bts_dir == MOTOR_CCW) {
+            __HAL_TIM_SET_COMPARE(&htim4, m->pwm_channel,  0);
+            __HAL_TIM_SET_COMPARE(&htim4, m->pwm_channel2, ccr);
+        } else {
+            __HAL_TIM_SET_COMPARE(&htim4, m->pwm_channel,  0);
+            __HAL_TIM_SET_COMPARE(&htim4, m->pwm_channel2, 0);
+        }
+        return;
+    }
+    /* TB6612 — TIM3, 20 kHz */
+    __HAL_TIM_SET_COMPARE(&htim3, m->pwm_channel, (uint32_t)(d * (float)(MOTOR_PWM_PERIOD + 1U)));
 }
 
 static inline float _clamp_duty(float d)
@@ -66,49 +96,76 @@ static inline float _clamp_duty(float d)
 void MotorCh_Init(MotorCh_t *m)
 {
     __HAL_RCC_GPIOB_CLK_ENABLE();
-    __HAL_RCC_TIM3_CLK_ENABLE();
 
-    /* ── AIN1/AIN2/STBY — GPIO output, başlangıç LOW.
-     * Motor Hi-Z + sürücü standby → güvenli kapalı.
-     * NOT: TB6612 input pinlerinde dahili 200 kΩ pull-down var (datasheet sf 2);
-     *      STM32 GPIO Hi-Z iken bile STBY=L görür, motor seğirmez. */
-    GPIO_InitTypeDef gpio_out = {0};
-    gpio_out.Pin   = m->ain1_pin | m->ain2_pin | m->stby_pin;
-    gpio_out.Mode  = GPIO_MODE_OUTPUT_PP;
-    gpio_out.Pull  = GPIO_NOPULL;
-    gpio_out.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOB, &gpio_out);
-    HAL_GPIO_WritePin(GPIOB, m->ain1_pin | m->ain2_pin | m->stby_pin, GPIO_PIN_RESET);
-
-    /* ── PWM pini — TIM3 AF (AF2), her iki kanal GPIOB */
-    GPIO_InitTypeDef gpio_pwm = {0};
-    gpio_pwm.Pin       = m->pwm_pin;
-    gpio_pwm.Mode      = GPIO_MODE_AF_PP;
-    gpio_pwm.Pull      = GPIO_NOPULL;
-    gpio_pwm.Speed     = GPIO_SPEED_FREQ_HIGH;
-    gpio_pwm.Alternate = GPIO_AF2_TIM3;
-    HAL_GPIO_Init(GPIOB, &gpio_pwm);
-
-    /* ── TIM3 base — 20 kHz @ 96 MHz / (1 × 4800); yalnız ilk init'te */
-    if (!tim3_base_ready) {
-        htim3.Instance               = TIM3;
-        htim3.Init.Prescaler         = 0;
-        htim3.Init.Period            = MOTOR_PWM_PERIOD;
-        htim3.Init.CounterMode       = TIM_COUNTERMODE_UP;
-        htim3.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
-        htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-        HAL_TIM_PWM_Init(&htim3);
-        tim3_base_ready = true;
-    }
-
-    /* ── Kanal PWM mode 1, polarity HIGH, başlangıç pulse = 0 (duty %0) */
     TIM_OC_InitTypeDef sConfigOC = {0};
     sConfigOC.OCMode     = TIM_OCMODE_PWM1;
     sConfigOC.Pulse      = 0;
     sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
     sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-    HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, m->pwm_channel);
-    HAL_TIM_PWM_Start(&htim3, m->pwm_channel);
+
+    if (m->is_bts7960) {
+        /* ── BTS7960/HW-039 (motor-1 HP): RPWM(PB8)+LPWM(PB9) TIM4 AF2, EN(PB14) GPIO ── */
+        __HAL_RCC_TIM4_CLK_ENABLE();
+        /* EN (R_EN+L_EN köprü) — GPIO output, LOW = sürücü KAPALI (güvenli başlangıç) */
+        GPIO_InitTypeDef gpio_en = {0};
+        gpio_en.Pin = m->stby_pin; gpio_en.Mode = GPIO_MODE_OUTPUT_PP;
+        gpio_en.Pull = GPIO_NOPULL; gpio_en.Speed = GPIO_SPEED_FREQ_LOW;
+        HAL_GPIO_Init(GPIOB, &gpio_en);
+        HAL_GPIO_WritePin(GPIOB, m->stby_pin, GPIO_PIN_RESET);
+        /* RPWM + LPWM — TIM4 AF2 */
+        GPIO_InitTypeDef gpio_pwm = {0};
+        gpio_pwm.Pin = m->pwm_pin | m->pwm_pin2;
+        gpio_pwm.Mode = GPIO_MODE_AF_PP; gpio_pwm.Pull = GPIO_NOPULL;
+        gpio_pwm.Speed = GPIO_SPEED_FREQ_HIGH; gpio_pwm.Alternate = GPIO_AF2_TIM4;
+        HAL_GPIO_Init(GPIOB, &gpio_pwm);
+        if (!tim4_base_ready) {
+            htim4.Instance               = TIM4;
+            htim4.Init.Prescaler         = BTS7960_PWM_PRESC;  /* ~1 kHz (BTS7960 slew-dostu) */
+            htim4.Init.Period            = BTS7960_PWM_ARR;
+            htim4.Init.CounterMode       = TIM_COUNTERMODE_UP;
+            htim4.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+            htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+            HAL_TIM_PWM_Init(&htim4);
+            tim4_base_ready = true;
+        }
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, m->pwm_channel);
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, m->pwm_channel2);
+        HAL_TIM_PWM_Start(&htim4, m->pwm_channel);
+        HAL_TIM_PWM_Start(&htim4, m->pwm_channel2);
+        m->bts_dir = MOTOR_STOP;
+    } else {
+        /* ── TB6612 (motor-2): AIN1/AIN2/STBY GPIO + PWM TIM3 AF2 ──
+         * TB6612 input pinlerinde dahili 200 kΩ pull-down (datasheet sf 2) → STBY=L'de motor seğirmez. */
+        __HAL_RCC_TIM3_CLK_ENABLE();
+        GPIO_InitTypeDef gpio_out = {0};
+        gpio_out.Pin   = m->ain1_pin | m->ain2_pin | m->stby_pin;
+        gpio_out.Mode  = GPIO_MODE_OUTPUT_PP;
+        gpio_out.Pull  = GPIO_NOPULL;
+        gpio_out.Speed = GPIO_SPEED_FREQ_LOW;
+        HAL_GPIO_Init(GPIOB, &gpio_out);
+        HAL_GPIO_WritePin(GPIOB, m->ain1_pin | m->ain2_pin | m->stby_pin, GPIO_PIN_RESET);
+
+        GPIO_InitTypeDef gpio_pwm = {0};
+        gpio_pwm.Pin       = m->pwm_pin;
+        gpio_pwm.Mode      = GPIO_MODE_AF_PP;
+        gpio_pwm.Pull      = GPIO_NOPULL;
+        gpio_pwm.Speed     = GPIO_SPEED_FREQ_HIGH;
+        gpio_pwm.Alternate = GPIO_AF2_TIM3;
+        HAL_GPIO_Init(GPIOB, &gpio_pwm);
+
+        if (!tim3_base_ready) {
+            htim3.Instance               = TIM3;
+            htim3.Init.Prescaler         = 0;
+            htim3.Init.Period            = MOTOR_PWM_PERIOD;
+            htim3.Init.CounterMode       = TIM_COUNTERMODE_UP;
+            htim3.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+            htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+            HAL_TIM_PWM_Init(&htim3);
+            tim3_base_ready = true;
+        }
+        HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, m->pwm_channel);
+        HAL_TIM_PWM_Start(&htim3, m->pwm_channel);
+    }
 
     m->current_duty       = 0.0f;
     m->target_duty        = 0.0f;
@@ -136,6 +193,16 @@ void MotorCh_Disable(MotorCh_t *m)
 
 void MotorCh_SetDir(MotorCh_t *m, MotorDir_t dir)
 {
+    if (m->is_bts7960) {
+        /* BTS7960: yön = hangi PWM kanalı aktif (donanım dir-pini yok). Geçişte İKİ kanalı
+         * da 0'la (shoot-through + eski-yön artığı önleme); _apply_pwm bts_dir'e göre aktif
+         * kanalı sürer. CW→RPWM, CCW→LPWM. */
+        m->bts_dir = dir;
+        __HAL_TIM_SET_COMPARE(&htim4, m->pwm_channel,  0);
+        __HAL_TIM_SET_COMPARE(&htim4, m->pwm_channel2, 0);
+        return;
+    }
+
     /* TB6612 H-SW kontrol mantığı (datasheet sf 4):
      *   CW    → AIN1=H, AIN2=L
      *   CCW   → AIN1=L, AIN2=H
