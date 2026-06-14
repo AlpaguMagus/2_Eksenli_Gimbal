@@ -130,3 +130,48 @@ MCU'ya bağımlıdır → **pasif backstop (polyfuse) yerine geçmez**, onu tama
   [`asama_0_altyapi.md`](asama_0_altyapi.md) §8.1–8.6
 - **Aşama 3** (motor-2 TIM1 PA8/PA9, PB1/PB4/PB5/PB10, ayrı-STBY kararı, TIM1 16-bit kaveatı):
   [`asama_3_mimo_model.md`](asama_3_mimo_model.md) §12.2
+
+## 7. Gimbal mekanik düzeni (eksen rolleri + kaldıraç + motor atama)
+
+Fiziksel iskelet — 2 eksen, asimetrik kol geometrisi:
+
+![Gimbal mekanik düzeni ve ölçüleri](img/gimbal_mekanik_olculer.png)
+
+> 📷 **Şekil D.1** — Gimbal yatay pozisyonda (normal kullanımda aşağı bakar). **Sol:** dış/yük-taşıyan
+> motor (8.5 cm dikey post üstünde, yatay mil). **Orta-sağ:** iç motor (9 cm kol → telefon standı + telefon).
+> Kaynak: `Tez/gimbal ve ölçüler.png`.
+
+| Ölçü | Değer | Ne |
+|---|---|---|
+| Taban | $12.5$ cm | sabit kaide genişliği |
+| Dikey post | $8.5$ cm | kaide → dış motor mili yüksekliği |
+| İç kol | $9$ cm | iç motor ekseni → telefon standı (kaldıraç) |
+
+### 7.1. İki eksenin rolleri
+
+- **Dış eksen (base, yük-taşıyan):** dış motor tüm aşağı-akış kütlesini taşır (iç motor + 9 cm kol +
+  stand + telefon). Gimbal aşağı bakınca bu eksen **yatay mildedir** → 9 cm kaldıraçla **yüksek tork +
+  yüksek eylemsizlik**. Kaba/ana yönelim.
+- **İç eksen (stand):** yalnız telefon standını yönlendirir → **hafif yük, hassasiyet-kritik** (kameranın
+  ince stabilizasyonu).
+
+> **Denge notu (Aşama 5):** Bu eksen yerçekimine **karşı kaldırmaz** — dengeli/gravite-yardımlı tasarlanır
+> (gerçek gimbal kütle-merkezi eksende). Gravite FF rig-spesifik, Coulomb FF transfer-edilebilir
+> (`asama_3 §12.8`). Dengeli payload + gravite-yardımlı iniş kontrolü = Aşama 5.
+
+### 7.2. Motor atama kararı (2026-06-14, **Seçenek A** — asimetrik)
+
+| Eksen | Fiziksel rol | Motor | Sürücü | Redüktör | Firmware |
+|---|---|---|---|---|---|
+| **Dış (base)** | yük-taşıyan, 9 cm kaldıraç | **HP** Pololu 25D | HW-039/BTS7960 (~1 kHz) | **20:1** | `Motor1` / eksen-0 |
+| **İç (stand)** | telefon, hafif, hassas | **LP** Pololu 25D | TB6612 (20 kHz) | **9.7:1** | `Motor2` / eksen-1 |
+
+**Gerekçe (özet):** HP-tork yük-taşıyan dış eksende; hassas-LP kamera ekseninde. Hassasiyet önceliği için
+optimal — iç eksen LP ile **bedava hassas** (TB6612, ~0 ölü-bölge), yalnız dış HP'nin ölü-bölgesi
+(BTS7960 ~$0.25$ duty) telafi ister. HP@20:1 ($\approx 510$ RPM) ile LP@9.7 ($\approx 600$ RPM) çıkış
+hızları yakın; HP@20 torku LP@9.7'nin $\approx 4\times$'i. Güç: dış HP→5 A adaptör (duty-cap %50'de stall
+$\approx 2.8$ A), iç LP→3 A. Tam karar analizi: bu oturum + `ROADMAP.md` (Kontrol Merdiveni).
+
+> ⚠ **Açık (entegrasyon):** HP ekseni **henüz karakterize edilmedi** — firmware şu an HP eksenini LP
+> parametreleriyle ($K=53.89$) sürüyor → cascade kazançları HP için **yanlış.** Önkoşul: HP step-ID
+> ($K_{HP}, \tau_{HP}, V_{dead}$) → dead-band telafisi → eksen-0 cascade re-tune (`asama_3 §12.6`, K1 basamağı).

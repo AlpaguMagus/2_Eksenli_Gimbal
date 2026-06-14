@@ -342,7 +342,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 |---|---|---|---|---|---|
 | **K0** · ✅ validated | Decentralized cascade PID (tek eksen) | poz P → hız PI, per-eksen | — (kanıtlı) | mirror/stab bench PASS (`docs §12.4`) | 2–3.3 |
 | **K1** · ⛔ donanım | 2-eksen decentralized cascade | 2. ekseni entegre | yeni motor (donanım) | 2-eksen cascade gimbal | 3.3 |
-| **K2** · 🔧 firmware + 🧪 kısmi bench | + **Gyro feedforward** (2-DOF) | bozucuyu doğrudan ileri-besle (gy_dps) | bedava sinyal | sim 4.1× reddi-bant; firmware+gate; **FF-faydası belirsiz** (fast-rig bekler) `§12.7` | 3.8 |
+| **K2** · 🔧 firmware + 🧪 lag-kanıtlı | + **Gyro feedforward** (2-DOF) | bozucuyu doğrudan ileri-besle (gy_dps) | bedava sinyal | sim 4.1× reddi-bant; firmware+gate; **lag faydası ÖLÇÜLDÜ** (165→0 ms, 🔬teşhis §12.9); RMS-faydası konfound (fast-rig bekler) `§12.7/§12.9` | 3.8 |
 | **K3** · 📐 sim | + **Gain scheduling** | çalışma-noktası kazanç tablosu | τ-bağımlılığı (43→134ms) | τ(duty)→Ki LUT; saturation tavizi → "default kapalı" `§12.7` | 3.9 |
 | **K4** · 📐 çerçeve | Kuplaj karakterizasyonu (MIMO ID + **RGA**) | 2×2 $G(s)$, RGA, condition no. | 2 motor mekanik bağlı | **KARAR KAPISI**; sentetik doğrulandı, gerçek-veri bekler `§12.7` | 3.5 |
 | **K5** · ⛔ koşullu | **Decoupling** ($D(s)$ / feedforward) | çapraz kuplajı iptal | RGA kuplaj gösterirse | decoupled MIMO cascade | 4 |

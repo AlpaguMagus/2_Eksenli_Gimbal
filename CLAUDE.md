@@ -72,6 +72,30 @@ Prensip global CLAUDE.md'de. Bu projede:
 - **Cascade dış döngü:** analitik karakteristik denklem + kapalı-çevrim kutup analizi, `rlocus` doğrulama. ✅
 - Geçmiş ders: mirror Kp_pos önce deneme-yanılmayla arandı → kullanıcı eleştirdi → $K_v$ ile analitik yeniden türetildi. Tekrarlanmaz.
 
+## Teşhis (diagnosis) Disiplini — performans/davranış şikayetleri
+
+Bir **performans/davranış** şikayeti geldiğinde ("geriden geliyor", "yeterince hızlı değil", "titriyor",
+"ısınıyor", "kayıyor") **spekülasyon yasak** — veri-temelli teşhis yürütülür ve **dokümana "Teşhis"
+bölümü olarak kalıcılaştırılır** (chat'te buharlaşmasın). Tam prosedür + workflow şablonu + bölüm
+şablonu: `.claude/skills/teshis/` (`/teshis`). Çekirdek adımlar:
+
+1. **Belirti → hipotez ekseni:** belirtiyi sayısal tarif et; aday eksenleri AYIR (bunlar fiziksel olarak
+   farklı, karıştırma): **çözünürlük/precision ↔ statik jitter** · **bandwidth/Kv ↔ dinamik lag** ·
+   **tuning** · **mimari** (FF yok / sensör konumu / yasa-demosu) · **mekanik** (sürtünme/ölü-bölge/stall).
+2. **Ölçülen kanıt:** ayırt edici metriği **ham artefakttan** hesapla (xcorr lag, faz, RMS) — terminalden değil.
+3. **Ayırt edici deney:** hipotezleri ayıran **tek** manipülasyon, geri kalan sabit (ör. FF aç/kapa →
+   feedforward'ı çözünürlükten ayırır: çözünürlük değişmeden lag düşerse sorun precision değil).
+4. **Analitik çapraz-doğrulama:** beklenen büyüklüğü türet ($e_{ss}=\omega_{in}/K_v$ …), 3-yol yakınsama = sağlam.
+5. **Konfound kontrolü:** kıyas adil mi (tekrarlanamaz uyarım, farklı genlik)? Yanıltıcı metriği birincil yapma.
+6. **İzlenebilirlik taraması:** teşhis sırasında firmware↔docs↔model↔etiket **değer çelişkisi** çıkarsa
+   ayrı bulgu olarak kaydet + `git log -S` ile gerçek koşan değeri kesinleştir (kör nokta sınıfı).
+7. **Kök-neden sıralaması + olgunluk:** kanıt+düzeltilebilirlik ile sırala, düzeltmeyi ladder/ROADMAP'e bağla.
+8. **Teşhis kaydı:** `docs/asama_<N>` altına `### Teşhis` bölümü + PROJE_DURUMU/ROADMAP senkron.
+
+> **Doğuş vakası (2026-06-14):** stabilizasyon "geriden gelme" → teşhis feedback-only tip-1 takip hatasını
+> izole etti (FF ile lag $165\to 0$ ms, precision değil) **ve** bir $K_{p,pos}$ izlenebilirlik çelişkisini
+> yakaladı (firmware $2.0$, model/docs/etiket $6$). Detay: `docs/asama_3_mimo_model.md §12.9`.
+
 ## MATLAB (proje yapısı)
 
 Genel konvansiyonlar (versiyonlama, manuel transfer, Embedded Coder yok) global CLAUDE.md'de. Proje yapısı:

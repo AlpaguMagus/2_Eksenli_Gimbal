@@ -204,39 +204,47 @@ gerçek-donanımda demoland**.
 Takip RMS'i **deneyden önce** cascade modelinden kestirilebilir mi? Görev referans-takip
 olduğundan kapalı-çevrim $T(s)$ ölçülen referansı süzer ([Franklin2010] §6.1):
 
-$$T(s) = \frac{L(s)}{1 + L(s)}, \qquad L(s) = K_{p,pos}\,T_{ic}(s)\,\frac{1}{s}, \quad K_{p,pos}=6,$$
+$$T(s) = \frac{L(s)}{1 + L(s)}, \qquad L(s) = K_{p,pos}\,T_{ic}(s)\,\frac{1}{s}, \quad K_{p,pos}=2.0,$$
 
 burada $T_{ic}(s)$ iç hız-döngüsünün kapalı-çevrimidir (DC kazancı $1$). İç-döngü plant'ı
 **duty-domeni**dir: kazanç $K_g = K\cdot V_s = 654{,}8$ rad/s/duty (Aşama 2.3 **H1 düzeltmesi** —
 voltaj-domeni $K=53{,}89$ DEĞİL; voltaj-gain kullanılırsa iç-döngü 12× yavaş, $\omega_n$ 33→9.4'e
-düşer). Kapalı-çevrim kutupları $\lbrace -6{,}44,\ -15{,}9 \pm 27{,}5j \rbrace$ — baskın (yavaş)
-kutup $-6{,}44$ (dış-döngü, $\approx 6{,}4$ rad/s), hızlı çift $\approx 31$ rad/s (iç-döngü,
-$\omega_n\approx 33$ ile uyumlu). Ölçülen referans $\theta_{ref}(t)$ bu modele `lsim` ile verilip
-$\theta_{pred}$ üretildi.
+düşer). Gerçek firmware kazancı $K_{p,pos}=2.0$ ile kapalı-çevrim kutupları
+$\lbrace -2{,}06,\ -18{,}06 \pm 26{,}93j \rbrace$ — baskın (yavaş) kutup $-2{,}06$ (dış-döngü,
+$\approx 0{,}33$ Hz), hızlı çift $\approx 32{,}4$ rad/s (iç-döngü, $\omega_n\approx 33$ ile uyumlu).
+Ölçülen referans $\theta_{ref}(t)$ bu modele `lsim` ile verilip $\theta_{pred}$ üretildi.
 
-| Mod | Ölçülen RMS | Model RMS (`lsim`) | Tek-ton $\lvert S\rvert$ alt-sınır |
-|---|---|---|---|
-| MIRROR | $5{,}52^\circ$ | $5{,}06^\circ$ | $2{,}95^\circ$ |
-| STAB | $6{,}66^\circ$ | $6{,}17^\circ$ | $1{,}35^\circ$ |
+| Mod | Ölçülen RMS | Model `lsim` ($K_{p,pos}{=}2.0$ **gerçek**) | Model (eski **hatalı** $K_{p,pos}{=}6$) | baskın ref → $\lvert S\rvert$ tahmin |
+|---|---|---|---|---|
+| MIRROR | $5{,}52^\circ$ | $\mathbf{12{,}13^\circ}$ | $5{,}06^\circ$ | $0{,}067$ Hz, $\pm 60^\circ$ → $8{,}70^\circ$ |
+| STAB | $6{,}66^\circ$ | $\mathbf{12{,}73^\circ}$ | $6{,}17^\circ$ | $0{,}033$ Hz, $\pm 55^\circ$ → $4{,}04^\circ$ |
 
 ![Mirror sim-to-real — ölçülen vs cascade modeli](../matlab/asama_3_mimo_model/results/3_3_bench/mirror_model_validation.png)
 
 > 📊 **Üreten betik:** `matlab/asama_3_mimo_model/analyze_mirror_stab.m`
-> **Şekil 12.5** — Cascade modeli (yeşil) gerçek motor trajektorisini (mavi) neredeyse birebir
-> üretir; her ikisi de referansı (kırmızı) küçük gecikmeyle izler. Alt: model-hatası (yeşil)
-> ölçülen-hatayı (mor) sıkı izler; ölçülende ek **yüksek-frekans jitter** görülür (modellenmemiş
-> encoder kuantizasyonu + gyro/referans gürültüsü).
+> **Şekil 12.5** — Gerçek firmware kazancı $K_{p,pos}=2.0$ ile cascade modeli (yeşil), ölçülen
+> trajektoriden (mavi) belirgin **sapar** ve referansı (kırmızı) daha yavaş izler: model RMS
+> $12{,}13^\circ \gg$ ölçülen $5{,}52^\circ$. Alt: model-hatası (yeşil) ölçülen-hatadan (mor) belirgin
+> büyük → gerçek sistem nominal-$2.0$ modelinin öngördüğünden **iyi** izliyor (yorum + açık inceleme aşağıda).
 
-**Yorum.** Tam-spektrum `lsim` modeli ölçülen RMS'i **yaklaşık %8 içinde**, hafifçe **alttan**
-öngörür (MIRROR 5,06° vs 5,52°; STAB 6,17° vs 6,66°) — el hareketinin geniş-bant spektrumunu
-gördüğü için ölçülene çok yakın. Tek baskın-ton $\lvert S(j\omega)\rvert$ tahmini ($\sim 3^\circ$)
-yalnız en yavaş bileşeni aldığından **iyimser alt-sınırdır** (geniş-bant jitter'ı atar). Model ile
-ölçülen arasındaki küçük artık fark ($\approx 0{,}5^\circ$) modele girmeyen gerçek etkilere
-yorulur: encoder hız kuantizasyonu ($\approx 18{,}7$ rad/s/count, §12.6 açık konu), gyro/referans
-gürültüsü ve sensör gecikmesi — bunlar hatayı **artırır** (azaltmaz). Sonuç: tek-eksen takip hatası
-cascade bant-genişliği + referans spektrumuyla **kestirilebilir** (yaklaşık yüzde 8 doğruluk); kalan
-fark modellenmemiş ölçüm gürültüsüdür ([Ljung1999] §16, model-doğrulama: artık = modellenmemiş
-dinamik + gürültü).
+**Yorum (DÜZELTİLDİ — 2026-06-14 teşhis §12.9.3).** Gerçek firmware kazancı $K_{p,pos}=2.0$ ile `lsim`
+modeli ölçülen RMS'i **aşırı öngörür** ($\sim 2.2\times$: MIRROR $12{,}13^\circ$ vs $5{,}52^\circ$; STAB
+$12{,}73^\circ$ vs $6{,}66^\circ$). Bu bölümün ÖNCEKİ "yaklaşık %8 uyum" iddiası, modelde **yanlışlıkla**
+$K_{p,pos}=6$ kullanılmasının artefaktıydı ($6$ firmware'de hiç koşmadı, `mirror_test.py` `KPP` göndermez);
+gerçek $2.0$'da uyum YOK. **Bulgu:** gerçek sistem nominal-$2.0$ cascade modelinin öngördüğünden **belirgin
+iyi** izliyor → efektif pozisyon-döngü kazancı/bant-genişliği nominal $2.0$'dan **yüksek** ($\approx K_v 6$
+mertebesi; lag-teşhisi err-regresyonu $K_v^{eff}\sim 6$–$9$ ile tutarlı, §12.9). **Açıklanmamış — açık
+inceleme (§12.6):** (i) firmware ölçek/birim (`counts_per_rev`, gear ölçeği) efektif kazancı $2.0$'ın
+üstüne çıkarıyor olabilir, veya (ii) iç-döngü modeli $T_{ic}$ gereğinden yavaş. Bu çözülene kadar tek-eksen
+takip RMS'i **nominal cascade modelinden güvenle kestirilemez** (önceki olumlu sonuç **geri çekildi**).
+Yöntem geçerli ([Ljung1999] §16: artık = modellenmemiş dinamik + gürültü); sonuç **negatif** — model ↔
+gerçek arası $\sim 2\times$ kazanç-mertebeli açık var, ki bu da §12.9'daki $K_{p,pos}$ izlenebilirlik
+bulgusunu pekiştirir.
+
+> ✅ **Yeniden doğrulandı (2026-06-14, §12.9.3 teşhis kapanışı).** `analyze_mirror_stab.m` gerçek kazanç
+> $K_{p,pos}=2.0$ ile yeniden koşuldu (yukarıdaki tablo + Şekil 12.5 güncel). Önceki "%8 uyum" **geçersiz**:
+> yanlış kazanç ($6$) artefaktıymış; gerçek $2.0$'da model $\sim 2.2\times$ aşırı-öngörür. Lag teşhisinin
+> **model-bağımsız** bulgusu (FF ile $165\to 0$ ms, §12.9.1) bu çelişkiden etkilenmez.
 
 #### 12.4.5. K0 değerlendirmesi & sonraki basamak
 
@@ -269,6 +277,14 @@ kanıta-dayalı MIMO kontrolcü, ROADMAP §3.)*
 - ⚠ **Stall kriteri yük-bilinçli yeniden tasarlanmalı** (Aşama 5): count-tabanlı stall yüklü stick-slip'te yanlış-pozitif (§12.8.5); `STALLEN:0` süpervizeli köprü. Gerçek stall = duty-cap'e yakın + uzun hareketsiz.
 - ⬜ Yeni motor (redüktörsüz, siparişte) gelince: gearbox transferi + yön/kimlik testi + eksen-0 entegrasyon → 3.4 MIMO ID
 - ⬜ ACS712 Faz-2 entegrasyonu (duty %100 gevşetme ön koşulu)
+- ✅ $K_{p,pos}$ **izlenebilirlik çelişkisi (§12.9.3, 2026-06-14 teşhis):** firmware $2.0$ koşuyor ama
+  MATLAB modeli + §12.4.4 + artefakt-etiketleri $6$ diyordu → (a) model+script+etiketler $2.0$'a düzeltildi
+  + §12.4.4 yeniden doğrulandı. Kalan firmware kararı: (b) tracking için $6$ veya (c) mod-bağımlı. Teşhis: `.claude/skills/teshis/`
+- 🔬 ⚠ **Efektif pozisyon-kazanç açığı (yeni, 2026-06-14):** §12.4.4 re-validate'i gösterdi ki gerçek sistem
+  nominal $K_{p,pos}=2.0$ cascade modelinin öngördüğünden **iyi** izliyor (model $12.1/12.7^\circ$ vs ölçülen
+  $5.5/6.7^\circ$, $\sim 2.2\times$); efektif $K_v \approx 6$ (lag-teşhisi $K_v^{eff}\sim 6$–$9$ ile tutarlı).
+  **Kök-neden açık:** (i) firmware ölçek/birim (`counts_per_rev`, gear ölçeği) efektif kazancı yükseltiyor mu,
+  yoksa (ii) iç-döngü modeli $T_{ic}$ fazla yavaş mı? → firmware audit + model karşılaştırması gerek (donanımsız başlanabilir).
 
 ### 12.7. İleri-basamak ön-tasarımları (donanımsız — K2/K3/K4/K6/K7)
 
@@ -509,3 +525,95 @@ eğme-hızıyla confound → hıza-normalize jerk birincil metrik.)
 "payload gerçekten inertial sabit kaldı mı" doğrulaması IMU payload'a taşınınca = **Aşama 5**. El-eğmesi
 tekrarlanamaz → yarı-nicel (interleaved + FF-açık daha zor koşulda yine iyi → bulgu sağlamlaşır). Rig
 dengesiz sarkaç (stres). **Bu, asıl hedefe doğru ulaşılabilen en ileri adım; tam nihai test Aşama 5.**
+
+### 12.9. Teşhis: stabilizasyonda "geriden gelme" (takip-gecikmesi) — kök-neden analizi · 🔬 veri-temelli
+
+**Belirti (kullanıcı gözlemi, 2026-06-14).** STAB modunda gimbal *"geriden geliyor ve yeterince hızlı
+değil"* — base hareketini gecikmeyle karşılıyor. Soru: bu bir **hassasiyet/çözünürlük** sorunu mu,
+yoksa **cascade kontrol** sorunu mu? (Teşhis disiplini: `.claude/skills/teshis/`; bu vaka disiplini
+doğurdu.)
+
+**Yöntem.** Spekülasyon değil — üç bağımsız kanıt yolu paralel (`stab-lag-diagnosis` workflow):
+(a) firmware+MATLAB cascade tasarımı, (b) ölçülen STAB artefaktları (ffA/ffB ham CSV, 5 ms ince-resample
+çapraz-korelasyon), (c) kontrol-teorisi analitik lag-bütçesi. **Ayırt edici deney:** gyro-FF aç/kapa,
+geri kalan her şey sabit.
+
+#### 12.9.1. Ayırt edici kanıt — FF aç/kapa lag (model-bağımsız)
+
+Aynı encoder, aynı gyro, aynı firmware; yalnız gyro-FF durumu değişti:
+
+| Metrik | FF KAPALI | FF AÇIK | Kanıt |
+|---|---|---|---|
+| Komut→motor lag (xcorr) | $160$–$165$ ms | $\mathbf{0}$ ms | ffA / ffB |
+| Base bozucu→çıkış lag | $186$–$298$ ms | $0$–$7$ ms | ffA / ffB |
+| Faz ($\sim 0.5$ Hz) | $34$–$54^\circ$ | $\sim 0^\circ$ | xcorr |
+
+Korelasyon imzası teyit eder: FF-kapalı pozitif lag'de **net tepe** ($0.996$ @ $165$ ms); FF-açık
+lag-$0$'dan **monoton düşer** (tepe yok). Doygunluk artefaktı değil — ffB2_gated %94.8 doymamış veriyle
+bile $0$ ms.
+
+**→ Bu precision DEĞİL.** Çözünürlük (encoder kuantizasyonu $\approx 18.7$ rad/s/count) hiç değişmeden,
+yalnız FF ile lag $165 \to 0$ ms indi. Sonsuz çözünürlüklü sensör bile $e_{ss}=\omega_{in}/K_v$ lag'ini
+sıfırlamaz; bunu yalnız FF veya yüksek $K_v$ kapatır. İki eksen fiziksel olarak ayrı: çözünürlük ↔
+**statik jitter**, bandwidth/$K_v$ ↔ **dinamik lag**.
+
+#### 12.9.2. Kök-neden: feedback-only cascade'in yapısal takip hatası
+
+Cascade açık-çevrim tip-1 (tek integratör): $L(s)=K_{p,pos}\,T_{ic}(s)\,\frac{1}{s}$, hız hata sabiti
+$K_v=K_{p,pos}$. Hareketli referansta yapısal (kaçınılmaz) takip hatası:
+
+$$e_{ss}=\frac{\omega_{in}}{K_v}$$
+
+Feedforward bu terimi cebirsel iptal eder (base hızını iç hız-setpoint'ine besler → yavaş dış
+pozisyon-döngüsünü baypas eder). Ölçülen $165 \to 0$ ms bunun doğrudan deneysel ispatıdır. Ladder
+**K2** (§12.7.1) tam bunun için tasarlanmıştı; lag faydası artık **ölçülerek kanıtlı** (RMS faydası
+hâlâ konfound — bkz 12.9.4).
+
+#### 12.9.3. ⚠ Teşhisin yakaladığı izlenebilirlik çelişkisi — $K_{p,pos}$ 2.0 vs 6
+
+Teşhis sırasında **çözülmemiş bir tutarsızlık** ortaya çıktı (proje `CLAUDE.md` "izlenebilirlik kör
+noktaları" sınıfı):
+
+| Kaynak | İddia ettiği $K_{p,pos}$ | Yer |
+|---|---|---|
+| **Firmware (gerçekten koşan)** | **2.0** | `src/main.c:162` — commit `288bb82` (ffA/ffB build); `git log -S` ile firmware'de `6` **hiç olmadı** |
+| MATLAB sim-to-real modeli | $6$ | `matlab/asama_3_mimo_model/analyze_mirror_stab.m:31` |
+| docs §12.4.4 model | $6$ | satır 207 |
+| Artefakt etiketleri | "Kp_pos=6 takip" | `scripts/motor_mirror_test.py:190,215` → ffA/ffB `meta.json` |
+
+`mirror_test.py` çalışma-anında `KPP` göndermiyor → **tüm mirror/STAB testleri firmware default
+$2.0$ ile koştu**, ama model+docs+etiketler $6$ diyor. Sonuçları:
+
+1. **§12.4.4 yeniden doğrulandı (2026-06-14, ✅ yapıldı).** `analyze_mirror_stab.m` gerçek kazanç $2.0$ ile
+   re-run → model RMS $12.1/12.7^\circ$ vs ölçülen $5.5/6.7^\circ$ = $\sim 2.2\times$ **aşırı-öngörür**. Önceki
+   "%8 uyum" yanlış-kazanç ($6$) artefaktıydı, **geri çekildi**. **Yeni bulgu:** gerçek efektif kazanç
+   nominal $2.0$'dan yüksek ($\approx K_v 6$) → açıklanmamış (§12.6 açık inceleme).
+2. $e_{ss}$ **büyüklüğü kazanca bağlı:** $K_v{=}2$ ramp-sınırı $\approx 25^\circ$, $K_v{=}6 \approx 8^\circ$;
+   ölçülen RMS $7^\circ$ (salınımlı hareket ramp-sınırının altında, ikisiyle de tutarlı olabilir) → **lag
+   bulgusu (12.9.1) bundan bağımsız ve sağlam**, $e_{ss}$ büyüklüğü kazanç netleşince kesinleşir.
+3. **İzleme hedefi** $K_v{=}6$ (mirror analizi, Aşama 2.7) firmware'de **uygulanmıyor**; cascade-step
+   değeri $2.0$ koşuyor → tracking için tuning açığı.
+
+**Karar durumu:** (a) ✅ **yapıldı** (model+script+etiketler gerçek $2.0$'a düzeltildi, §12.4.4 yeniden
+doğrulandı → $2.2\times$ aşırı-öngörür). **Kalan:** (b) firmware'i tracking-hedefi $6$'ya çek (flash+test),
+**veya** (c) mod-bağımlı $K_{p,pos}$ (step $=2.0$, tracking $=6$); **+ ZORUNLU:** nominal $2.0$ vs
+efektif $\approx 6$ açığının kök-nedeni (firmware ölçek audit vs model conservatism, §12.6).
+
+#### 12.9.4. Kök-neden sıralaması & düzeltme
+
+| # | Kök-neden | Kanıt | Düzeltme | Olgunluk |
+|---|---|---|---|---|
+| 1 | Feedforward yokluğu (FF default kapalı) | lag $165\to 0$ ms ölçüldü | gyro-FF (K2) etkinleştir | kolay |
+| 2 | Tip-1 takip hatası $e_{ss}=\omega_{in}/K_v$ | analitik + lag | FF cebirsel iptal; $K_v\uparrow$ kısmi | orta |
+| 3 | Dış-döngü bandwidth ($\sim 0.31$ Hz) | `main.c:157`; FB-red $0.89$ Hz | FF reddi-bandı $4.1\times$ açar | orta |
+| 4 | $K_{p,pos}$ izlenebilirlik çelişkisi ($2.0$ vs $6$) | git + model + etiket | reconcile (12.9.3) | kolay (donanımsız) |
+| 5 | Füzyon/örnekleme faz lag (compl. $\alpha{=}0.98$, $\sim 34$ Hz) | analitik (ikincil) | Kalman → Aşama 5 | aşama-5 |
+
+**⚠ RMS konfoundu (dürüst).** Ham RMS FF-açıkta *yüksek* görünür ($8.5$–$9.5^\circ$ vs $6.7$–$7.0^\circ$)
+AMA FF-açık koşuları elle daha sert eğilmiş (`fp_std` $41/35$ vs $25/29$, span $168/179^\circ$ vs
+$121/123^\circ$). Temiz metrik **lag**'dir, RMS değil. FF'in kantitatif RMS faydası tekrarlanabilir
+hızlı-bozucu rig'i veya Aşama 5 (IMU payload) ister (sim: fayda $>1$ Hz'de, reddi-bant $0.89\to 3.63$ Hz).
+
+> 📊 **Üreten analiz:** `stab-lag-diagnosis` workflow (4 paralel inceleme + sentez, ham CSV xcorr) —
+> `artifacts/3/stab_m2/{20260612_ffA_baseline, 20260612_ffB_gyroff, 20260612_ffB2_gated}`. Teşhis
+> yöntemi: `.claude/skills/teshis/`.
