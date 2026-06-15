@@ -256,6 +256,16 @@ static void parse_line(const char *line)
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }
+    /* ── BTSPWM:<psc>:<arr> — BTS7960 PWM freq runtime (freq-sweep teşhisi 2026-06-15) ──
+     * f = 96e6/((psc+1)(arr+1)). Ör BTSPWM:0:4799=20kHz, 0:11999=8kHz, 0:47999=2kHz, 1:47999=1kHz.
+     * Motor kısa durur (CCR=0) → sonra DUTY yeniden gönder. Yalnız eksen-0 (BTS7960). */
+    if (strncmp(line, "BTSPWM:", 7) == 0) {
+        char *p; long psc = strtol(line + 7, &p, 10);
+        long arr = (p && *p == ':') ? strtol(p + 1, NULL, 10) : -1;
+        if (psc >= 0 && arr >= 100) MotorCh_SetBtsPwm((uint16_t)psc, (uint16_t)arr);
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
     if (strcmp(line, "IMUDIAG") == 0) {
         /* I2C/IMU sağlık teşhisi — bus/uyku/AD0 ayrımı (main.c MPU6050_DiagPrint) */
         MPU6050_DiagPrint();

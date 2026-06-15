@@ -46,6 +46,9 @@ static TIM_HandleTypeDef htim3;
 static bool              tim3_base_ready = false;
 static TIM_HandleTypeDef htim4;
 static bool              tim4_base_ready = false;
+/* BTS7960 PWM ARR — RUNTIME ayarlanabilir (BTSPWM komutu, freq-sweep teşhisi 2026-06-15).
+ * _apply_pwm ccr ölçeği bunu kullanır; default compile-time BTS7960_PWM_ARR (20 kHz). */
+static volatile uint32_t g_bts_arr = BTS7960_PWM_ARR;
 
 /* ── Kanal örnekleri — pin haritası 00_donanim_semasi.md §2 ───────────────
  * Motor1 = eksen-0: HP Pololu (PL-4840, stall 5.6A) + HW-039/BTS7960 (Aşama 3.5,
@@ -70,8 +73,8 @@ static inline void _apply_pwm(MotorCh_t *m, float d)
     if (m->is_bts7960) {
         /* BTS7960: yöne göre RPWM VEYA LPWM; diğer kanal 0 (shoot-through koruması —
          * iki PWM aynı anda asla HIGH olmaz). STOP/BRAKE → ikisi de 0 (coast).
-         * ccr BTS7960'ın KENDİ ARR'siyle (BTS7960_PWM_ARR=4799, 20 kHz; TB6612'den ayrı timer/define). */
-        uint32_t ccr = (uint32_t)(d * (float)(BTS7960_PWM_ARR + 1U));
+         * ccr BTS7960'ın KENDİ ARR'siyle (g_bts_arr, runtime; default 4799=20 kHz; TB6612'den ayrı timer). */
+        uint32_t ccr = (uint32_t)(d * (float)(g_bts_arr + 1U));
         if (m->bts_dir == MOTOR_CW) {
             __HAL_TIM_SET_COMPARE(&htim4, m->pwm_channel,  ccr);   /* RPWM */
             __HAL_TIM_SET_COMPARE(&htim4, m->pwm_channel2, 0);     /* LPWM */
@@ -180,6 +183,21 @@ void MotorCh_Init(MotorCh_t *m)
     m->fake_stall_inject  = false;
     m->stall_disabled     = false;   /* algılama AÇIK (emniyet default) */
     m->last_check_tick    = 0;
+}
+
+/* BTS7960 PWM frekansını RUNTIME değiştir (BTSPWM komutu, freq-sweep teşhisi 2026-06-15).
+ * psc/arr → TIM4 prescaler/period; g_bts_arr güncellenir (ccr ölçeği). CCR'ler sıfırlanır
+ * (motor kısa durur; çağıran DUTY'yi yeniden göndermeli). f = 96e6 / ((psc+1)(arr+1)).
+ * Örn 20 kHz: psc=0,arr=4799 · 8 kHz: 0,11999 · 2 kHz: 0,47999 · 1 kHz: 1,47999. */
+void MotorCh_SetBtsPwm(uint16_t psc, uint16_t arr)
+{
+    if (!tim4_base_ready || arr < 100U) return;
+    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_3, 0);
+    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_4, 0);
+    __HAL_TIM_SET_PRESCALER(&htim4, psc);
+    __HAL_TIM_SET_AUTORELOAD(&htim4, arr);
+    htim4.Instance->EGR = TIM_EGR_UG;   /* update event → PSC/ARR hemen yüklensin */
+    g_bts_arr = arr;
 }
 
 void MotorCh_Enable(MotorCh_t *m)

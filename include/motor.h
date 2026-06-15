@@ -102,6 +102,7 @@ extern MotorCh_t Motor2;   /* eksen-1: PB1/CH4, PB4/5/10  */
 void  MotorCh_Init(MotorCh_t *m);             /* GPIO + PWM kanal; ilk çağrı TIM3 base kurar; STBY=LOW */
 void  MotorCh_Enable(MotorCh_t *m);           /* STBY=HIGH (lockout aktifse reddedilir) */
 void  MotorCh_Disable(MotorCh_t *m);          /* STBY=LOW */
+void  MotorCh_SetBtsPwm(uint16_t psc, uint16_t arr); /* BTS7960 PWM freq runtime (BTSPWM komutu, freq-sweep) */
 
 void  MotorCh_SetDir(MotorCh_t *m, MotorDir_t dir);
 void  MotorCh_SetDuty(MotorCh_t *m, float duty01);   /* clamp [0, MOTOR_MAX_DUTY], rampa+dead-band (açık döngü) */

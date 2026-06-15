@@ -1,0 +1,1 @@
+{"test_id":"hp_driver_diag_freq_sweep","timestamp":"2026-06-15T03:00:00","status":"DIAG","finding":"tau_eff~450ms FREQ-INDEPENDENT (1/2/20kHz=515/466/448ms) + slow-decay already correct → HW-039 not software-fixable; next test HP-on-TB6612","artifacts":["summary.md"]}
