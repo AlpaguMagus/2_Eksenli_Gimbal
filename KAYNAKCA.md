@@ -141,6 +141,10 @@
   - Yerel: `datasheets/BTS7960 (HW-039)/BTS7960-module-HW039-handsontec.pdf`
   - ~10-15A sürekli (43A pik), giriş 6-27V, arayüz **RPWM/LPWM + R_EN/L_EN** (TB6612 IN1/IN2/PWM'den FARKLI → firmware sürüş katmanı değişir). HP Pololu (5.6A stall) için yeterli; aşırı-büyük → IS akım-okuma çözünürlüğü kaba; klon güvenilirlik uyarısı.
 
+- **[DFR0601_DS]** DFRobot, *"Dual-Channel DC Motor Driver-12A"* (SKU DFR0601) — **kalıcı sürücü, 2-eksen (HP+LP) için sipariş edildi 2026-06-17**.
+  - Resmi: <https://wiki.dfrobot.com/dfr0601/> · Yerel: `datasheets/DFR0601/specs.md`
+  - **2 kanal × 12A sürekli** (70A pik 100ms), **290W**, VM 6.5–37V, lojik 3–5V (3.3V STM32 doğrudan), PWM 18–60kHz; arayüz **PWM + INA/INB** (kanal başı; TB6612 AIN1/AIN2/PWM'e benzer, STBY yok → migrasyon temiz). OV/UV/termal koruma. **HEM HP HEM LP'yi tek kart sürer** → asimetrik HW-039+TB6612 kalkar; 12A/kanal HP stall'ını (5.6A) rahat karşılar; HW-039 yavaşlığına (τ≈450ms) çözüm adayı (gelince step-ID).
+
 - **[L298N_DS]** STMicroelectronics, *"L298 — Dual Full-Bridge Driver"*.
   - Yerel: `datasheets/L298N/L298N-datasheet.pdf`
   - ~1A gerçekçi sürekli (2A maks, heatsink), ~1.8-2.5V düşüm @1A → verim/ısı sorunu; HP (5.6A) SÜREMEZ; LP sürebilir ama TB6612 üstün. Atıl yedek.
