@@ -15,9 +15,9 @@ Bu proje **5 aşamalı kontrol mühendisliği yol haritası** üzerinden iki eks
 | **0 ✅** | Donanım entegrasyonu, koruma katmanları, USB CDC, IMU füzyonu | gömülü sistem, complementary filter | — | [`asama_0_altyapi.md`](asama_0_altyapi.md) |
 | **1 ✅** | Tek motor sistem tanımlama (K, τ, dead-band) | §2.1–§2.3 (transfer fn, 1. derece) | `matlab/asama_1_model/` | [`asama_1_model.md`](asama_1_model.md) |
 | **2 ✅** | Tek motor PI → cascade → IMU mirror | §2.2–§2.8 (kapalı çevrim, PID, Bode, tip sistem, Tustin) | `matlab/asama_2_kontrol/` | [`asama_2_kontrol.md`](asama_2_kontrol.md) |
-| **3 ⬜** | İki motor MIMO model + decoupling | MIMO, RGA, condition number | `matlab/asama_3_mimo_model/` | (gelecek) |
-| **4 ⬜** | İki motor LQR/LQG + Kalman | optimal kontrol, durum kestirimi | `matlab/asama_4_mimo_kontrol/` | (gelecek) |
-| **5 ⬜** | Gerçek 3D-print gimbal — stabilizasyon | gerçek-dünya entegrasyonu | `matlab/asama_5_gimbal/` | (gelecek) |
+| **3 🟡** | İki motor MIMO model + decoupling | MIMO, RGA, condition number | `matlab/asama_3_mimo_model/` | (gelecek) |
+| **4 ⬜** | İki motor decoupling + LQR/LQI (optimal MIMO) | optimal kontrol (MIMO) | `matlab/asama_4_mimo_kontrol/` | (gelecek) |
+| **5 ⬜** | Gerçek 3D-print gimbal — stabilizasyon + LQG/Kalman durum kestirimi | gerçek-dünya entegrasyonu, durum kestirimi | `matlab/asama_5_gimbal/` | (gelecek) |
 
 **Felsefe:** Her teknik karar **kaynaklı** ([`../KAYNAKCA.md`](../KAYNAKCA.md) etiketli). Tasarım MATLAB'da yapılır, doğrulama gerçek donanımda; Embedded Coder kullanılmaz — MATLAB çıktıları (kazançlar, eşikler) firmware'e **manuel** transfer edilir, kaynak yorumu eşliğinde.
 

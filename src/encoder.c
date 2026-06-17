@@ -134,8 +134,9 @@ void Encoder2_Init(void)
     gpio.Pin = GPIO_PIN_8 | GPIO_PIN_9;
     HAL_GPIO_Init(GPIOA, &gpio);
 
-    /* NOT: TIM1_CH1N/CH2N (PB13/PB14) GPIO olarak motor-1 AIN2/STBY'de kullanılıyor;
-     * encoder (input) modunda komplementer ÇIKIŞ sürülmez → çakışma yok. */
+    /* NOT: TIM1_CH2N (PB14) GPIO çıkış olarak motor-1 BTS7960 R_EN+L_EN enable;
+     * TIM1_CH1N (PB13) kullanılmıyor. Encoder (input) modu komplementer çıkışı
+     * sürmez → PB14'te çakışma yok. */
 
     htim1.Instance               = TIM1;
     htim1.Init.Prescaler         = 0;

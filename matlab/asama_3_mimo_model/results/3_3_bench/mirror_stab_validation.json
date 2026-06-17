@@ -2,21 +2,21 @@
   "mirror": {
     "mode": "mirror",
     "rms_measured_deg": 5.52,
-    "rms_model_lsim_deg": 12.13,
+    "rms_model_lsim_deg": 5.06,
     "rms_summary_deg": 5.53,
     "dominant_ref_freq_hz": 0.067,
     "ref_amplitude_deg": 60,
-    "rms_freqdomain_S_deg": 8.7,
-    "Kp_pos": 2
+    "rms_freqdomain_S_deg": 2.95,
+    "Kp_pos": 6
   },
   "stab": {
     "mode": "stab",
     "rms_measured_deg": 6.66,
-    "rms_model_lsim_deg": 12.73,
+    "rms_model_lsim_deg": 6.17,
     "rms_summary_deg": 6.72,
     "dominant_ref_freq_hz": 0.033,
     "ref_amplitude_deg": 54.8,
-    "rms_freqdomain_S_deg": 4.04,
-    "Kp_pos": 2
+    "rms_freqdomain_S_deg": 1.35,
+    "Kp_pos": 6
   }
 }

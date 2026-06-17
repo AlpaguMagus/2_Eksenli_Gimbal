@@ -1,0 +1,22 @@
+{
+  "test_id": "testA_count_stall_yavas",
+  "title": "Aşama 2.7/2.8 IMU mirror takip (Test 2.T6)",
+  "timestamp": "2026-06-07T16:33:43",
+  "commit": "0376605",
+  "status": "FAIL",
+  "result": {
+    "valid": true,
+    "n": 1208,
+    "rms_error_deg": 5.8,
+    "rms_all_deg": 4.64,
+    "max_error_deg": 15.38,
+    "ref_span_deg": 101.3,
+    "stall": false,
+    "status": "FAIL"
+  },
+  "note": "serbest mil; gimbalda yük ile yeniden ayar",
+  "artifacts": [
+    "data.csv",
+    "mirror_plot.png"
+  ]
+}

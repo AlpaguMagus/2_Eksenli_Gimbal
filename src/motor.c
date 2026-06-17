@@ -51,9 +51,11 @@ static bool              tim4_base_ready = false;
 static volatile uint32_t g_bts_arr = BTS7960_PWM_ARR;
 
 /* ── Kanal örnekleri — pin haritası 00_donanim_semasi.md §2 ───────────────
- * Motor1 = eksen-0: HP Pololu (PL-4840, stall 5.6A) + HW-039/BTS7960 (Aşama 3.5,
- *          2026-06-14; eski TB6612-1+LP yerine — bozuk LP değişti, HP TB6612'yi aşar).
- *          RPWM=PB8(TIM4_CH3), LPWM=PB9(TIM4_CH4), R_EN+L_EN köprü=PB14. Enkoder DEĞİŞMEZ (PA15/PB3).
+ * Motor1 = eksen-0: HP Pololu (PL-4840) + HW-039/BTS7960. ⚠ 2026-06-17 INTERIM (docs §12.10):
+ *          HP-on-TB6612 denendi (HW-039 τ_eff~450ms yavaş, freq-bağımsız) ama kablo arızaları çıktı
+ *          (forward-ölü=AIN1/PB12 yolu + LP-encoder PWM-gürültü) → HP HW-039'da KALDI; kalıcı çözüm
+ *          DFRobot sürücü siparişte. RPWM=PB8(TIM4_CH3), LPWM=PB9(TIM4_CH4), R_EN+L_EN köprü=PB14.
+ *          Enkoder DEĞİŞMEZ (PA15/PB3). [TB6612 deney config'i (is_bts7960=false,PB0/12/13/14) git+docs §12.10'da.]
  * Motor2 = eksen-1: SAĞLIKLI LP Pololu + TB6612 (K=53.89/τ=60.5ms, DOĞRULANMIŞ — dokunma). */
 MotorCh_t Motor1 = {
     .is_bts7960 = true,
@@ -191,7 +193,11 @@ void MotorCh_Init(MotorCh_t *m)
  * Örn 20 kHz: psc=0,arr=4799 · 8 kHz: 0,11999 · 2 kHz: 0,47999 · 1 kHz: 1,47999. */
 void MotorCh_SetBtsPwm(uint16_t psc, uint16_t arr)
 {
-    if (!tim4_base_ready || arr < 100U) return;
+    /* arr taban sınırı: psc=0'da f=96e6/(arr+1); [BTS7960_module_DS] (handsontec) sf1
+     * "up to 25 kHz" → (arr+1) ≥ 96e6/25000 = 3840 → arr ≥ 3839 (frekans ≤ 25 kHz kalır).
+     * Eski 100 tabanı psc=0'da ~950 kHz veriyordu (limitin ~38 katı). Normal kullanım
+     * arr≥4799 = 20 kHz, bu tabandan etkilenmez. */
+    if (!tim4_base_ready || arr < 3839U) return;
     __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_3, 0);
     __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_4, 0);
     __HAL_TIM_SET_PRESCALER(&htim4, psc);

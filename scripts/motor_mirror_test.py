@@ -187,8 +187,9 @@ def write_artifacts(out, test_id, args, res, raw, plot):
             f.write("- **Mod:** STAB — motor base eğimine TERS döner (gerçek gimbalda payload sabit). "
                     "⚠ IMU base'de + mil boş → bu, stabilizasyon YASASININ demosu; tam eylemsiz "
                     "doğrulama IMU payload'a taşınınca (Aşama 5).\n")
-        f.write(f"- **Mimari:** cascade + canlı referans (clamp ±60°, slew 90°/s, firmware Kp_pos=2.0 "
-                "default — KPP gönderilmez; izleme-hedefi Kv=6 OTOMATİK uygulanmaz, bkz docs §12.9.3 teşhis)\n")
+        f.write(f"- **Mimari:** cascade + canlı referans (clamp ±60°, slew 90°/s; mirror/STAB takip "
+                "kazancı Kp_pos=6 — MODE girişinde firmware OTOMATİK uygular (cmd_parser.c:66, Kv=6 "
+                "analitik hedefi; KPP gönderilmez). POS step default 2.0 ayrı, bkz docs §12.9.3 teşhis)\n")
         f.write(f"- **Komut:** `python3 scripts/motor_mirror_test.py --motor {args.motor} --dur {args.dur:.0f}`\n\n")
         f.write("## Sonuç (sayısal)\n\n| Metrik | Değer |\n|---|---|\n")
         f.write(f"| Eğme genliği (FP aralığı) | {res['fp_range']:.1f}° ({res['fp_min']:.1f}…{res['fp_max']:.1f}) |\n")
@@ -213,7 +214,7 @@ def write_artifacts(out, test_id, args, res, raw, plot):
     meta={"test_id":test_id,"title":f"Aşama 3.3 eksen-{args.motor} IMU {args.mode}",
           "timestamp":dt.datetime.now().isoformat(timespec="seconds"),"commit":commit(),
           "status":res['status'],"motor":args.motor,"mode":args.mode,"metrics":res,
-          "note":"serbest mil; instance-based 2-eksen firmware (g_axis); firmware Kp_pos=2.0 default (KPP gönderilmez; Kv=6 hedefi uygulanmaz — docs §12.9.3)",
+          "note":"serbest mil; instance-based 2-eksen firmware (g_axis); mirror/STAB takip kazancı Kp_pos=6 — MODE girişinde firmware otomatik uygular (cmd_parser.c:66, Kv=6 analitik; KPP gönderilmez). POS step default 2.0 ayrı — docs §12.9.3",
           "artifacts":[raw.name]+([plot.name] if plot else [])}
     json.dump(meta,(out/"meta.json").open("w"),indent=2,ensure_ascii=False)
 

@@ -12,6 +12,8 @@
 
 ## 1. Sistem topolojisi (ASCII bağlantı şeması)
 
+> ⚠ **INTERIM (2026-06-17, bkz. §12.10 + §7.2):** Motor-1/HP ekseninin GÜNCEL sürücüsü **HW-039/BTS7960** (RPWM=**PB8**/LPWM=**PB9** sign-magnitude; R_EN+L_EN enable=**PB14**). Aşağıdaki §1 ASCII şeması ve güç-kutusundaki **"TB6612-1"** gösterimi HP-on-TB6612 deneyinden (askıya alındı) kalmadır, **güncel değildir** — Motor-1 pin gerçeği **§2 master tablosunda düzeltildi** (firmware struct + §7.2 ile tutarlı). DFRobot sürücü gelince §1 yeniden çizilecek.
+
 ```
 ┌─ GÜÇ DAĞITIMI ───────────────────────────────────────────────┐
 │ 12V/3A adaptör (+) → TB6612-1.VM  +  TB6612-2.VM  (motor gücü)│
@@ -50,9 +52,9 @@ PB7 ◀─SDA─▶ MPU6050 SDA                       PA2 ◀─ ACS712-2 OUT   
 
 | İşlev | Pin | Çevre | Yön | Bağlantı |
 |---|---|---|---|---|
-| Motor-1 PWM | PB0 | TIM3_CH3 | →çıkış | TB6612-1 PWMA |
-| Motor-1 AIN1 / AIN2 | PB12 / PB13 | GPIO | →çıkış | TB6612-1 AIN1/AIN2 |
-| Motor-1 STBY | PB14 | GPIO | →çıkış | TB6612-1 STBY |
+| Motor-1 RPWM (CW) | PB8 | TIM4_CH3 | →çıkış | HW-039/BTS7960 RPWM |
+| Motor-1 LPWM (CCW) | PB9 | TIM4_CH4 | →çıkış | HW-039/BTS7960 LPWM |
+| Motor-1 EN (R_EN+L_EN) | PB14 | GPIO | →çıkış | HW-039 enable köprü |
 | Encoder-1 A / B | PA15 / PB3 | TIM2_CH1/2 (32-bit) | ←giriş | M1 🟡 / ⚪ |
 | Motor-2 PWM | PB1 | TIM3_CH4 | →çıkış | TB6612-2 PWMA |
 | Motor-2 AIN1 / AIN2 | PB4 / PB5 | GPIO | →çıkış | TB6612-2 AIN1/AIN2 |
@@ -74,8 +76,8 @@ Renk kodu `[Pololu_25D]` Page 2. **Pololu 25D tek gövde** (motor+encoder, 6 tel
 
 | Renk | İşlev | Motor-1 | Motor-2 |
 |---|---|---|---|
-| 🔴 Kırmızı | Motor + | TB6612-1 AO1 | TB6612-2 AO1 |
-| ⚫ Siyah | Motor − | TB6612-1 AO2 | TB6612-2 AO2 |
+| 🔴 Kırmızı | Motor + | HW-039 M+ | TB6612-2 AO1 |
+| ⚫ Siyah | Motor − | HW-039 M− | TB6612-2 AO2 |
 | 🔵 Mavi | Encoder Vcc | **5V** | **5V** (PA8/PA9 FT, 5V-tol.) |
 | 🟢 Yeşil | Encoder GND | GND | GND |
 | 🟡 Sarı | Encoder A | PA15 | PA8 |
@@ -88,6 +90,8 @@ ucu swap'la veya firmware'de yön çevir. **(3)** **Encoder Vcc = 5V**, **sürü
 **MPU VCC = 3.3V** (üçünü karıştırma — en sık hata burada).
 
 ## 4. Güç rayları & bütçe (datasheet-doğrulanmış)
+
+> ⚠ **INTERIM güç notu (2026-06-17):** Aşağıdaki tablo eski "2× TB6612 / tek 12V-3A adaptör" tasarımınadır. Asimetrik gerçek (Motor-1/HP → HW-039, Motor-2/LP → TB6612) ve eksen-başı ayrı besleme **§7.2**'de; şu an teşhis için tek bench supply (12V) kullanılıyor (**§12.10**). DFRobot sürücü gelince güç bütçesi yeniden hesaplanacak.
 
 | Ray | Kaynak | Tüketiciler | Limit |
 |---|---|---|---|
@@ -171,8 +175,11 @@ Fiziksel iskelet — 2 eksen, asimetrik kol geometrisi:
 
 | Eksen | Fiziksel rol | Motor | Sürücü | Redüktör | Firmware |
 |---|---|---|---|---|---|
-| **Dış (base)** | yük-taşıyan, 9 cm kaldıraç | **HP** Pololu 25D | HW-039/BTS7960 (20 kHz) | **20:1** | `Motor1` / eksen-0 |
+| **Dış (base)** | yük-taşıyan, 9 cm kaldıraç | **HP** Pololu 25D | HW-039/BTS7960 (20 kHz) | **20:1** ⚠ | `Motor1` / eksen-0 |
 | **İç (stand)** | telefon, hafif, hassas | **LP** Pololu 25D | TB6612 (20 kHz) | **9.7:1** | `Motor2` / eksen-1 |
+
+> ⚠ **20:1 (HP redüktör):** firmware şu an eksen-0'a da **LP 9.7/466** uyguluyor (geçici) — HP cascade re-tune
+> bekliyor, aşağıdaki ⚠ **Açık (entegrasyon)** notuna bak.
 
 **Gerekçe (özet):** HP-tork yük-taşıyan dış eksende; hassas-LP kamera ekseninde. Hassasiyet önceliği için
 optimal — iç eksen LP ile **bedava hassas** (TB6612, ~0 ölü-bölge), yalnız dış HP'nin ölü-bölgesi
@@ -180,6 +187,7 @@ optimal — iç eksen LP ile **bedava hassas** (TB6612, ~0 ölü-bölge), yalnı
 hızları yakın; HP@20 torku LP@9.7'nin $\approx 4\times$'i. Güç: dış HP→5 A adaptör (duty-cap %50'de stall
 $\approx 2.8$ A), iç LP→3 A. Tam karar analizi: bu oturum + `ROADMAP.md` (Kontrol Merdiveni).
 
-> ⚠ **Açık (entegrasyon):** HP ekseni **henüz karakterize edilmedi** — firmware şu an HP eksenini LP
-> parametreleriyle ($K=53.89$) sürüyor → cascade kazançları HP için **yanlış.** Önkoşul: HP step-ID
+> ⚠ **Açık (entegrasyon):** HP step-ID **yapıldı** ($K_{HP}=83.35$ rad/s/V, $\tau_{eff}\approx 400$-$450$ ms —
+> HW-039 sürücü yavaş, `docs §12.10`); firmware **HÂLÂ** LP paramıyla ($K=53.89$) sürüyor → HP cascade
+> re-tune DFR0601 sonrasına ertelendi. Önkoşul: HP step-ID
 > ($K_{HP}, \tau_{HP}, V_{dead}$) → dead-band telafisi → eksen-0 cascade re-tune (`asama_3 §12.6`, K1 basamağı).

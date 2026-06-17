@@ -516,6 +516,8 @@ Her 30 saniyede bir `screenshots/` klasörüne PNG kaydedilir (maksimum 50 dosya
 SPI-flash footprint dışı); AIN1/AIN2/STBY → **PB12/PB13/PB14** (GPIO; TIM1_BKIN/CH1N/CH2N
 alternatifleri kullanılmıyor); USB → PA11/PA12; SWD → PA13/PA14; LED → PC13.
 
+> ⚠ **Tarihsel not:** Bu Motor-1 pinleri (PB0 PWM / PB12 / PB13 / PB14) ve TB6612FNG sürücü **Aşama 0 tek-motor dönemine aittir**; Motor-1 Aşama 3'te HW-039/BTS7960'a **PB8/PB9/PB14** olarak taşındı — güncel pin/sürücü: [`00_donanim_semasi.md`](00_donanim_semasi.md) §2 + [`asama_3_mimo_model.md`](asama_3_mimo_model.md) §12.3/§12.10.
+
 **Kullanılmayan pinler (gerekçe):**
 - **PA0** — KEY butonuna bağlı (BlackPill schematic).
 - **PA4, PA5, PA6, PA7** — SPI flash footprint pinleri. Eğer flash chip lehimliyse çakışma riski var; bu pinlerden kaçınıldı.
@@ -667,6 +669,8 @@ Aşama 2A donanım kurulumunun kalıcı referansı. Pin-pin bağlantı listesi v
 | AD0 | siyah | **GND** | I2C adresi 0x68 |
 
 **TB6612FNG ↔ BlackPill (PWM + GPIO):**
+
+> ⚠ **Tarihsel not:** Bu tablo Aşama 0 tek-motor dönemine aittir; Motor-1 Aşama 3'te HW-039/BTS7960 PB8/PB9/PB14'e taşındı — güncel: [`00_donanim_semasi.md`](00_donanim_semasi.md) §2 + [`asama_3_mimo_model.md`](asama_3_mimo_model.md) §12.3/§12.10.
 
 | TB6612 pin | Kablo | BlackPill pin | Açıklama |
 |---|---|---|---|

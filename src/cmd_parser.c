@@ -262,7 +262,9 @@ static void parse_line(const char *line)
     if (strncmp(line, "BTSPWM:", 7) == 0) {
         char *p; long psc = strtol(line + 7, &p, 10);
         long arr = (p && *p == ':') ? strtol(p + 1, NULL, 10) : -1;
-        if (psc >= 0 && arr >= 100) MotorCh_SetBtsPwm((uint16_t)psc, (uint16_t)arr);
+        /* Üst sınır check'i cast'ten ÖNCE: long >65535 sessizce wrap eder
+         * (70000 → 4464). psc/arr uint16_t alanlarına sığmalı. */
+        if (psc >= 0 && psc <= 65535 && arr >= 100 && arr <= 65535) MotorCh_SetBtsPwm((uint16_t)psc, (uint16_t)arr);
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }

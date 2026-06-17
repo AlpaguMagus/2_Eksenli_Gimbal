@@ -22,6 +22,8 @@
 
 **En son (2026-06-12):** 🟡 **Aşama 3 (MIMO) açık.** 3.1 pin/kablolama ✅ · 3.2 encoder-2 + motor-2 sürücü ✅ · 3.3 instance-based 2-eksen mimari ✅. **K0 (decentralized cascade) kapandı** — tek sağlam motor (motor-2 ekseni) üzerinde cascade pozisyon **6/6 PASS**, IMU mirror **RMS 5.53°**, stabilizasyon (motor base eğimine TERS döner, corr **−0.95**, RMS 6.72°) gerçek-donanımda PASS + **sim-to-real** cascade modeliyle doğrulandı (model ölçüleni kuşatır). ⚠ Motor-1 ünitesi CW mekanik kusurlu → redüktörsüz yedek siparişte; gelene kadar tek-motor ilerleme. Tüm plan artık **[Kontrol Yöntemleri Merdiveni](ROADMAP.md)** (K0 decentralized → K8 ileri; her basamak kapatılabilir). Sırada K1 (iki-eksen, motor gelince) + 3.4 MIMO ID. Detay → [`docs/asama_3_mimo_model.md`](docs/asama_3_mimo_model.md) §12.4. Güncel durum → [`PROJE_DURUMU.md`](PROJE_DURUMU.md).
 
+**En son (2026-06-17):** 🟡 **Aşama 3 ara durum.** Motor-1/HP ekseni **HW-039/BTS7960** sürücüsüyle entegre edildi — ancak sürücü-domeni **yavaş** (τ_eff ~400-450 ms, freq-bağımsız; kazanç sağlam `K_HP=83.35 rad/s/V`). **HP-on-TB6612** deneyi askıda. İki-kanallı **DFRobot DFR0601** (hem HP hem LP için) siparişte. Detay → [`docs/asama_3_mimo_model.md`](docs/asama_3_mimo_model.md) §12.10.
+
 ---
 
 ## 🗺 Dokümantasyon Haritası
@@ -47,6 +49,8 @@ Her belge tek bir soruyu, tek bir okuyucu kitlesine cevaplar:
 ---
 
 ## ⚙ Sistem Mimarisi
+
+> ⚠ **INTERIM (2026-06-17):** Aşağıdaki şema **tek-motor Aşama-0 dönemindendir** ve güncel değildir. Güncel: **Motor1/HP = HW-039/BTS7960** (RPWM=PB8 / LPWM=PB9 / EN=PB14, TIM4); **Motor2/LP = TB6612** (PB1/PB4/PB5/PB10, TIM3). Güncel pin haritası → [`docs/00_donanim_semasi.md`](docs/00_donanim_semasi.md) §2. İki-kanallı **DFRobot DFR0601** siparişte.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -137,7 +141,7 @@ Komut seti detayı → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md).
 │   └── asama_2_kontrol.md    ← Hız PI, sim-to-real, disturbance, pozisyon cascade
 ├── src/                      ← Firmware kaynak
 │   ├── main.c                ← Ana döngü: init, sensör, filter, kontrol, USB
-│   ├── motor.c               ← TB6612 sürücü API
+│   ├── motor.c               ← Motor sürücü API (Motor1 HW-039/BTS7960 + Motor2 TB6612, asimetrik)
 │   ├── encoder.c             ← TIM2 quadrature encoder
 │   ├── speed_pi.c            ← Hız iç döngü PI (Tustin + anti-windup)
 │   ├── position_p.c          ← Pozisyon dış döngü P (cascade)
@@ -170,6 +174,6 @@ Akademik kaynaklar ve teknik karar dayanakları **etiketli liste** olarak [`KAYN
 
 **Donanım belgeleri:**
 - WeAct BlackPill — [GitHub repo](https://github.com/WeActStudio/WeActStudio.MiniSTM32F4x1) · [STM32-Base](https://stm32-base.org/boards/STM32F411CEU6-WeAct-Black-Pill-V2.0.html)
-- Yerel datasheet'ler: [`datasheets/`](datasheets/) — STM32F411, MPU6050, TB6612FNG, Pololu 25D motor
+- Yerel datasheet'ler: [`datasheets/`](datasheets/) — STM32F411, MPU6050, TB6612FNG, HW-039/BTS7960, DFRobot DFR0601, Pololu 25D motor
 
 **Donanım kuralı:** Pin atama, peripheral konfig, sürücü kurulumu gibi değişikliklerden **önce** ilgili datasheet/şematik görsel olarak incelenir (detay → [`docs/asama_0_altyapi.md`](docs/asama_0_altyapi.md)).

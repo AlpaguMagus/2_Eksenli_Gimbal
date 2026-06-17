@@ -5,8 +5,8 @@ function analyze_mirror_stab()
 % ÖNCEDEN tahmin edilebilir mi? (deneme-yanılma değil — model sim-to-real doğrulaması).
 %
 % YÖNTEM ([Franklin2010] §6.1 tracking, §4.2 sensitivity):
-%   1. Cascade kapalı-döngü:  T_out(s) = L/(1+L),  L = Kp_pos·T_inner(s)·(1/s),  Kp_pos=2.0
-%      (GERÇEK firmware değeri — main.c:162 POS_P_CFG; önceden HATALI 6 idi, §12.9.3 teşhis düzeltti)
+%   1. Cascade kapalı-döngü:  T_out(s) = L/(1+L),  L = Kp_pos·T_inner(s)·(1/s),  Kp_pos=6
+%      (mirror/STAB runtime kazancı — cmd_parser.c:66 MODE:MIRROR/STAB otomatik atar; POS step=2.0 AYRI mod)
 %   2. Ölçülen referans tr(t)'yi uniform grid'e yeniden örnekle → lsim(T_out, tr) = θ_pred
 %   3. Model takip hatası RMS(θ_pred − tr) vs ölçülen RMS(θ_meas − tr) karşılaştır
 %   4. Ölçülen fp(t) FFT → baskın el-hareketi frekansı → |S(jω)|·A frekans-domeni tahmini
@@ -29,10 +29,11 @@ function analyze_mirror_stab()
     % ── cascade kapalı-döngü modeli (Aşama 2 parametreleri) ──
     % İç-döngü plant'ı DUTY-domeni: u(duty)→ω, DC kazancı Kg=K·Vs=654.8 (Aşama 2.3 H1
     % düzeltmesi — K=53.89 voltaj-domeni DEĞİL; K kullanılırsa iç-döngü 12× yavaş ωn 33→9.4).
-    % Kp_pos: GERÇEK firmware değeri 2.0 (main.c:162). 2026-06-14 teşhis (docs §12.9.3): bu script
-    % + docs §12.4.4 + artefakt-etiketleri HATALI 6 kullanıyordu; firmware mirror/STAB'ı default 2.0
-    % ile koştu (mirror_test.py KPP göndermez). Sim-to-real uyumu gerçek kazançla yeniden doğrulanıyor.
-    K=53.89; Vs=12.15; Kg=K*Vs; tau=0.0605; Kp_i=0.002; Ki_i=0.1; Kp_pos=2.0;
+    % Kp_pos = 6: mirror/STAB modunun GERÇEK runtime kazancı — cmd_parser.c:66 MODE:MIRROR/STAB
+    % girişte PositionP_SetGain(6.0) çağırır (KPP komutu GEREKMEZ). POS step modu ayrı: main.c:162
+    % default 2.0. 2026-06-14'te (commit 121ffd6) yanlışlıkla 2.0'a çevrilmişti — o teşhis git log -S'i
+    % yalnız main.c'de koşturup cmd_parser.c:66'yı kaçırdı; 2026-06-17 denetimi düzeltti (docs §12.9.3).
+    K=53.89; Vs=12.15; Kg=K*Vs; tau=0.0605; Kp_i=0.002; Ki_i=0.1; Kp_pos=6;
     G = tf(Kg,[tau 1]); C = pid(Kp_i,Ki_i);
     T_inner = feedback(G*C,1);
     P_outer = T_inner * tf(1,[1 0]);

@@ -374,6 +374,17 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
 ## 🟡 Aşama 3 — İki Motor MIMO Modelleme  *(AKTİF — 2026-06-07 açıldı)*
 
+> ⚠ **DURUM (2026-06-17) — interim donanım + DFR0601 kararı:** Yük-taşıyan HP ekseni sürücüsü
+> **HW-039/BTS7960 çok yavaş** çıktı (τ_eff≈400–450 ms sürücü-domeni, freq-bağımsız; `docs §12.10`).
+> Alternatif HP-on-TB6612 deneyi kablo arızalarıyla (forward-ölü AIN1 + LP-encoder PWM-gürültü) askıya
+> alındı. **Kalıcı çözüm: DFRobot DFR0601** (2-kanal, 2×15A, 290W) sipariş edildi → gelince **HEM HP
+> HEM LP** tek bu sürücüde (kanal-1/kanal-2), asimetrik HW-039+TB6612 kurulumu kalkar. **Interim
+> (DFR0601'e kadar):** HP→HW-039 (yavaş ama çalışır), LP→TB6612 (doğrulanmış). Bu sürede kontrol teorisi
+> **HW-039 limitinde** ilerletilir: donanımsız sim/tasarım (K2–K4 çerçeve, K6/K7 sim) + LP ekseninde
+> validasyon; **2-eksen bench validasyonu (K1) ve HP cascade re-tune DFR0601 sonrasına ertelenir**
+> (HW-039 ~0.4 Hz bandı hızlı takip için yetersiz). ⚠ Aşağıdaki "2× TB6612 / tek 3A adaptör" güç planı
+> (3.x) bu kararla **kısmen bayat** (asimetrik + DFR0601 2×15A güncel değil) — kapsamlı denetimde düzeltilecek.
+
 ### Vizyon
 
 İkinci motor + ikinci encoder eklenir. **Çapraz coupling** karakterize edilir:

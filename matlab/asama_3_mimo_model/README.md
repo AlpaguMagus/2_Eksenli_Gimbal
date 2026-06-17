@@ -43,6 +43,12 @@
 
 > **Sonuç:** FF-yok ort. $\theta_{std}$ 2.21° (limit-cycle), gravite-only 2.60° (daha kötü — Coulomb baskın), grav+Coulomb **sign 0.00°** / **ölü-bant 0.34°** (bastırır). **Bench (motor-2, 20°): off 1.30°→ db 0.00°** — sim doğrulandı. Firmware: `LFF/LFFG/LFFC/LFFDB` (default kapalı). Derin anlatı + bench: [`../../docs/asama_3_mimo_model.md`](../../docs/asama_3_mimo_model.md) §12.8. Yüklü-ID: `scripts/loaded_id_test.py`; bench: `scripts/loaded_ff_test.py`.
 
+### HP plant ID (eksen-0, HW-039/BTS7960 — teşhis)
+
+| Script | Amaç | Çıktı | Durum |
+|---|---|---|---|
+| `hp_identify.m` | HP plant kimliği step verisinden: ω=dEC/dt → `tfest` (1./2. mertebe + gecikme) ile $\tau_{HP}$ doğrulaması (Python pozisyon-fit ~420 ms artefakt mı?) | `results/3_hp_id/` (hp_step_id.png + hp_id.json) | 🟡 HP plant tfest — başarısız (türev gürültüsü); pozisyon-fit yöntemi docs §12.10.1 |
+
 ### MIMO ID (3.4–3.5, planlı — iki sağlam eksen gelince)
 
 | Script | Amaç | Durum |
@@ -64,10 +70,12 @@ matlab/asama_3_mimo_model/
 ├── design_gain_schedule.m           (K3)
 ├── analyze_rga.m                    (K4)
 ├── design_loaded_feedforward.m      (yüklü sürtünme/gravite FF — §12.8)
+├── hp_identify.m                    (HP plant ID — 🟡 tfest başarısız, docs §12.10.1)
 └── results/
     ├── 3_3_eksen_mimari/   ← eksen_mimari.png
     ├── 3_3_bench/          ← cascade/mirror/stab + model_validation PNG + JSON
     ├── 3_8_gyro_ff/ · 3_9_gain_sched/ · 3_5_rga/
+    ├── 3_hp_id/           ← hp_step_id.png + hp_id.json (🟡 tfest başarısız)
     └── loaded_ff/         ← compare_50deg + thetastd_map PNG
 ```
 
