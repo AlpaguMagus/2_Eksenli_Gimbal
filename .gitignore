@@ -21,7 +21,5 @@ Yusufun anlatacakları/
 __pycache__/
 *.pyc
 
-# Tez build çıktıları (Tez/make_ref.py + Tez/build_thesis.sh ile üretilir)
-Tez/ref_fixed.docx
-Tez/tez_revize.docx
-Tez/*.pdf
+# yerel-only çalışma klasörü (dal dışı; repoya dahil edilmez)
+Tez/
