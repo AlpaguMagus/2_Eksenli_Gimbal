@@ -773,10 +773,16 @@ Temiz testte encoder **noise spike'ları** (62314, 126893 cnt/s = fiziksel imkâ
 
 #### 12.11.6. Açık konular
 
-- **Dropout (AÇIK — asıl engel):** 104 kapasitörler encoder **noise spike'larını** çözdü ama **aralıklı
-  dropout SÜRÜYOR** (step-2: 3 koşudan 2'si base'de stall) → motor sürüşü güvenilmez. Aday: 12V besleme
-  sag/UVLO (5 A adaptör, akım-limiti yok, bulk yok) → **33 µF (mevcut) ya da 470 µF+ bulk B+/B−'a**; veya
-  kontrol-hattı (RPWM/EN) re-check. Hız değil, **HW-039'la ilerlemenin asıl engeli bu.**
+- **Dropout — KÖK-NEDEN BULUNDU (besleme OCP-hiccup):** `motor-noise-dropout-literatur` workflow +
+  datasheet + bench yakınsadı. Sebep **Sagemcom CS50001 adaptörünün OCP-foldback'i** (Salcomp OEM,
+  12V/5A/60W kesin tavan, headroom yok; OCP ~6A'da → **hiccup: komple kapanır + ~1s reset**, bench supply
+  gibi akım-limitlemez). **BTS7960 kendi UVLO'su DEĞİL** — o Vs(B+)≤5.4V (12V'tan 6.6V sag) ister, imkânsız.
+  HP motor inrush ~5.6A @12V (R=2.14Ω) + 0.50 duty akımı → ~6A OCP'yi aşar → adaptör hiccup → dropout.
+  **Bench teyidi:** 104-cap encoder-noise'u, 33µF+yeni-RPWM ise base(0.40) reliability'sini (4/4) çözdü AMA
+  **0.50 step hâlâ düşüyor** (74ms'te ω→0 kalıcı) = yüksek-akım OCP; 33µF inrush'ı yutamayacak kadar küçük.
+  **FİX: 470-1000µF low-ESR bulk B+/B−'a** (C=I·Δt/ΔV; ≥1µF/W) — inrush'ı yutar, adaptör spike görmez +
+  ideali ≥6-7A / CC-capable veya bench supply. (EN/PB14 pull-down opsiyonel — firmware zaten sürüyor.)
+  Whine ayrı konu: 20kHz carrier yan-bantları (magnetostriction), **zararsız** (workflow + DS sf11 slew 6V/µs).
 - **ÇÖZÜLDÜ (birim hatası) —** $K_{eff}$ "23 rad/s/V" yanlıştı: `encoder.c:16` `EVENTS_PER_REV=48` (Pololu
   CPR zaten ×4-decoded, TI12 mode), analizde ÷192 (fazladan ×4) kullanılmıştı. Doğru ÷48 ile
   $K_{eff} \approx 89$ rad/s/V → orijinal $K_{HP}=83.35$ + datasheet $K \approx 89$ ile **tutarlı**. Fark yok.
