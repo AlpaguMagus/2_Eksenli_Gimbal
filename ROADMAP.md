@@ -376,6 +376,11 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
 > ⚠ **DURUM (2026-06-17) — interim donanım + DFR0601 kararı:** Yük-taşıyan HP ekseni sürücüsü
 > **HW-039/BTS7960 çok yavaş** çıktı (τ_eff≈400–450 ms sürücü-domeni, freq-bağımsız; `docs §12.10`).
+> **⚠ REVİZE (2026-06-22, `docs §12.11`): bu "çok yavaş" hükmü ÇÜRÜTÜLDÜ** — 450 ms **firmware-ramp**
+> confound'uydu (analitik+literatür+kod+temiz bench yakınsadı); HW-039 **HIZLI** (τ≈70-100 ms, ~12 Hz).
+> DFR0601 **hız için gereksiz** (değeri: 12 A akım + 2-kanal entegrasyon); **2-eksen bench validasyonu (K1)
+> artık HW-039 ile yapılabilir** (aşağıdaki "DFR0601 sonrasına ertelenir" gerekçesi düştü). Encoder EMI
+> 104-kapasitörle (motor terminali + enc-Vcc) çözüldü.
 > Alternatif HP-on-TB6612 deneyi kablo arızalarıyla (forward-ölü AIN1 + LP-encoder PWM-gürültü) askıya
 > alındı. **Kalıcı çözüm: DFRobot DFR0601** (2-kanal, 2×15A, 290W) sipariş edildi → gelince **HEM HP
 > HEM LP** tek bu sürücüde (kanal-1/kanal-2), asimetrik HW-039+TB6612 kurulumu kalkar. **Interim

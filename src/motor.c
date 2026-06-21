@@ -52,7 +52,9 @@ static volatile uint32_t g_bts_arr = BTS7960_PWM_ARR;
 
 /* ── Kanal örnekleri — pin haritası 00_donanim_semasi.md §2 ───────────────
  * Motor1 = eksen-0: HP Pololu (PL-4840) + HW-039/BTS7960. ⚠ 2026-06-17 INTERIM (docs §12.10):
- *          HP-on-TB6612 denendi (HW-039 τ_eff~450ms yavaş, freq-bağımsız) ama kablo arızaları çıktı
+ *          HP-on-TB6612 denendi (HW-039 τ_eff~450ms "yavaş" SANILDI — ⚠ §12.11/2026-06-22: bu
+ *          firmware-ramp confound'uydu, HW-039 aslında HIZLI τ≈70-100ms; encoder EMI 104-kapasitörle
+ *          çözüldü) ama HP-on-TB6612'de kablo arızaları çıktı
  *          (forward-ölü=AIN1/PB12 yolu + LP-encoder PWM-gürültü) → HP HW-039'da KALDI; kalıcı çözüm
  *          DFRobot sürücü siparişte. RPWM=PB8(TIM4_CH3), LPWM=PB9(TIM4_CH4), R_EN+L_EN köprü=PB14.
  *          Enkoder DEĞİŞMEZ (PA15/PB3). [TB6612 deney config'i (is_bts7960=false,PB0/12/13/14) git+docs §12.10'da.]
@@ -295,9 +297,11 @@ void MotorCh_SetDutySigned(MotorCh_t *m, float duty)
 
 void MotorCh_Tick(MotorCh_t *m)
 {
-    /* Main loop'tan her iterasyonda (~140 Hz, döngü ~7 ms) çağrılır.
+    /* Main loop'tan her iterasyonda çağrılır. Döngü ÖLÇÜLEN ~32 ms (~31 Hz; main.c:383,
+     * T_US Δ 2026-06-15 — ESKİ "~7 ms" yorumu BAYAT, IMU işlem yükü dahil değildi).
      * current_duty → target_duty arasında 0.01 step ile yaklaşır.
-     * ~30 step × ~7 ms ≈ 210 ms (büyük sıçrama için tipik rampa süresi). */
+     * ~30 step × ~32 ms ≈ 960 ms (büyük sıçrama için rampa süresi → açık-döngü step-ID'de
+     * τ'yu şişiren confound, docs §12.11; ID için rampasız `DUTYR` komutu eklendi). */
     if (m->current_duty == m->target_duty) return;
 
     if (m->current_duty < m->target_duty) {

@@ -1,0 +1,15 @@
+{
+  "test_id": "3.HP-rampasiz",
+  "timestamp": "20260621_203435",
+  "commit": "bb3ff52",
+  "status": "PASS",
+  "key_metrics": {
+    "tauA_ramped_ms": 2595.0,
+    "tauB_direct_ms": 3139.0,
+    "ratio_AB": 0.83
+  },
+  "artifacts": [
+    "raw/A_rampali.csv",
+    "raw/B_rampasiz.csv"
+  ]
+}

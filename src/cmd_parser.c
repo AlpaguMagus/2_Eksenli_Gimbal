@@ -155,6 +155,17 @@ static void parse_line(const char *line)
         return;
     }
 
+    /* ── DUTYR / DUTYR2 — RAMPASIZ açık-döngü duty (step-ID confound'u önler, 2026-06-21) ──
+     * DUTY'nin axis-0 RAMPALI yolu (soft-start, 0.01/tick ~336ms) açık-döngü step-ID'de
+     * (a) τ'yu şişirir, (b) kısa kick'i rampayla yer → motor kalkamaz. DUTYR doğrudan
+     * SetDutySigned (rampa YOK, dead-band YOK; BTS7960 yönü dahil) → temiz step + etkili kick.
+     * Kapalı-döngü cascade zaten SetDutySigned kullanır → ID'yi onunla aynı plant'a hizalar. */
+    if ((arg = match_axis_cmd(line, "DUTYR", &ax)) != 0) {
+        if (ax->mode == CMD_MODE_DUTY) MotorCh_SetDutySigned(ax->motor, strtof(arg, NULL));
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
     /* ── SP_W / SP_W2 — setpoint set edilir; main loop SP_W modda sürer ── */
     if ((arg = match_axis_cmd(line, "SP_W", &ax)) != 0) {
         SpeedPI_SetSetpoint(&ax->spi, strtof(arg, NULL));

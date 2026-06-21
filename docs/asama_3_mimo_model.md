@@ -648,6 +648,10 @@ HP step-ID (serbest mil, `T_US` µs-zamanlı telemetri, 20 kHz):
 **Sonuç:** HW-039 ekseni $\sim 0.4$ Hz bant — hızlı stabilizasyon için kötü. Bu bulgu sonraki sürücü
 arayışını (HP-on-TB6612 denemesi, ardından DFRobot siparişi) tetikledi.
 
+> ⚠ **REVİZE EDİLDİ (§12.11, 2026-06-22) — bu "~0.4 Hz inherent slew" hükmü YANLIŞ.** Ölçülen
+> 450 ms **firmware rampası** confound'uydu (analitik + literatür + kod + temiz bench yakınsadı);
+> HW-039 aslında **HIZLI** ($\tau \approx 70\text{-}100$ ms). DFR0601 hız için gereksiz. Detay → §12.11.
+
 Kaynak: `artifacts/3/hp_stepid/`, `artifacts/3/hp_driver_diag/20260615_freq_sweep/`; betik `scripts/hp_stepid_test.py`.
 
 #### 12.10.2. HP-on-TB6612 deneyi — iki semptom (bench 12V)
@@ -714,3 +718,71 @@ değerlendirilecek. Firmware'de BTS7960 yolu (`is_bts7960` toggle) korunur, anı
 > `scripts/lp_noise_recheck.py` (LP encoder garabet: gerçek-dönüş vs gürültü, duty-orantı testi). Pin denetimi:
 > `pin-map-consistency-audit` workflow. Ham veri: `artifacts/3/hp_tb6612_diag/`. Teşhis yöntemi:
 > `.claude/skills/teshis/`.
+
+### 12.11. Teşhis REVİZYONU: HW-039 "yavaşlık" çürütüldü — firmware-ramp confound + EMI (2026-06-22) · 🧪 bench-validated
+
+> **§12.10.1'in "HW-039 ~0.4 Hz inherent slew" hükmü YANLIŞTI.** Dört bağımsız yol yakınsadı: ölçülen
+> ~450 ms, açık-döngü step-ID'deki **firmware rampasının** ölçüm artefaktıydı; HW-039 + HP motor aslında
+> **HIZLI** ($\tau \approx 70\text{-}100$ ms, $\sim 10\text{-}15$ Hz bant). §12.10 silinmez (eklemeli kayıt,
+> sim≠validasyon) — bu bölüm onu revize eder. Teşhis disiplini: `.claude/skills/teshis/`.
+
+#### 12.11.1. Dört-yol yakınsama
+
+| Yol | Bulgu | Kaynak |
+|---|---|---|
+| **Analitik** | HP mekanik $\tau_m \approx 34$ ms ($RJ/Ke^2$; LP'nin ölçülen 60.5 ms'inden aynı $J$ ile) | §12.11.2 |
+| **Literatür** | BTS7960 çip switch-delay 3-25 µs, slew 1.6-11 V/µs, giriş RC YOK, charge-pump YOK → çip 450 ms üretemez | Infineon DS Rev1.1; `driver-motor-literatur` wf |
+| **Kod** | `MOTOR_RAMP_STEP=0.01`/tick × **ölçülen ~32 ms döngü** (`motor.c:298` "~7ms" BAYAT idi → düzeltildi) → orijinal 0.30→0.50 adımı (20 tick) için **~640 ms** rampa $\approx$ ölçülen 450 ms; rampalı `DUTY` kullanılmış | `motor.c:298`, `main.c:383`, `hp_stepid_test.py:75` |
+| **Bench (temiz)** | rampasız `DUTYR` + running-base + Δ0.10 direkt step → $\tau_{63} \approx 70\text{-}100$ ms | `scripts/hp_stepid_clean.py` |
+
+**§12.10'un kanıt hatası:** "frekans-bağımsızlık (515/466/448 ms) → sürücü-inherent slew" çıkarımı geçersiz —
+**yazılım rampası da frekanstan bağımsızdır** → kanıt sürücü-slew ile firmware-ramp arasında ayrım yapmaz.
+
+#### 12.11.2. Analitik motor τ (LP-ölçümüyle çapraz-doğrulanmış)
+
+$R = V/I_{stall}$: HP $12/5.6 = 2.14\,\Omega$, LP $12/1.1 = 10.9\,\Omega$. $Ke \approx (V - I_0 R)/\omega_0$:
+HP $0.0109$, LP $0.0185$ V·s/rad. LP'nin ölçülen $\tau = 60.5$ ms'inden $J$ geri-çözülür; aynı 25D frame
+→ $J_{HP} \approx J_{LP}$:
+
+$$\tau_{HP} = \tau_{LP}\cdot\frac{R_{HP}}{R_{LP}}\cdot\frac{Ke_{LP}^2}{Ke_{HP}^2} = 60.5\cdot\frac{2.14}{10.9}\cdot\frac{0.0185^2}{0.0109^2} \approx 34\text{ ms}$$
+
+HP (düşük direnç, high-power) LP'den bile hızlı → mekanik domen 450 ms'i veremez.
+
+#### 12.11.3. Firmware düzeltmesi — `DUTYR` (rampasız)
+
+Açık-döngü `DUTY` (axis-0) RAMPALI'dır (soft-start); step-ID'de (a) $\tau$'yu şişirir, (b) kısa kick'i
+rampa yer → motor base'de stall, $0 \to$ stiction-startup ölçülür ($\tau \sim 2600$ ms garbage — bench'te
+görüldü). **`DUTYR` komutu** eklendi (`SetDutySigned`, rampa+dead-band YOK; BTS7960 yönü dahil) → etkili
+kick + temiz step. Kapalı-döngü cascade zaten `SetDutySigned` kullanır → ID artık kontrol-plant'ıyla aynı
+($\to$ `cmd_parser.c` DUTYR/DUTYR2 bloğu).
+
+#### 12.11.4. EMI düzeltmesi — fırça gürültüsü kapasitörleri
+
+Temiz testte encoder **noise spike'ları** (62314, 126893 cnt/s = fiziksel imkânsız) + **aralıklı dropout**
+(EC donması) çıktı = motor PWM/fırça gürültüsü Pololu 6-telli ortak kabloda encoder hatlarına kuplajlanıyor
+(§12.10'daki "garabet"/"dropout" ile aynı sınıf). **0.1 µF (104) seramik:** motor terminalleri arası
+(🔴↔⚫) + encoder Vcc↔GND (🔵↔🟢) → noise spike'ları **GİTTİ**, temiz EC rampası (`scripts/hp_observe.py` A/B).
+
+#### 12.11.5. Düzeltilmiş karar
+
+- **HW-039 hızlı** ($\tau \approx 70\text{-}100$ ms) → "0.4 Hz çok yavaş" çürütüldü; stabilizasyon için yeterli.
+- **DFR0601 HIZ için gereksiz.** Kalan değeri: 12 A akım başlığı (HP stall 5.6 A > TB6612 3.2 A) + 2-kanal
+  entegrasyon + temiz PCB. **HW-039 ile devam edilebilir** (hız engeli yok); DFR0601 gelince entegrasyon
+  kolaylığı için değerlendirilir, **aciliyet yok.**
+- **EMI** 104 kapasitörlerle çözüldü.
+
+#### 12.11.6. Açık konular
+
+- **Dropout (AÇIK — asıl engel):** 104 kapasitörler encoder **noise spike'larını** çözdü ama **aralıklı
+  dropout SÜRÜYOR** (step-2: 3 koşudan 2'si base'de stall) → motor sürüşü güvenilmez. Aday: 12V besleme
+  sag/UVLO (5 A adaptör, akım-limiti yok, bulk yok) → **33 µF (mevcut) ya da 470 µF+ bulk B+/B−'a**; veya
+  kontrol-hattı (RPWM/EN) re-check. Hız değil, **HW-039'la ilerlemenin asıl engeli bu.**
+- **ÇÖZÜLDÜ (birim hatası) —** $K_{eff}$ "23 rad/s/V" yanlıştı: `encoder.c:16` `EVENTS_PER_REV=48` (Pololu
+  CPR zaten ×4-decoded, TI12 mode), analizde ÷192 (fazladan ×4) kullanılmıştı. Doğru ÷48 ile
+  $K_{eff} \approx 89$ rad/s/V → orijinal $K_{HP}=83.35$ + datasheet $K \approx 89$ ile **tutarlı**. Fark yok.
+- **τ:** temiz koşular **70-140 ms** (32 ms loop çözünürlüğü kaba); kararlı sayı dropout-fix sonrası. Ayrıca
+  firmware **döngü ~31 Hz** (IMU-bağlı, `main.c:383`) → kontrol bant-genişliği için **ayrı** darboğaz adayı.
+
+> 📊 **Üreten betikler:** `scripts/hp_stepid_clean.py` (DUTYR temiz step), `scripts/hp_observe.py`
+> (EMI/dropout gözlem), `scripts/hp_stepid_rampasiz.py` (ilk A/B — ramp-sabote, ders). Literatür:
+> `driver-motor-literatur` workflow. Ham veri: `artifacts/3/hp_stepid_clean/`.
