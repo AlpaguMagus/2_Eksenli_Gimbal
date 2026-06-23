@@ -933,10 +933,23 @@ kopunca depolanmış enerji motoru sertçe sürüyor → overshoot; sign-FF bunu
 **Sonuç:** HP temiz pozisyon kontrolü **mimari** çözüm ister — kontrol döngüsünü IMU'dan ayır (timer-ISR
 ~1 kHz), §12.11.6 loop-darboğazının doğrudan tezahürü. Parametre tuning (FF, Kp_pos) palyatif, kök çözüm değil.
 
+**Kazanç-uzayı TÜKETİLDİ (ampirik kanıt — iki uç da başarısız):** Loop **ölçüldü** (T_US deltaları): medyan
+**32 ms (30 Hz)**, de-rating $T_s/dt = 0.16$ → efektif $K_{i,\text{eff}} = K_i\cdot T_s/dt = 0.0088$.
+
+- **Sürekli takip** (sinüs A=40°/f=0.2 Hz, FF kapalı): RMS **49.5°**, **motor %95 stuck** — salınan referans
+  zayıf integrali breakaway'e ulaştıramadan tersine dönüyor → motor stiction'ı **hiç kıramıyor**. ("Sürekli
+  hareket baypas eder" öngörüsü **çürüdü** — premis (motor hareketli) gerçekleşmiyor.)
+- **Ki düzeltme** ($K_i: 0.0548 \to 0.35 = K_i\,dt/T_s$, efektifi tasarım 0.0548'e geri getirir): **şiddetli
+  kararsız limit-cycle** (θ ±200°, ω ±480 rad/s) — 32 ms örnekleme gecikmesi tasarım bant-genişliğini
+  ($\omega_n = 28.6$) destekleyemiyor.
+
+→ **Zayıf Ki = stuck, güçlü Ki = kararsız; arada çalışan değer YOK.** 32 ms'de kararlı bant-genişliği
+hızlı+sticky HP'yi kontrol etmeye yetmiyor — **kök çözüm kesinleşti: kontrol döngüsü hızlandırılmalı.** Bu,
+gain tuning'in (FF/Ki/Kp_pos) HP pozisyon için neden palyatif kaldığının **ampirik ispatı.**
+> 📊 Üreten: `scripts/hp_track_test.py` (sürekli takip), `scripts/hp_cascade_bench.py --ki` (Ki süpürme). Ham: `artifacts/3/hp_track/`, `artifacts/3/hp_cascade_bench/`.
+
 #### 12.12.6. Açık konular + yol haritası
 
-- **Loop-rate fix (mimari, BİRİNCİL):** kontrol döngüsünü IMU'dan ayır (timer-ISR ~1 kHz) → §12.12.5/§12.11.6. HP temiz pozisyon için zorunlu; LP zaten çalışıyor (yavaş motor).
-- **STAB/MIRROR (gerçek kullanım) testi:** gimbalın işi sürekli takip, ayrık step değil — sürekli hareket stick-slip'i baypas edebilir; düşük-maliyet ayırt edici deney (kök çözümden önce değer verir mi?).
-- **Ki de-rating:** $K_{i,\text{eff}} \approx 0.16\,K_i$ — loop-rate fix bunu da çözer; ara çözüm $K_i\,dt/T_s \approx 0.35$ telafi (ama tek başına lurch'ü çözmez).
-- **Mirror/takip:** $K_{p,pos}=2.0$ cascade-step için; takip lag'i (e_ss=15°@30°/s) için gyro-FF (§12.9) tercih.
+- **Loop-rate fix (mimari, BİRİNCİL — kazanç-uzayı tüketimiyle KANITLANDI):** kontrol döngüsünü IMU okuma/diğer işten ayır (timer-ISR ~1 kHz, IMU async) → §12.12.5. HP temiz pozisyon için **zorunlu** (gain tuning hem stuck hem kararsız uçlarda başarısız); LP çalışıyor (yavaş motor, küçük stiction). **Bağımsız oturum + tasarım onayı** ister (her iki ekseni etkiler, $T_s$↔dt kuplajı).
+- **STAB + gyro-FF (belirsiz, base-tilt ister):** sürekli-takip proxy'si stuck verdi AMA gerçek STAB'de gyro-FF (§12.9) $\omega_{ref}$'i jiroskoptan doğrudan besler → motoru sürekli hareket ettirip stiction'ı baypas edebilir (proxy'de FF yoktu). Düşük öncelik; loop-rate fix sonrası daha anlamlı.
 - **Yük:** serbest-mil tasarımı; gravite-FF + yüklü stiction = Aşama 5 (payload inertial).

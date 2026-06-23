@@ -115,6 +115,7 @@ def main():
     ap.add_argument("--ff",action="store_true",help="Coulomb FF aç (analitik §12.12.4: LFFG:0 LFFC LFFDB LFF:1)")
     ap.add_argument("--lffc",type=float,default=0.14,help="kff_coul = u_c (kinetik, Faz1)")
     ap.add_argument("--lffdb",type=float,default=0.35,help="coul_db (rad/s, anti-chatter)")
+    ap.add_argument("--ki",type=float,default=None,help="iç PI Ki override (analitik de-rating telafi Ki·dt/Ts≈0.35)")
     args=ap.parse_args()
     print(f"[{ts()}] HP cascade bench — Kp_pos={args.kpp}, hedefler={args.targets}")
     print(f"[{ts()}] DOKUNMA — mil serbest. HP cpr=960. duty ±0.5 cap.\n")
@@ -126,6 +127,9 @@ def main():
     try:
         ser.reset_input_buffer(); send(ser,"PING"); time.sleep(0.3)
         send(ser,"MODE:POS"); time.sleep(0.1); send(ser,f"KPP:{args.kpp}"); time.sleep(0.05)
+        if args.ki is not None:
+            send(ser,f"KI:{args.ki}"); time.sleep(0.05)
+            print(f"[{ts()}] iç PI Ki override = {args.ki} (analitik de-rating telafi)")
         if args.ff:
             send(ser,"LFFG:0"); time.sleep(0.05)            # serbest-mil dengeli → gravite FF YOK
             send(ser,f"LFFC:{args.lffc}"); time.sleep(0.05) # Coulomb FF = ölçülen kinetik sürtünme
