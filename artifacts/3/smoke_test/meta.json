@@ -1,0 +1,24 @@
+{
+  "test_id": "3.SMOKE",
+  "timestamp": "2026-06-23",
+  "commit": "d6c7c6e",
+  "status": "PASS",
+  "setup": "HP+LP rijit (mengene) + serbest mil; IMU bağlı; tek 12V",
+  "key_metrics": {
+    "loop_ms_imu_read": 8.00,
+    "loop_hz_imu_read": 125,
+    "loop_ms_imu_nack": 6.00,
+    "imu_fp_deg": -64.8,
+    "imu_gx_dps": 1.5,
+    "imu_gy_dps": 2.2,
+    "hp_dEC_fwd": 2054,
+    "hp_dEC_rev": -2010,
+    "lp_dEC2_fwd": 1162,
+    "lp_dEC2_rev": -1135
+  },
+  "findings": [
+    "SCL teli gevşekti; FP/GX/GY=0.0 + loop 6.00ms tam (NACK imzası) ile teshis, re-seat ile cozuldu",
+    "Gercek loop IMU okunurken 8ms (6ms = NACK durumu); Ts/dt=0.625"
+  ],
+  "artifacts": ["raw/motor_smoke.log"]
+}
