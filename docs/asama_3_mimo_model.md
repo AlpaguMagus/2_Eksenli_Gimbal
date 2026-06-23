@@ -802,7 +802,7 @@ Temiz testte encoder **noise spike'ları** (62314, 126893 cnt/s = fiziksel imkâ
   $K_{eff} \approx 89$ rad/s/V → orijinal $K_{HP}=83.35$ + datasheet $K \approx 89$ ile **tutarlı**. Fark yok.
 - **τ:** dropout-fix sonrası kararlı sayı alındı — **τ63 = 76 ms** (2026-06-23, ~940µF (2×470µF) bulk'lı temiz
   DUTYR koşu, ham-veri el-doğrulandı); önceki 70-140 ms aralığı dropout/loop-jitter ile genişti. Ayrıca
-  firmware **döngü ~31 Hz** (IMU-bağlı, `main.c:383`) → kontrol bant-genişliği için **ayrı** darboğaz adayı.
+  firmware **döngü ~31 Hz** (IMU-bağlı, `main.c:383`) → kontrol bant-genişliği için **ayrı** darboğaz adayı. ⚠ Bu ~31 Hz/32 ms **kopuk-IMU I2C-BUSY-timeout artefaktıydı** (IMU bağlı değildi) — §12.13'te `GPIO_PULLUP` ile **6 ms (~167 Hz)**'e düzeltildi.
 
 > 📊 **Üreten betikler:** `scripts/hp_stepid_clean.py` (DUTYR temiz step), `scripts/hp_observe.py`
 > (EMI/dropout gözlem), `scripts/hp_stepid_rampasiz.py` (ilk A/B — ramp-sabote, ders). Literatür:
@@ -825,10 +825,14 @@ sert cap (akım — ACS712 yok), EC-freeze canary, kısa burst + soğuma.
 |---|---|---|---|
 | Kg (cnt/s/duty, regresyon eğimi) | 7965 | ~7900 | **%2 simetrik** |
 | Kg (rad/s motor/duty) | 1043 | — | LP'nin (655) **1.6×**'i (hızlı motor) |
-| τ63 | 63 ms | 64 ms | **simetrik** (clean 76ms ile ~32ms loop çözünürlüğü içinde tutarlı) |
-| Statik kopma (breakaway) | 0.21 | 0.22 | **simetrik** |
-| Kinetik dropout (sustain min) | 0.14 | ~0.18 | stiction/kinetik **≈1.5×** |
+| τ63 | 63 ms | 64 ms | **simetrik** (clean 76ms; rijit re-char §12.13.5 → 71.9/71.5 ms DOĞRULADI) |
+| Statik kopma (breakaway) | 0.21 | 0.22 | rijit §12.13.5: **0.22/0.25 yön-asimetrik** |
+| Kinetik dropout (sustain min) | 0.14 | ~0.18 | rijit §12.13.5: **0.14/0.20** (stiction/kinetik ≈1.6×) |
 | K_motor | ≈87 rad/s/V | — | önceki 83.35 ile tutarlı |
+
+> ⚠ **Rijit-mengene re-karakterizasyon (§12.13.5, 2026-06-23) bu Faz-1 değerlerini DOĞRULADI** (Kg ~974/897
+> rad/s/duty, τ ~72 ms — ~%7 fark, gainler değişmez) **VE sürtünme YÖN-ASİMETRİSİNİ açtı** (kinetik $u_c$ 0.14
+> fwd / **0.20** rev). Yukarıdaki tablo pre-rijit Faz-1; kanonik rijit-mount değerleri **§12.13.5**'tedir.
 
 **Üç kritik bulgu:** (1) **Forward (CW/RPWM) artık TEMİZ** — eskiden flaky/ölüydü (§12.10), kablo-fix
 doğrulandı; iki yön simetrik → **tek cascade tasarımı yeter**. (2) **Büyük stiction:** statik 0.21 ≫

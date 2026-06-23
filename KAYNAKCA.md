@@ -24,7 +24,10 @@
 - **[Olsson1998]** H. Olsson, K.J. Åström, C. Canudas de Wit, M. Gäfvert, P. Lischinsky, *"Friction Models and Friction Compensation"*, European Journal of Control, vol. 4, no. 3, pp. 176-195, 1998. DOI: <https://doi.org/10.1016/S0947-3580(98)70113-X>
   - Coulomb + viskoz + stiction (statik) sürtünme modelleri; LuGre dinamik model
   - Aşama 2.6.5: cascade gerçekçi simde Coulomb/stiction (Karnopp minimal hali) — sürtünme limit-cycle'ı söndürdü, sim-to-real gap kapandı
-  - §6: friction compensation/feedforward — §12.8 yüklü Coulomb FF (u_c=0.090) + §12.12 HP stick-slip Coulomb FF (kff_coul=0.14)
+  - §6: friction compensation/feedforward — §12.8 yüklü Coulomb FF (u_c=0.090) + §12.12 HP stick-slip Coulomb FF (kff_coul=0.14) + §12.13.4 yön-bağımlı FF (rijit-ölçülen 0.14 fwd/0.20 rev)
+- **[Karnopp1985]** D. Karnopp, *"Computer Simulation of Stick-Slip Friction in Mechanical Dynamic Systems"*, ASME Journal of Dynamic Systems, Measurement, and Control, vol. 107, no. 1, pp. 100-103, 1985. DOI: <https://doi.org/10.1115/1.3140698>
+  - Stick-slip sürtünme sim modeli (dur/kay durum-makinesi: yapışıkken \|u\|>u_s ise kop, hareketteyken sıfır-geçişte yapış)
+  - §12.13.4 HP cascade redesign nonlineer sim (`hp_cascade_redesign.m`): limit-cycle'ı ÜRETTİ + option-B'yi (pozisyon-integrali) eledi
 
 ## Klasik Kontrol (PID, Cascade)
 

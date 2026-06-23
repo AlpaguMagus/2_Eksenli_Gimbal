@@ -175,6 +175,8 @@ int main(void)
     /* === HP cascade (eksen-0 / Motor1 / HW-039, 20:1) — Faz1 karakterize + Faz2 analitik ===
      * matlab/asama_3_mimo_model/hp_cascade_design.m (docs §12.12):
      *   Plant (Faz1 mil-serbest, ≤0.5 duty): Kg=1043 rad/s(motor)/duty, τ≈70 ms (63-76 aralık).
+     *   (Rijit-mengene re-char §12.13.5 DOĞRULADI: ~974/897, τ~72ms, ~%7 fark → gainler DEĞİŞMEZ;
+     *    sürtünme YÖN-ASİMETRİK u_c 0.14 fwd/0.20 rev → axis.h kff_coul_rev.)
      *   İç PI: Kp=duty_max/ω_max (doyum-kısıtı, Aşama 2.3 bang-bang dersi), Ki=ωn²·τ/Kg
      *     (ωn=2/τ=28.6) → PM=68°, ζ=0.68; pidtune ~%15-20 uyum.
      *   Dış P: Kp_pos=2.0 (ωc=2.0, PM=88°, 5×-kuralı içi [Franklin2010 §6.4]; gear sadeleşir).

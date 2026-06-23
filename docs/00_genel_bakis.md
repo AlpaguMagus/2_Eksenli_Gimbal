@@ -131,7 +131,7 @@ Bir sistemin farklı frekanslardaki sinüs girişlere tepkisi **Bode diyagramın
 
 **Şekil 5 —** Açık-çevrim Bode (3-kutuplu örnek sistem, faz $-180°$'yi geçer). **Kazanç geçiş frekansı** $\omega_c$ (kırmızı): kazancın 0 dB'yi kestiği nokta. **Faz payı (PM)** (kırmızı ok): $\omega_c$'de fazın $-180°$'ye uzaklığı — büyükse sönümlü/güvenli (tipik tasarım hedefi PM≥45°; örnekte 47°). **Kazanç payı (GM)** (mor ok): faz $-180°$'yi geçtiği frekansta kazancın 0 dB'ye uzaklığı (örnekte 12 dB; tipik hedef GM≥6 dB). Bu marj eşikleri klasik tasarım pratiğidir (`[Franklin2010] §6.1`, `[Ogata2010] §7`). Her ikisi de pozitifse sistem kararlıdır. Bu marjlar Aşama 2.1'de 5 kontrolcüyü karşılaştırırken sağlamlık kriteriydi (kâğıt-üzeri seçilen conservative'in PM'i 80.8° idi; ama bu tasarım gerçek motorda kullanılmadı — firmware'deki çalışan (analitik düzeltilmiş) döngünün PM'i ≈60°, bkz `asama_2_kontrol.md` §11.11.8).
 
-**Bant genişliği (bandwidth):** $\omega_c$ kabaca kapalı-çevrimin **bant genişliğini** belirler — sistemin etkin biçimde *takip edebildiği* en yüksek frekans. Bunun üstündeki giriş bileşenleri zayıflatılır. Pratik kural: örnekleme frekansı bant genişliğinin çok üstünde seçilir (Aşama 2'de iç hız döngüsü $T_s=5$ ms = 200 Hz nominal — gerçek ana döngü ~140 Hz, yine kontrol bandının onlarca katı). Aşama 2'deki cascade'in $\sim0.3$ Hz bant genişliği bu kavramla yorumlanır.
+**Bant genişliği (bandwidth):** $\omega_c$ kabaca kapalı-çevrimin **bant genişliğini** belirler — sistemin etkin biçimde *takip edebildiği* en yüksek frekans. Bunun üstündeki giriş bileşenleri zayıflatılır. Pratik kural: örnekleme frekansı bant genişliğinin çok üstünde seçilir (Aşama 2'de iç hız döngüsü $T_s=5$ ms = 200 Hz nominal — gerçek ana döngü IMU `GPIO_PULLUP` fix sonrası ~6 ms/~167 Hz; eski "~140 Hz" ölçülmemiş varsayımdı, §12.13). Aşama 2'deki cascade'in $\sim0.3$ Hz bant genişliği bu kavramla yorumlanır.
 
 > 📊 **Üreten betik:** `matlab/00_genel_teori/create_theory_diagrams.m`
 
@@ -157,7 +157,7 @@ Yukarıdaki teori **sürekli zamandadır** ($s$-domeni). Ama firmware bir mikrod
 
 $$s \approx \frac{2}{T_s}\cdot\frac{z-1}{z+1}$$
 
-Burada $z$ ayrık-zaman operatörüdür: bir sinyali bir örnek **geciktirmek** $z^{-1}$ ile gösterilir. İdeal (tam) ilişki $z = e^{sT_s}$'dir; Tustin bunun cebirsel olarak kullanışlı, kararlılığı koruyan bir **yaklaşımıdır** (üstel ifadeyi rasyonele çevirir). Bu dönüşüm, sürekli PI integralini firmware'de toplanabilir bir fark denklemine çevirir (Aşama 2.2). Örnekleme frekansı yeterince yüksek olmalı — projede iç hız döngüsü $T_s=5$ ms (200 Hz nominal; gerçek döngü ~140 Hz), kontrol bant genişliğinin çok üstünde.
+Burada $z$ ayrık-zaman operatörüdür: bir sinyali bir örnek **geciktirmek** $z^{-1}$ ile gösterilir. İdeal (tam) ilişki $z = e^{sT_s}$'dir; Tustin bunun cebirsel olarak kullanışlı, kararlılığı koruyan bir **yaklaşımıdır** (üstel ifadeyi rasyonele çevirir). Bu dönüşüm, sürekli PI integralini firmware'de toplanabilir bir fark denklemine çevirir (Aşama 2.2). Örnekleme frekansı yeterince yüksek olmalı — projede iç hız döngüsü $T_s=5$ ms (200 Hz nominal; gerçek döngü ~6 ms/~167 Hz, IMU pull-up fix sonrası §12.13), kontrol bant genişliğinin çok üstünde.
 
 ---
 
