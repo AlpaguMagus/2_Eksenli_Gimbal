@@ -1186,5 +1186,20 @@ sürtünme-residual'ını yaşadı — **çapraz-girişim yok**) → **decentral
 sürtünme-plant'ıyla sınırlı (§12.13.4, temiz fix K7/Kalman, Aşama-5) — 2-eksen sorunu değil. **Anlamlı kuplaj
 (RGA/K4) yüklü gimbalda** (serbest-milde mekanik bağ yok → kuplaj ~0).
 
-> 📊 Üreten: `scripts/{lp_deadband,lp_stepid,motor_cascade_test,motor_mirror_test,k1_2axis_test}.py`.
-> Artifact: `artifacts/3/{smoke_test,lp_deadband,lp_stepid,cascade_m2,mirror_m2,stab_m2,k1_2axis}/`.
+#### 12.14.5. K4 coupling-check — serbest-mil off-diagonal ~0 (decentralized SAYIYLA doğrulandı)
+
+`scripts/k4_coupling_check.py` (artifact `3.K4-coupling`): bir ekseni POS 0'da aktif tut, diğerini ±0.40 duty
+sür → tutulan eksenin sapması = mekanik/elektriksel kuplaj.
+
+| off-diagonal | Sürülen döndü | Tutulan saptı | Kuplaj |
+|---|---|---|---|
+| **G21** (LP←HP) | 1584° | 0.77° | **0.05%** |
+| **G12** (HP←LP) | 1839° | 0.00° | **0.0%** |
+
+**Bulgu:** off-diagonal ~0 → decentralized cascade (K0/K1) **veriyle gerekçeli** (LP'nin 0.77°'si cascade tutma
+toleransı, ihmal). Serbest-milde 2×2 $G$ ~diagonal ($G_{11}/G_{22}$ = §12.13.5/§12.14.2 plant'ları, $G_{12}/G_{21}\approx 0$).
+⚠ **Anlamlı kuplaj (RGA, decoupling kararı = K4'ün asıl payoff'u) YÜKLÜ gimbalda** (iki eksen mekanik bağlı →
+Aşama-5); bu test bağsız baseline'ı belgeler, gerçek MIMO ID yüklü montajda yapılır.
+
+> 📊 Üreten: `scripts/{lp_deadband,lp_stepid,motor_cascade_test,motor_mirror_test,k1_2axis_test,k4_coupling_check}.py`.
+> Artifact: `artifacts/3/{smoke_test,lp_deadband,lp_stepid,cascade_m2,mirror_m2,stab_m2,k1_2axis,k4_coupling}/`.
