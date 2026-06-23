@@ -3,7 +3,7 @@
 > **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
 > - **Son güncelleme:** 2026-06-23 (**HP cascade Faz 1-3** + **stick-slip teşhisi** + **loop-rate kök-neden** — `docs §12.12`: RPWM kablo-fix + ~940µF bulk sonrası HP serbest-milde karakterize (Kg=1043 rad/s/duty, τ≈70ms, forward TEMİZ); analitik cascade (iç PI Kp=0.00167/Ki=0.0548, dış P Kp_pos=2.0, PM 68°/88°) + firmware per-eksen split flash. **Bench: HP stick-slip** (hedefi 3-15° aşıp yapışıyor); Coulomb FF ÇÖZMEDİ (bipolar sign-FF limit-cycle); **kök neden KANITLANDI = ~32ms IMU-bağlı loop hızlı HP'yi büyük stiction'la kontrol edemiyor (kazanç-uzayı tükendi)**; **kanıtlanmış fix = loop-rate ayrımı (~1kHz timer-ISR, mimari, bağımsız oturum bekler)**. Önceki: dropout ÇÖZÜLDÜ (~940µF bulk, Sagemcom CS50001 OCP-hiccup kök-neden, `docs §12.11`); HW-039 HIZLI teyidi (τ≈70-100ms))
-> - **Aktif aşama:** **Aşama 3 (İki Motor MIMO Model) 🟡 AKTİF** — branch `feature/asama-3-mimo-model`; **3.3 tek-eksen (K0) ✅ bench PASS** (cascade/mirror/stab, LP) + **yüklü sürtünme FF 🧪 bench PASS** (`§12.8`) + **HP cascade Faz 1-3 karakterize** (`§12.12`); donanım ASİMETRİK ve yerinde (HP=Motor1/HW-039/BTS7960/20:1 + LP=Motor2/TB6612/9.7:1, yeni motorlar 2026-06-14/15 GELDİ); **sıradaki = HP loop-rate fix** (~1kHz timer-ISR, kontrol döngüsünü IMU'dan ayır — stick-slip kök-neden kanıtlandı, `§12.12.5/6`; MİMARİ, tasarım onayı bekler)
+> - **Aktif aşama:** **Aşama 3 (İki Motor MIMO Model) 🟡 AKTİF** — branch `feature/asama-3-mimo-model`; **3.3 tek-eksen (K0) ✅ bench PASS** (cascade/mirror/stab, LP) + **yüklü sürtünme FF 🧪 bench PASS** (`§12.8`) + **HP cascade Faz 1-3 karakterize** (`§12.12`); donanım ASİMETRİK ve yerinde (HP=Motor1/HW-039/BTS7960/20:1 + LP=Motor2/TB6612/9.7:1, yeni motorlar 2026-06-14/15 GELDİ); **HP loop-rate ÇÖZÜLDÜ** (kopuk-IMU I2C-BUSY-timeout artefaktı → `GPIO_PULLUP`, loop 32→6ms, `§12.13` — timer-ISR DEĞİL); **sıradaki = HP cascade redesign** (limit-cycle yapısal, option B analitik) **+ LP rijit re-do** (sıfırdan, AÇIK)
 > - **Dokümantasyon:** Aşama-bazlı `docs/` ekosistemi (README vitrin + `docs/asama_<N>_*.md` derin içerik)
 > - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
 
@@ -364,10 +364,11 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 > STAB yasası yük altında çalışıyor; sürtünme FF takip-RMS'i $2.84\to1.81^\circ$ (yüzde 36), max hata
 > $13.3\to7.2^\circ$ iyileştirdi (base-IMU yasa demosu; payload inertial doğrulama Aşama 5). **Donanım GELDİ** (asimetrik: HP=Motor1/HW-039/BTS7960/20:1 + LP=Motor2/TB6612/9.7:1, 2026-06-14/15); **HP cascade Faz 1-3 karakterize** (`§12.12`, Kg=1043 rad/s/duty, τ≈70ms, forward TEMİZ + analitik cascade + per-eksen firmware split). **Açık/bekleyen:**
 > K4 gerçek-veri (MIMO ID), K5 (RGA kuplaj gösterirse), stall kriteri yük-bilinçli yeniden-tasarım
-> (Aşama 5), dengeli payload + gravite-yardımlı iniş kontrolü (Aşama 5). **Sıradaki (BİRİNCİL, KANITLANDI):**
-> HP **loop-rate fix** — bench teşhisi HP stick-slip'in kök-nedenini ~32ms IMU-bağlı loop'a izole etti
-> (kazanç-uzayı tükendi: zayıf Ki=stuck, güçlü Ki=kararsız); kanıtlanmış çözüm kontrol döngüsünü
-> IMU'dan ayırmak (~1kHz timer-ISR, MİMARİ, her iki ekseni etkiler — bağımsız oturum + tasarım onayı bekler, `§12.12.5/6`).
+> (Aşama 5), dengeli payload + gravite-yardımlı iniş kontrolü (Aşama 5). **HP loop-rate ÇÖZÜLDÜ (2026-06-23):**
+> "~32ms loop / timer-ISR mimari fix" sanılan sorun aslında **kopuk-IMU I2C-BUSY-timeout ARTEFAKTIYDI** → tek
+> satır `GPIO_PULLUP` (loop 32→6ms, §12.13; timer-ISR GEREKMEDİ). HP gross stick-slip çözüldü; rijit-mount
+> **sürtünme-limit-cycle** açtı + plant DOĞRULANDI. **Sıradaki:** HP cascade redesign (option B pozisyon-integrali,
+> analitik) **+ LP rijit re-do** (sıfırdan re-karakterize + re-validate; AÇIK, LP bağlanınca).
 >
 > Kaynaklar: `[Skogestad2005] §10` (decentralized/RGA), `[Franklin2010] §6.4` (cascade),
 > `[Anderson2007]` (LQR), `[Simon2006]` (Kalman). Tarama detayı: yöntem-bazlı gerekçe + verdict.
@@ -389,8 +390,13 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 > 2-kanal entegrasyon). **HP cascade Faz 1-3 karakterize** (2026-06-23, `docs §12.12`): RPWM kablo-fix +
 > bulk sonrası HP serbest-milde temiz step-ID (Kg=1043 rad/s/duty, τ≈70ms, forward TEMİZ, K/τ simetrik) +
 > analitik cascade (iç PI / dış P, PM 68°/88°) + firmware per-eksen split (eksen-0 HP, eksen-1 LP DEĞİŞMEZ).
-> **Bench: HP stick-slip** (hedefi 3-15° aşıp yapışıyor) → kök neden ~32ms IMU-bağlı loop; **sıradaki = HP
-> loop-rate fix** (~1kHz timer-ISR, mimari, §12.12.5/6). ⚠ Aşağıdaki "2× TB6612 / tek 3A adaptör" güç planı
+> **Bench: HP stick-slip** → "~32ms loop kök-neden / timer-ISR" sanıldı AMA **32ms KOPUK-IMU I2C BUSY-timeout
+> ARTEFAKTIYDI** (IMU bağlı değildi → bus float → BUSY stuck → 25ms HAL-timeout/okuma); **tek satır `GPIO_PULLUP`
+> → loop 32→6ms** (§12.13). HP **gross stick-slip ÇÖZÜLDÜ**; rijit-mount (mengene) re-test **sürtünme-limit-cycle**
+> açtı (el sönümlüyormuş) + re-karakterizasyon **plant DOĞRULADI** (Kg~974/τ72ms) + sürtünme yön-asimetrisi
+> (u_c 0.14/0.20, §12.13.4-5). **Sıradaki = HP cascade redesign** (option B pozisyon-integrali, analitik MATLAB —
+> limit-cycle YAPISAL, FF-tuning değil) **+ 🔜 LP RİJİT RE-DO (AÇIK):** LP'yi de sıfırdan re-karakterize + cascade
+> re-validate (eski Test 2.5/MIRROR/STAB hand-held olabilir; LP+mengene gelince). ⚠ Aşağıdaki "2× TB6612 / tek 3A adaptör" güç planı
 > (3.x) **bayat** (gerçek = asimetrik HP=BTS7960 + LP=TB6612 + Sagemcom CS50001 + dropout kapasitör çözümü) —
 > güç planı bölümünde aşağıda düzeltildi.
 
