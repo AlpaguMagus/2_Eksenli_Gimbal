@@ -143,12 +143,12 @@ int main(void)
                                        * 2.1 conservative 58× yüksekti (P-term doyar → bang-bang) */
         .Ki       = 0.1f,
         .Ts       = 0.005f,           /* Tustin SABIT adımı (5 ms = 200 Hz NOMINAL).
-                                       * DİKKAT: ana döngü Aşama 0-2'de ~7 ms (~140 Hz, donanımda
-                                       * doğrulanmıştı) → ŞİMDİ ÖLÇÜLEN ~32 ms (~31 Hz): loop YAVAŞLADI,
-                                       * neden AÇIK (27 ms IMU/işlem, main.c:409 / docs §12.12.5).
-                                       * Efektif integral Ts/dt: 5/7≈0.71 (eski) → 5/32≈0.16 (güncel).
-                                       * Ki=0.1 LP için sabit-Ts altında geçerli; HP'de bu de-rating
-                                       * stick-slip kök-nedeni (§12.12.5) — latent kuplaj (eski §11.11.8). */
+                                       * DİKKAT: ana döngü ÖLÇÜLEN ~32 ms (~31 Hz). "7 ms/140 Hz" iddiası
+                                       * git-arkeolojisiyle ÇÜRÜTÜLDÜ (hiç ölçülmedi, HAL_Delay(5) nominalinden
+                                       * varsayım) — loop muhtemelen HEP ~32 ms, REGRESYON DEĞİL (docs §12.13.1).
+                                       * Profil: 26 ms'i MPU6050_Read (IMU I2C) yiyor (§12.13.2).
+                                       * Efektif integral Ts/dt = 5/32 ≈ 0.16 → HP stick-slip kök-nedeni (§12.12.5).
+                                       * Ki=0.1 LP için bu de-rating altında geçerli (Test 2.5 PASS). */
         .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı (0.70 denendi, motor-1
                                        * CW catch'i yenmedi → 0.50'de kalındı, motor.c notu) */
         .T_t      = 0.02f             /* Kp/Ki — Aström-Murray T_t = T_i */
@@ -276,7 +276,7 @@ int main(void)
         }
 
         /* dt: DWT cycle counter ile µs hassas (Aşama 2.3).
-         * HAL_GetTick ms çözünürlüğü loop'ta (eski ~7 ms, ÖLÇÜLEN ~32 ms) jitter veriyordu →
+         * HAL_GetTick ms çözünürlüğü loop'ta (ÖLÇÜLEN ~32 ms; '7ms' varsayımdı §12.13.1) jitter veriyordu →
          * ω = Δcount/dt ölçümünü bozup hız PI'yi bang-bang'e sokuyordu.
          * DWT 96 MHz → dt çözünürlüğü ~10 ns. Unsigned fark wrap-safe. */
         uint32_t cyc_now  = DWT->CYCCNT;

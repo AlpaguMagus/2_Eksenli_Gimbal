@@ -956,48 +956,57 @@ gain tuning'in (FF/Ki/Kp_pos) HP pozisyon için neden palyatif kaldığının **
 - **STAB + gyro-FF (belirsiz, base-tilt ister):** sürekli-takip proxy'si stuck verdi AMA gerçek STAB'de gyro-FF (§12.9) $\omega_{ref}$'i jiroskoptan doğrudan besler → motoru sürekli hareket ettirip stiction'ı baypas edebilir (proxy'de FF yoktu). Düşük öncelik; loop-rate fix sonrası daha anlamlı.
 - **Yük:** serbest-mil tasarımı; gravite-FF + yüklü stiction = Aşama 5 (payload inertial).
 
-### 12.13. (1) Loop-rate fix — araştırma çerçevesi (ön-hazırlık) · 📐 henüz uygulanmadı
+### 12.13. (1) Loop-rate kök-neden — git arkeolojisi + profil · 🔬 teşhis (REGRESYON DEĞİL; IMU read 26 ms)
 
-> **Olgunluk:** 📐 ön-tasarım/çerçeve — §12.12 loop-rate'i kanıtladı; bu bölüm sıradaki (1) oturumuna
-> hazırlık. **Kod DEĞİŞMEDİ**; bench gelince uygulanır.
+> **Olgunluk:** 🔬 teşhis TAMAMLANDI (2026-06-23): 2 paralel workflow + bench-profil. Kök-neden **NEREDE +
+> NEDEN** ölçüldü; düzeltme (1)'in sonraki adımı. §12.12 loop-rate'i "kök-neden" olarak kanıtlamıştı.
 
-#### 12.13.1. Kilit içgörü — loop bir REGRESYON (7 ms → 32 ms)
+#### 12.13.1. Git arkeolojisi — "REGRESYON" ÇÜRÜTÜLDÜ (7 ms hiç ölçülmedi)
 
-Loop Aşama 0-2'de **~7 ms/~140 Hz** idi ve **DWT ile donanımda doğrulanmıştı** (asama_2 §11.11.8: $T_s/dt \approx 0.71$).
-Şimdi ÖLÇÜLEN **~32 ms/~31 Hz** ($T_s/dt \approx 0.16$) — §12.12'deki stick-slip'in kök-nedeni. Firmware bunu
-zaten **açık-işaretliyor** (`main.c:409` ⚠ AÇIK): loop'un ~27 ms'i "IMU/işlem", neden bilinmiyor. → **Bu bir
-REGRESYON olabilir** (bir noktada loop'a bloklayan iş eklendi / IMU yavaşladı); nedeni bulup gidermek **7 ms'i
-geri getirebilir** → de-rating 0.71'e döner → mevcut HP cascade kazançları muhtemelen çalışır (timer-ISR
-yeniden-yazımına gerek kalmadan). Bu, (1)'i "büyük mimari rebuild"den "hedefli regresyon-avı"na çevirir.
+5-açılı git-arkeolojisi workflow'u (`loop-slowdown-archaeology`) **yakınsadı**: önceki "loop 7 ms→32 ms
+YAVAŞLADI" çerçevem (d9ff8f2) **YANLIŞTI** — düzeltildi.
 
-#### 12.13.2. Profil-önce yaklaşımı (analitik-önce'nin firmware karşılığı)
+| Kanıt | Bulgu |
+|---|---|
+| **7 ms'in kökeni** | `ff0647c` (05-30) docs'a **düz iddia** olarak girdi; `HAL_Delay(5)` nominalinden (200 Hz → jitter-iskonto ~140 Hz) **türetilmiş VARSAYIM**. `6bc2ff5` "ölçülen" etiketledi ama döngüsel atıf (yorum→§5.4→ölçüm-yok). |
+| **İlk gerçek ölçüm** | `41c037f` (06-15): TX throttle 25→5 ms düşünce ilk T_US-Δ görünür = **32 ms** (projenin İLK loop-period ölçümü). |
+| **Throttle maskesi** | T_US Aşama 0-2 boyunca 25 ms throttle'lıydı → 7 ms loop'u delta ile GÖSTEREMEZDİ (her delta ≥25 ms). "~36 Hz telemetri" = throttle limiti, loop değil. |
+| **Bloklayan iş eklenmedi** | `asama-2-kapali→HEAD` loop gövdesine ~25 ms ekleyen commit YOK; `HAL_Delay(5)` `6c549ec`'ten (05-05) sabit; IMU self-heal event-gated (40-fail+2 s); CDC non-blocking. |
+| **"donanımda doğrulandı"** | git'te ölçüm-artefaktı YOK — `ff0647c` bir **doküman** commit'iydi. |
 
-Timer-ISR'a yeniden-yazmadan **ÖNCE** loop'u **profille**: DWT cycle-counter ile her blok arasına timestamp
-(IMU read · füzyon · kontrol · telemetri-CDC · HAL_Delay) → 27 ms'nin **nerede** olduğunu ÖLÇ (spekülasyon
-değil). Bu, "deney öncesi tavanı analiz et" dersinin (§12.12.4 FF/Ki ampirik-önce uyarısı) firmware'e uygulanışı.
+→ **HÜKÜM: Loop YAVAŞLAMADI — muhtemelen HEP ~32 ms'ti.** "7 ms/140 Hz" hiç doğrulanmamış varsayımdı,
+"ölçülen/donanımda doğrulandı" etiketiyle ~3 hafta yayıldı. **İzlenebilirlik dersi:** niteleyicisiz değer +
+döngüsel atıf = yanlış-"ölçüm" iddiası — projenin kendi disiplininin bir vakası (arkeoloji yakaladı).
 
-#### 12.13.3. Şüpheli adaylar (analitik ön-tahmin)
+#### 12.13.2. Profil — 27 ms'nin yeri: **IMU okuması (26 ms)**
 
-| Aday | Beklenen süre | Not |
+DWT-timestamp enstrümantasyonu (her loop-bloğu, geçici — kazı sonrası `git checkout`'la kaldırıldı) + idle
+bench (179 örnek):
+
+| Blok | Süre (medyan) | Pay |
 |---|---|---|
-| `MPU6050_Read` (I2C 100 kHz, 14 byte) | ~1.3 ms + ≤3 ms timeout | tek başına 27 ms açıklamaz |
-| `CDC_Transmit_FS` (USB, her loop ~240 byte) | FS'te ~0.16 ms — ama **bloklarsa** host'a bağlı | **en güçlü şüpheli** (bloklama) |
-| `HAL_Delay(5)` (`main.c:459`) | 5 ms (sabit) | kolay kaldırılır, ayrı |
-| Füzyon · stall · LED | <1 ms | düşük |
+| **`MPU6050_Read` (IMU I2C)** | **26.000 µs (TAM sabit, min=max)** | **%81 — DOMİNANT** |
+| Kontrol + füzyon (PROC) | 36 µs | ihmal |
+| Telemetri (TX, CDC) | 51 µs | ihmal |
+| `HAL_Delay(5)` + misc | ~5.9 ms | %18 |
+| **LOOP** | **32 ms** | — |
 
-#### 12.13.4. Tasarım seçenekleri (basit → mimari)
+**Tüm gizem tek I2C okumasında:** `MPU6050_Read` **26 ms** (14 byte @100 kHz ~1.3 ms olmalıyken **20× yavaş**).
+⚠ **min=max=26000 µs (TAM sabit)** → değişken I2C-transaction değil, **SABİT gecikme** (timeout veya clock-
+stretching). `IMU_I2C_TIMEOUT_MS=3` ile çelişiyor (3 ms cap olmalıydı) → I2C-seviyesi bug/config = (1)'in odağı.
 
-1. **Regresyon-fix (ÖNCE dene):** profil 27 ms'yi bloklayan USB/I2C'de gösterirse → gider → 7 ms geri. **En ucuz**, HP cascade'i kurtarabilir.
-2. **I2C 400 kHz / non-blocking DMA read** — IMU okumayı hızlandır.
-3. **CDC non-blocking / telemetri seyreltme** — USB bloklamasını kaldır.
-4. **Timer-ISR kontrol (IMU async)** — son çare, en kapsamlı: control'ü sabit ~1 kHz ISR'da koştur, IMU'yu ayrı oku.
-5. **Ts → gerçek dt (Tustin'de):** de-rating'i otomatik düzeltir AMA **her iki ekseni etkiler** — ⚠ LP de-rated $K_i=0.1$ ile çalışıyor (Test 2.5 PASS); $T_s$'i gerçek dt'ye bağlamak LP efektif $K_i$'sini ~6× artırıp **LP'yi kararsızlaştırabilir** → per-eksen dikkat.
+#### 12.13.3. Düzeltme seçenekleri (IMU read'e odaklı)
 
-#### 12.13.5. Açık sorular / önkoşullar
+1. **"Neden 26 ms" teşhisi (ÖNCE — datasheet-önce):** I2C clock-stretching mi (MPU6050 SCL tutuyor mu), timeout-davranışı mı, config mi? `[MPU6050_DS]`/`[RM0383]` I2C. Bulunca →
+2. **IMU read'i hızlandır:** 400 kHz I2C · non-blocking DMA/IT read · gereksiz register atla · gerekirse FIFO/DRDY. → 26 ms düşerse loop ~6 ms → kontrol bant-genişliği geri → HP cascade muhtemelen çalışır.
+3. **`HAL_Delay(5)` kaldır** (~5 ms, kolay, ayrı kazanç).
+4. **Timer-ISR kontrol (IMU async)** — IMU yine yavaşsa: kontrolü sabit ~1 kHz ISR'da koştur, IMU'yu DMA ile arka planda oku. Son çare, en kapsamlı.
+5. **Ts → gerçek dt:** de-rating'i düzeltir AMA **her iki ekseni etkiler** — ⚠ LP de-rated $K_i=0.1$ ile çalışıyor (Test 2.5 PASS); bağlamak LP efektif $K_i$'sini ~6× artırıp LP'yi kararsızlaştırabilir → per-eksen dikkat.
 
-- Profil 27 ms'yi **nerede** gösteriyor? (ilk adım — ölç, sonra fix seç)
-- 7 ms geri gelirse mevcut HP kazançları (Kp=0.00167/Ki=0.0548) çalışır mı? (re-test)
-- LP'yi bozmadan $T_s \leftrightarrow dt$ nasıl ayrılır? (per-eksen $T_s$ veya yalnız HP düzeltmesi)
-- Loop **ne zaman/neden** yavaşladı? (git geçmişi: IMU self-heal / non-blocking init `94a36e3` sonrası mı?)
+#### 12.13.4. Açık sorular / önkoşullar
 
-> 📊 İlgili: profil aracı (1) oturumunda yazılacak (`scripts/`). Firmware kanca: `main.c:409` açık-not, DWT (`main.c:281`).
+- **NEDEN tam 26 ms?** (I2C clock-stretch / timeout / config — datasheet-önce; ilk somut adım)
+- IMU read hızlanıp loop ~6 ms'e inerse mevcut HP kazançları (Kp=0.00167/Ki=0.0548) çalışır mı? (re-test)
+- LP'yi bozmadan $T_s \leftrightarrow dt$ nasıl ayrılır? (per-eksen $T_s$ veya yalnız HP)
+
+> 📊 Üreten: `loop-slowdown-archaeology` workflow'u + geçici DWT-profil enstrümantasyonu (kaldırıldı). Firmware kanca: `main.c` IMU read (`MPU6050_Read`), DWT (`main.c:281`).
