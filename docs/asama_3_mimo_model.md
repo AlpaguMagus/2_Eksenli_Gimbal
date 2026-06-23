@@ -1218,5 +1218,33 @@ kırıp hedefe ulaşır) **AMA ~4° chatter** ekler (küçülmüş limit-cycle).
 hükmü chatter için doğru). ⚠ **Açık karar:** HP `load_ff_en` default'u şu an KAPALI — doğruluk (−4° ss_err) vs
 pürüzsüzlük (+4° chatter) ödünleşimi; K7 ikisini birden çözeceği için default değişikliği kullanıcı kararına bırakıldı.
 
-> 📊 Üreten: `scripts/{lp_deadband,lp_stepid,motor_cascade_test,motor_mirror_test,k1_2axis_test,k4_coupling_check,hp_ff_compare}.py`.
-> Artifact: `artifacts/3/{smoke_test,lp_deadband,lp_stepid,cascade_m2,mirror_m2,stab_m2,k1_2axis,k4_coupling,hp_ff_compare}/`.
+#### 12.14.7. İzlenebilirlik denetimi + Ts de-rate düzeltmesi + K3 (yüksüz tamamlama)
+
+Kullanıcı çağrısıyla HP parametreleri **eski-değer/placeholder** açısından denetlendi. Kazançlar ANALİTİK
+(deneme-yanılma YOK) ama birkaç değer eski/kopya çıktı → `main.c`'de düzeltildi:
+
+| Parametre | Önce | Sonra | Neden |
+|---|---|---|---|
+| HP `k_ff` (gyro-FF) | 9.7 | **20.0** | = HP redüktör; 9.7 = **LP-placeholder** → K2'de HP gyro-FF 2× zayıftı |
+| HP `kff_grav` | 0.097 | **0.0** | LP-rig placeholder; HP yüksüz gravite yok (loaded char = Aşama-5) |
+| HP `Ki` | 0.0548 | **0.0570** | rijit $K_g$=974/τ72ms'ten (önce eski $K_g$=1043) |
+| HP+LP `Ts` | 5 ms | **8 ms** | loop HİÇ 5 ms olmadı; gerçek 8 ms (§12.14.1) → integral de-rate giderildi |
+
+**Ts bulgusu (en önemli):** iç-PI `Ts=5 ms` sabiti, loop'un hiç koşmadığı 200 Hz'i varsayıyordu (loop 32 ms'di,
+şimdi 8 ms) → integral kronik **de-rated** ($T_s/dt=0.625$). Düzeltince (Ts=8 ms):
+- **HP FF-off ss_err 5.23° → 2.21°** (chatter YOK) — de-rated integral HP statik-offset'in **kök katkısıymış**;
+  integral otoritesi düzelince stiction'ı **FF'siz** yendi. **Analitik düzeltme FF band-aid'ini geçti** (§12.14.6
+  FF-on 1.04° ama +4° chatter).
+- **K1 HP 2/6 → 4/6**; LP K0 6/6 + K1 LP 6/6 **BOZULMADI** (LP `Ki`=0.1 conservative-valide bırakıldı; rijit-textbook
+  $4/(\tau K_g)$=0.18 not edildi — agresif, quantization-chatter riski → Aşama-5 tune).
+- Kalan HP residual (std ~6-8° chatter) **yapısal → K7 (Kalman)**.
+
+**K3 (gain scheduling) — GEREKSİZ:** HP τ-vs-duty (`k3_tau_vs_duty.py`, artifact `3.K3-tau-duty`): τ = 40–49 ms
+(base 0.15–0.50, oran **1.22×**) ~sabit → **tek-kazanç tüm çalışma-aralığında yeterli**, scheduling gerekmiyor.
+(Aşama-1 NRMSE U-eğrisi duty-bağımlılık sezgisi rijit-mengenede çürüdü.)
+
+**Yüksüz iş durumu:** plant char + K0 + K1 + K4-coupling + HP-FF + izlenebilirlik/Ts düzeltmeleri + K3 → **TAMAM.**
+Kalan **K2 (gyro-FF rijit re-validate)** kullanıcı eğmesini ister (STAB bozucu); **derin RGA/K7/loaded** = Aşama-5.
+
+> 📊 Üreten: `scripts/{lp_deadband,lp_stepid,motor_cascade_test,motor_mirror_test,k1_2axis_test,k4_coupling_check,hp_ff_compare,k3_tau_vs_duty}.py`.
+> Artifact: `artifacts/3/{smoke_test,lp_deadband,lp_stepid,cascade_m2,mirror_m2,stab_m2,k1_2axis,k4_coupling,hp_ff_compare,k3_tau_duty}/`.
