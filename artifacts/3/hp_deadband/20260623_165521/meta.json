@@ -1,0 +1,13 @@
+{
+  "test_id": "3.HP-deadband",
+  "timestamp": "20260623_165521",
+  "commit": "9d3c62a",
+  "status": "PASS",
+  "key_metrics": {
+    "static_fwd": 0.22,
+    "static_rev": 0.25,
+    "kinetic_fwd": 0.14,
+    "kinetic_rev": 0.2,
+    "stiction_ratio_fwd": 1.57
+  }
+}

@@ -1069,5 +1069,26 @@ durduruldu — analitik-önce). Seçenekler (sonraki oturum, MATLAB cascade+fric
 - 🔌 **IMU bağlanınca:** iç ~40 kΩ pull-up 100 kHz için zayıf — GY-521 modül 4.7 kΩ pull-up'ları devreye girer
   (idealdir); doğrulama: okuma ~1.5 ms başarılı olmalı, FP tilt'le değişmeli.
 
+#### 12.13.5. Rijit-mount re-karakterizasyon — plant DOĞRULANDI + sürtünme yön-asimetrisi (YENİ)
+
+Mengeneyle sabitlendikten sonra (el-tutuşu konfoundu giderildi) HP **sıfırdan re-karakterize edildi**
+(`hp_characterize.py` + `hp_deadband.py`, 2026-06-23) — eski (muhtemelen non-rijit) char'a karşı:
+
+| Parametre | Eski | Rijit (fwd / rev) | Sonuç |
+|---|---|---|---|
+| $K_g$ (rad/s/duty) | 1043 | ~974 / 897 | ✅ DOĞRULANDI (~%7 fark, %8 yön-simetri) |
+| $\tau_{63}$ | ~70 ms | 71.9 / 71.5 ms | ✅ DOĞRULANDI |
+| $u_s$ statik (breakaway) | 0.21 | 0.22 / 0.25 | ~aynı + yön-asimetri |
+| $u_c$ kinetik (Coulomb) | 0.14 | **0.14 / 0.20** | fwd aynı, **REV %43↑ (YENİ)** |
+
+**Bulgu:** (1) **Plant (Kg, τ) konfoundlu DEĞİLMİŞ** — eski cascade tasarımı (Kp=0.00167/Ki=0.0548) sağlam
+temelli; limit-cycle plant-hatası değil, **yapısal** (iç-PI+Coulomb, §12.13.4). (2) **Sürtünme yön-asimetrik**
+($u_c$ rev 0.20 > fwd 0.14, %43) — simetrik FF reverse'i eksik telafi ediyordu → asimetrik limit-cycle'a katkı;
+telafi **yön-bağımlı** olmalı. (3) Stiction/kinetik ≈1.6× (makul, ekstrem değil).
+
+→ Re-karakterizasyon (kullanıcı çağrısı, analitik-önce disiplini) **modeli güvenceye aldı + asimetriyi açtı** →
+cascade redesign artık **güvenilir rijit-mount modeli** üzerinden yapılır (tahminle değil). Üreten:
+`scripts/hp_characterize.py`, `scripts/hp_deadband.py`; ham `artifacts/3/hp_charac|hp_deadband/`.
+
 > 📊 Üreten: `loop-slowdown-archaeology` + `imu-26ms-diagnosis` workflow'ları + geçici I2C teşhis enstrümantasyonu
 > (kaldırıldı). FIX: `main.c:476` `GPIO_PULLUP`. Kanıt: I2CPROF BUSY@giriş 1→0, RD 26000→94 µs, LOOP 32→6 ms.
