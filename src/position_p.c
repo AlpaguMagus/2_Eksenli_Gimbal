@@ -37,8 +37,8 @@ float PositionP_Step(PositionP_t *h, int32_t enc_count, float *theta_out_deg_out
         return 0.0f;
     }
 
-    /* Ölçülen çıkış mili açısı (rad) — pozisyon ölçümü çözünürlüğü 2π/466 ≈ 0.0135 rad
-     * (0.773°), hız ölçümünden 24× daha ince → kuantizasyona dayanıklı. */
+    /* Ölçülen çıkış mili açısı (rad) — çözünürlük 2π/cfg.counts_per_rev (LP 466→0.77°, HP 960→0.375°);
+     * hız ölçümünden çok daha ince → kuantizasyona dayanıklı. */
     float theta_out  = (float)enc_count * (TWO_PI / h->cfg.counts_per_rev);
     h->theta_out_deg = theta_out * RAD2DEG;
     if (theta_out_deg_out) *theta_out_deg_out = h->theta_out_deg;

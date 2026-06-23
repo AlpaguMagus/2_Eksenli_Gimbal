@@ -812,9 +812,9 @@ Temiz testte encoder **noise spike'ları** (62314, 126893 cnt/s = fiziksel imkâ
 
 > **Ne:** RPWM kablo-fix + ~940µF bulk (§12.11.6) sonrası HP eksenini (Motor1/HW-039, 20:1) serbest-milde
 > temiz karakterize et → analitik cascade tasarla → firmware'e taşı → bench doğrula. **Neden:** firmware
-> eksen-0'a o güne dek **LP parametreleri** (gear 9.7, cpr 466, Kg 654.8) uyguluyordu (geçici, §7.2) — HP
+> eksen-0'a o güne dek **LP parametreleri** (gear 9.7, cpr 466, Kg 654.8) uyguluyordu (geçici, `docs/00_donanim_semasi.md` §7.2) — HP
 > 20:1 ve farklı motor olduğundan cascade yanlıştı. **Sonuç:** karakterizasyon + tasarım temiz; bench
-> **stick-slip** (stiction) ortaya çıkardı → Coulomb feedforward ile çözülüyor. Üç-faz onaylı plan (Faz-kapılı).
+> **stick-slip** (stiction) ortaya çıkardı; analitik Coulomb FF denendi ama **ÇÖZMEDİ** → asıl darboğaz ~32 ms **loop-rate** (kazanç-uzayı tüketildi, mimari fix gerekli — §12.12.5). Üç-faz onaylı plan (Faz-kapılı).
 
 #### 12.12.1. Faz 1 — HP karakterizasyon (mil serbest, ≤0.5 duty cap, EC-canary)
 
@@ -849,7 +849,7 @@ $$\tau s^2 + (1 + K_g K_p)\,s + K_g K_i = 0 \;\Rightarrow\; \omega_n^2 = \frac{K
 - Pole placement: $\omega_n = 2/\tau = 28.6$ rad/s $\Rightarrow K_i = \omega_n^2 \tau / K_g = 0.0548$, ortaya çıkan $\zeta = 0.68$.
 - **Toolbox doğrulama:** PM $= 68.4^\circ$, GM $= \infty$, $\omega_c = 32.4$ rad/s; `pidtune` (@$\omega_c$) $K_p=0.0014/K_i=0.062$ → analitikle **~%15-20 uyum** (doyum-kısıtı için bilinçli fark, `pidtune` stiction'ı bilmez).
 
-**Dış pozisyon-P** — açık-çevrim $L_{out}(s) = K_{p,pos}\,T_{in}(s)/s$; redüktör ileri/geri sadeleşir → $\omega_c = K_{p,pos}$. 5× kuralı [Franklin2010 §6.4]: $\omega_c \le \omega_{n,\text{iç}}/5 = 5.7$. Seçim $K_{p,pos}=2.0$ ($\omega_c=2.0$, PM $88^\circ$, proven LP değeri).
+**Dış pozisyon-P** — açık-çevrim $L_{out}(s) = K_{p,pos}\,T_{in}(s)/s$; redüktör ileri/geri sadeleşir → $\omega_c = K_{p,pos}$. 5× kuralı [Franklin2010 §6.4]: $\omega_c \le \omega_{n,\mathrm{in}}/5 = 5.7$ (iç döngü). Seçim $K_{p,pos}=2.0$ ($\omega_c=2.0$, PM $88^\circ$, proven LP değeri).
 
 | Blok | Parametre | HP | LP (değişmez) |
 |---|---|---|---|
@@ -881,8 +881,8 @@ değmedi (max ~0.37), motor donmadı **lurch** yaptı.
 
 **Kök neden (4 faktör birleşik):** (1) büyük stiction (breakaway $u_s = 0.21$); (2) **zayıf efektif Ki** —
 Tustin sabit $T_s = 0.005$ vs gerçek loop $\approx 32$ ms → $K_{i,\text{eff}} = K_i\,T_s/dt \approx 0.16\,K_i$,
-hedefe yakın breakaway'i $\approx 12$ s'de kırıyor (4 s hold yetmiyor, §12.11.6 latent kuplajı **HP'nin büyük
-stiction'ında ısırıyor**); (3) hızlı HP motoru kopunca yavaş loop frenleyemeden aşıyor; (4) ~32 ms loop fast
+hedefe yakın breakaway'i $\approx 12$ s'de kırıyor (4 s hold yetmiyor); §12.11.6'da işaret edilen ~31 Hz
+loop darboğazı (Ts/dt de-rating) **HP'nin büyük stiction'ında ısırıyor**; (3) hızlı HP motoru kopunca yavaş loop frenleyemeden aşıyor; (4) ~32 ms loop fast
 lurch'ü yakalayamıyor. **Analitik tasarım doğru — modellenmemiş stiction + loop-hızı baskın** (sim ≠ validasyon, §12.7).
 
 ![HP bench stick-slip (FF öncesi)](../matlab/asama_3_mimo_model/results/hp_cascade/hp_bench_noFF_stickslip.png)
@@ -899,7 +899,7 @@ $$u_{ff} = u_c\cdot\mathrm{sign}(\omega_{ref}),\qquad K_{ff,coul} = u_c = 0.14\ 
 
 - $K_{ff,grav} = 0$ — serbest-mil HP **dengeli** (Faz1 K-eğrisi fwd/rev simetrik → gravite asimetrisi yok; aksi halde $|u_{fwd}| \ne |u_{rev}|$ olurdu).
 - FF sonrası PI'nın kıracağı **artık stiction** $= u_s - u_c = 0.07$ → integral windup **3.0× azalır** ($u_s/(u_s-u_c)$).
-- Ölü-bant: $\text{coul\_db} = K_{p,pos}\cdot\text{gear}\cdot e_{off} = 2\cdot 20\cdot(0.5^\circ) = 0.35$ rad/s (setpoint-civarı sign-chatter'ı keser; FF $\pm 0.5^\circ$ bandında kapanır).
+- Ölü-bant (`coul_db`): $u_{\text{db}} = K_{p,pos}\cdot\text{gear}\cdot e_{off} = 2\cdot 20\cdot(0.5^\circ) = 0.35$ rad/s (setpoint-civarı sign-chatter'ı keser; FF $\pm 0.5^\circ$ bandında kapanır).
 - Beklenen breakaway: FF yok $\approx 12$ s $\to$ FF var $\approx 3.9$ s (yine de $K_{i,\text{eff}}$ zayıf → tam settle için Ki düzeltmesi $K_i\,dt/T_s \approx 0.35$ **ayrı adım**, izole değişken disiplini).
 
 **Runtime (reflash yok, eksen-0):** `LFFG:0` · `LFFC:0.14` · `LFFDB:0.35` · `LFF:1`.
@@ -924,7 +924,9 @@ Breakaway sonrası HP **lurch hızı ~200 rad/s motor** (gözlenen ω spike) = *
 periyodunda ($dt = 32$ ms) motor **18.3° çıkış** kat eder — settling band'ından (2°) **9× büyük**. Loop,
 motoru hedefi aşmadan **frenleyemiyor** (overshoot ancak gerçekleştikten SONRA ölçülüyor):
 
-$$dt_{\text{gerekli}} = \frac{\theta_{band}}{\dot\theta_{lurch}} = \frac{2^\circ}{573^\circ/\text{s}} \approx 3.5\ \text{ms} \;\Rightarrow\; \sim 9\times\ \text{daha hızlı loop}$$
+$$dt_{\text{gerekli}} = \frac{\theta_{band}}{\dot\theta_{lurch}} = \frac{2^\circ}{573^\circ/\text{s}} \approx 3.5\ \text{ms} \;\Rightarrow\; \sim 9\times$$
+
+→ yani **~9× daha hızlı loop** gerekir.
 
 LP (yavaş motor, $K$ 1.6× küçük + küçük stiction) sample başına az hareket → 32 ms yakalayabiliyordu; HP
 yakalanamıyor. Üstelik **integral, motor yapışıkken aşırı şişiyor** (zayıf $K_{i,\text{eff}}$ geç unwind) →
@@ -934,7 +936,7 @@ kopunca depolanmış enerji motoru sertçe sürüyor → overshoot; sign-FF bunu
 ~1 kHz), §12.11.6 loop-darboğazının doğrudan tezahürü. Parametre tuning (FF, Kp_pos) palyatif, kök çözüm değil.
 
 **Kazanç-uzayı TÜKETİLDİ (ampirik kanıt — iki uç da başarısız):** Loop **ölçüldü** (T_US deltaları): medyan
-**32 ms (30 Hz)**, de-rating $T_s/dt = 0.16$ → efektif $K_{i,\text{eff}} = K_i\cdot T_s/dt = 0.0088$.
+**32 ms (~31 Hz)**, de-rating $T_s/dt = 0.16$ → efektif $K_{i,\text{eff}} = K_i\cdot T_s/dt = 0.0088$.
 
 - **Sürekli takip** (sinüs A=40°/f=0.2 Hz, FF kapalı): RMS **49.5°**, **motor %95 stuck** — salınan referans
   zayıf integrali breakaway'e ulaştıramadan tersine dönüyor → motor stiction'ı **hiç kıramıyor**. ("Sürekli
@@ -953,3 +955,49 @@ gain tuning'in (FF/Ki/Kp_pos) HP pozisyon için neden palyatif kaldığının **
 - **Loop-rate fix (mimari, BİRİNCİL — kazanç-uzayı tüketimiyle KANITLANDI):** kontrol döngüsünü IMU okuma/diğer işten ayır (timer-ISR ~1 kHz, IMU async) → §12.12.5. HP temiz pozisyon için **zorunlu** (gain tuning hem stuck hem kararsız uçlarda başarısız); LP çalışıyor (yavaş motor, küçük stiction). **Bağımsız oturum + tasarım onayı** ister (her iki ekseni etkiler, $T_s$↔dt kuplajı).
 - **STAB + gyro-FF (belirsiz, base-tilt ister):** sürekli-takip proxy'si stuck verdi AMA gerçek STAB'de gyro-FF (§12.9) $\omega_{ref}$'i jiroskoptan doğrudan besler → motoru sürekli hareket ettirip stiction'ı baypas edebilir (proxy'de FF yoktu). Düşük öncelik; loop-rate fix sonrası daha anlamlı.
 - **Yük:** serbest-mil tasarımı; gravite-FF + yüklü stiction = Aşama 5 (payload inertial).
+
+### 12.13. (1) Loop-rate fix — araştırma çerçevesi (ön-hazırlık) · 📐 henüz uygulanmadı
+
+> **Olgunluk:** 📐 ön-tasarım/çerçeve — §12.12 loop-rate'i kanıtladı; bu bölüm sıradaki (1) oturumuna
+> hazırlık. **Kod DEĞİŞMEDİ**; bench gelince uygulanır.
+
+#### 12.13.1. Kilit içgörü — loop bir REGRESYON (7 ms → 32 ms)
+
+Loop Aşama 0-2'de **~7 ms/~140 Hz** idi ve **DWT ile donanımda doğrulanmıştı** (asama_2 §11.11.8: $T_s/dt \approx 0.71$).
+Şimdi ÖLÇÜLEN **~32 ms/~31 Hz** ($T_s/dt \approx 0.16$) — §12.12'deki stick-slip'in kök-nedeni. Firmware bunu
+zaten **açık-işaretliyor** (`main.c:409` ⚠ AÇIK): loop'un ~27 ms'i "IMU/işlem", neden bilinmiyor. → **Bu bir
+REGRESYON olabilir** (bir noktada loop'a bloklayan iş eklendi / IMU yavaşladı); nedeni bulup gidermek **7 ms'i
+geri getirebilir** → de-rating 0.71'e döner → mevcut HP cascade kazançları muhtemelen çalışır (timer-ISR
+yeniden-yazımına gerek kalmadan). Bu, (1)'i "büyük mimari rebuild"den "hedefli regresyon-avı"na çevirir.
+
+#### 12.13.2. Profil-önce yaklaşımı (analitik-önce'nin firmware karşılığı)
+
+Timer-ISR'a yeniden-yazmadan **ÖNCE** loop'u **profille**: DWT cycle-counter ile her blok arasına timestamp
+(IMU read · füzyon · kontrol · telemetri-CDC · HAL_Delay) → 27 ms'nin **nerede** olduğunu ÖLÇ (spekülasyon
+değil). Bu, "deney öncesi tavanı analiz et" dersinin (§12.12.4 FF/Ki ampirik-önce uyarısı) firmware'e uygulanışı.
+
+#### 12.13.3. Şüpheli adaylar (analitik ön-tahmin)
+
+| Aday | Beklenen süre | Not |
+|---|---|---|
+| `MPU6050_Read` (I2C 100 kHz, 14 byte) | ~1.3 ms + ≤3 ms timeout | tek başına 27 ms açıklamaz |
+| `CDC_Transmit_FS` (USB, her loop ~240 byte) | FS'te ~0.16 ms — ama **bloklarsa** host'a bağlı | **en güçlü şüpheli** (bloklama) |
+| `HAL_Delay(5)` (`main.c:459`) | 5 ms (sabit) | kolay kaldırılır, ayrı |
+| Füzyon · stall · LED | <1 ms | düşük |
+
+#### 12.13.4. Tasarım seçenekleri (basit → mimari)
+
+1. **Regresyon-fix (ÖNCE dene):** profil 27 ms'yi bloklayan USB/I2C'de gösterirse → gider → 7 ms geri. **En ucuz**, HP cascade'i kurtarabilir.
+2. **I2C 400 kHz / non-blocking DMA read** — IMU okumayı hızlandır.
+3. **CDC non-blocking / telemetri seyreltme** — USB bloklamasını kaldır.
+4. **Timer-ISR kontrol (IMU async)** — son çare, en kapsamlı: control'ü sabit ~1 kHz ISR'da koştur, IMU'yu ayrı oku.
+5. **Ts → gerçek dt (Tustin'de):** de-rating'i otomatik düzeltir AMA **her iki ekseni etkiler** — ⚠ LP de-rated $K_i=0.1$ ile çalışıyor (Test 2.5 PASS); $T_s$'i gerçek dt'ye bağlamak LP efektif $K_i$'sini ~6× artırıp **LP'yi kararsızlaştırabilir** → per-eksen dikkat.
+
+#### 12.13.5. Açık sorular / önkoşullar
+
+- Profil 27 ms'yi **nerede** gösteriyor? (ilk adım — ölç, sonra fix seç)
+- 7 ms geri gelirse mevcut HP kazançları (Kp=0.00167/Ki=0.0548) çalışır mı? (re-test)
+- LP'yi bozmadan $T_s \leftrightarrow dt$ nasıl ayrılır? (per-eksen $T_s$ veya yalnız HP düzeltmesi)
+- Loop **ne zaman/neden** yavaşladı? (git geçmişi: IMU self-heal / non-blocking init `94a36e3` sonrası mı?)
+
+> 📊 İlgili: profil aracı (1) oturumunda yazılacak (`scripts/`). Firmware kanca: `main.c:409` açık-not, DWT (`main.c:281`).

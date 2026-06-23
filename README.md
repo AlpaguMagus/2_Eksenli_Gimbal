@@ -16,13 +16,15 @@
 | **0 — Altyapı** | ✅ KAPALI | Donanım + firmware + IMU füzyonu + USB CDC + koruma katmanları |
 | **1 — Sistem Tanımlama** | ✅ KAPALI | `K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0` — model NRMSE %11 (Test 1.T5 PASS) |
 | **2 — Tek Motor Kontrol** | ✅ KAPALI | Hız PI + sim-to-real gap + disturbance + pozisyon cascade + IMU mirror — **2.T1–T6 tüm testler PASS** (anti-windup sim+gerçek 637ms) |
-| **3 — MIMO Model** | 🟡 AÇIK | **K0 (cascade) kapandı** — tek-motor cascade/mirror/stab gerçek-donanımda PASS + sim-to-real doğrulandı; sırada K1 (iki-eksen) + MIMO ID |
+| **3 — MIMO Model** | 🟡 AÇIK | **K0 (cascade) kapandı** — tek-motor cascade/mirror/stab gerçek-donanımda PASS + sim-to-real doğrulandı. **HP ekseni** (HW-039/BTS7960): dropout çözüldü (940µF bulk) + karakterize ($K_g\approx 1043$, $\tau\approx 70$ ms) + analitik cascade tasarlandı; bench stick-slip → kök-neden ~32ms loop → birincil çözüm loop-rate fix (sonraki oturum). Sırada K1 (iki-eksen) + MIMO ID |
 | 4 — MIMO Kontrol | ⬜ | Decoupling + LQR/LQI (kanıta-dayalı, RGA kapısı) |
 | 5 — Gerçek Gimbal | ⬜ | 3D-baskı + LQG/Kalman + stabilizasyon |
 
 **En son (2026-06-12):** 🟡 **Aşama 3 (MIMO) açık.** 3.1 pin/kablolama ✅ · 3.2 encoder-2 + motor-2 sürücü ✅ · 3.3 instance-based 2-eksen mimari ✅. **K0 (decentralized cascade) kapandı** — tek sağlam motor (motor-2 ekseni) üzerinde cascade pozisyon **6/6 PASS**, IMU mirror **RMS 5.53°**, stabilizasyon (motor base eğimine TERS döner, corr **−0.95**, RMS 6.72°) gerçek-donanımda PASS + **sim-to-real** cascade modeliyle doğrulandı (model ölçüleni kuşatır). ⚠ Motor-1 ünitesi CW mekanik kusurlu → redüktörsüz yedek siparişte; gelene kadar tek-motor ilerleme. Tüm plan artık **[Kontrol Yöntemleri Merdiveni](ROADMAP.md)** (K0 decentralized → K8 ileri; her basamak kapatılabilir). Sırada K1 (iki-eksen, motor gelince) + 3.4 MIMO ID. Detay → [`docs/asama_3_mimo_model.md`](docs/asama_3_mimo_model.md) §12.4. Güncel durum → [`PROJE_DURUMU.md`](PROJE_DURUMU.md).
 
-**En son (2026-06-17):** 🟡 **Aşama 3 ara durum.** Motor-1/HP ekseni **HW-039/BTS7960** sürücüsüyle entegre edildi — ancak sürücü-domeni **yavaş** (τ_eff ~400-450 ms, freq-bağımsız; kazanç sağlam `K_HP=83.35 rad/s/V`). **HP-on-TB6612** deneyi askıda. İki-kanallı **DFRobot DFR0601** (hem HP hem LP için) siparişte. Detay → [`docs/asama_3_mimo_model.md`](docs/asama_3_mimo_model.md) §12.10.
+**En son (2026-06-17):** 🟡 **Aşama 3 ara durum.** Motor-1/HP ekseni **HW-039/BTS7960** sürücüsüyle entegre edildi. ⚠ Bu girişteki "sürücü-domeni yavaş (τ_eff ~400-450 ms)" hükmü **çürütüldü** (bkz. aşağıda 2026-06-23 + [`docs`](docs/asama_3_mimo_model.md) §12.11): ölçülen yavaşlık firmware-ramp confound'uydu, HW-039 gerçekte **hızlı** (τ≈70-100 ms). DFRobot DFR0601 **hız için gereksiz** — değeri 12A akım + 2-kanal entegrasyon; interim HP→HW-039 / LP→TB6612.
+
+**En son (2026-06-23):** 🟡 **Aşama 3 — HP ekseni dropout çözüldü + cascade tasarlandı.** **Dropout** (motor başlangıcında MCU reset) ~940µF bulk kapasitör (2×470µF/25V) ile **çözüldü** — kök neden tek 12V Sagemcom PSU'nun OCP-hiccup'ı (§12.11). HP ekseni **karakterize** edildi (Kg≈1043 rad/s/duty, τ≈70 ms; forward yön kablo-fix ile temiz, K/τ simetrik) ve **analitik cascade** tasarlandı (iç PI / dış P, `pidtune` doğrulandı; §12.12). Bench'te HP hedefi aşıp **yapışıyor (stick-slip)**; Coulomb FF çözmedi. Kök neden **kanıtlandı**: ~32ms IMU-bağlı kontrol döngüsü hızlı HP'yi büyük stiction ile kontrol edemiyor (kazanç-uzayı tükendi). Kanıtlanmış fix: **loop-rate** (kontrol ~1kHz timer-ISR, IMU'dan ayrı) — sonraki oturuma ertelendi (mimari değişiklik, tasarım onayı ister). Detay → [`docs/asama_3_mimo_model.md`](docs/asama_3_mimo_model.md) §12.11/§12.12.
 
 ---
 
@@ -38,6 +40,7 @@ Her belge tek bir soruyu, tek bir okuyucu kitlesine cevaplar:
 | [`docs/asama_0_altyapi.md`](docs/asama_0_altyapi.md) | Donanım, firmware, IMU füzyonu, USB, motor/encoder **nasıl** kuruldu? | Geliştirici |
 | [`docs/asama_1_model.md`](docs/asama_1_model.md) | Motor modeli (K, τ) **nasıl/neden** çıkarıldı, **sonuç** ne? | Jüri (akademik) |
 | [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md) | Kontrolcü **neden** öyle tasarlandı, **alternatifler**, **sonuç**? | Jüri (akademik) |
+| [`docs/asama_3_mimo_model.md`](docs/asama_3_mimo_model.md) | **MIMO model** (aktif aşama) — 2-eksen mimari, HP/LP asimetri, cascade, teşhis? | Jüri / geliştirici |
 | [`ROADMAP.md`](ROADMAP.md) | **Ne planlanıyor**, açık sorular, test iskeleti? | Geliştirici / danışman |
 | [`PROJE_DURUMU.md`](PROJE_DURUMU.md) | **Şu an neredeyiz**, en son ne yapıldı? | Gelecek-ben / danışman |
 | [`KAYNAKCA.md`](KAYNAKCA.md) | Hangi **literatüre** dayanıyor? (etiketli bibliyografya) | Akademik denetim |
@@ -50,7 +53,8 @@ Her belge tek bir soruyu, tek bir okuyucu kitlesine cevaplar:
 
 ## ⚙ Sistem Mimarisi
 
-> ⚠ **INTERIM (2026-06-17):** Aşağıdaki şema **tek-motor Aşama-0 dönemindendir** ve güncel değildir. Güncel: **Motor1/HP = HW-039/BTS7960** (RPWM=PB8 / LPWM=PB9 / EN=PB14, TIM4); **Motor2/LP = TB6612** (PB1/PB4/PB5/PB10, TIM3). Güncel pin haritası → [`docs/00_donanim_semasi.md`](docs/00_donanim_semasi.md) §2. İki-kanallı **DFRobot DFR0601** siparişte.
+> ⚠ **INTERIM (2026-06-17):** Aşağıdaki şema **tek-motor Aşama-0 dönemindendir** ve güncel değildir. Güncel: **Motor1/HP = HW-039/BTS7960** (RPWM=PB8 / LPWM=PB9 / EN=PB14, TIM4); **Motor2/LP = TB6612** (PB1/PB4/PB5/PB10, TIM3). Güncel pin haritası → [`docs/00_donanim_semasi.md`](docs/00_donanim_semasi.md) §2.
+> **Güç (güncel):** tek 12V Sagemcom PSU + ~940µF bulk kapasitör (dropout fix; ASCII'deki "Mervesan 12V/3A" eskidir). Bulk yalnız inrush'ı çözer; tam akım zarfı/stall için ≥6-7A besleme gerekir → [`docs/00_donanim_semasi.md`](docs/00_donanim_semasi.md) §4.1.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
@@ -123,6 +127,8 @@ python3 scripts/disturbance_test.py       # disturbance rejection
 | `STOP` / `RESET` / `PING` | Durdur / lockout temizle / handshake |
 | `IMUDIAG` / `IMUINIT` | IMU I2C sağlık teşhisi (bus/uyku/AD0) / çek-taksız uyandırma |
 
+> ℹ️ **Eksen-1 (LP):** Aynı komut seti `2` son-ekiyle (`MODE2:`, `POS_DEG2:`, `KPP2:` …). `MIRROR` / `STAB` (IMU mirror / stabilizasyon) modları dahil tam liste → [`docs/asama_3_mimo_model.md`](docs/asama_3_mimo_model.md).
+
 > 🔧 **IMU kendini-iyileştirme (otomatik):** Sarsıntı/güç-glitch'i IMU'yu uykuya veya I2C'yi stuck'a sokarsa firmware ardışık ~40 başarısız okumadan sonra **bus-clear (9 SCL pulse) + re-init** yapar — USB çek-tak gerekmez, USB'ye `IMU_RECOVER` düşer (≥2 s cooldown).
 
 Komut seti detayı → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md).
@@ -138,7 +144,8 @@ Komut seti detayı → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md).
 │   ├── 00_genel_bakis.md     ← Vizyon + ortak kontrol teorisi primer'i (denklem/diyagram)
 │   ├── asama_0_altyapi.md    ← Donanım, firmware, IMU, filter, USB, motor/encoder
 │   ├── asama_1_model.md      ← Sistem tanımlama (K, τ, dead-band)
-│   └── asama_2_kontrol.md    ← Hız PI, sim-to-real, disturbance, pozisyon cascade
+│   ├── asama_2_kontrol.md    ← Hız PI, sim-to-real, disturbance, pozisyon cascade
+│   └── asama_3_mimo_model.md ← MIMO model (aktif): 2-eksen mimari, HP/LP asimetri, cascade, teşhis
 ├── src/                      ← Firmware kaynak
 │   ├── main.c                ← Ana döngü: init, sensör, filter, kontrol, USB
 │   ├── motor.c               ← Motor sürücü API (Motor1 HW-039/BTS7960 + Motor2 TB6612, asimetrik)

@@ -50,6 +50,6 @@
 - `docs/asama_2_kontrol.md` §11.13.8 — anlatı omurgası
 - `docs/00_genel_bakis.md` §2.7 — sistem tipi / $K_v$ teori temeli
 - `matlab/asama_2_kontrol/design_mirror_tracking.m` — $K_v$ türetmesi kodda (satır 5-17)
-- `src/main.c` (218-250) + `src/cmd_parser.c` (76, MODE:MIRROR→SetGain 6.0) — firmware
+- `src/main.c` (218-250) + `src/cmd_parser.c` (66, MODE:MIRROR→SetGain 6.0) — firmware
 - `artifacts/2/mirror/20260531_174740/summary.md` — sayısal sonuç (Kp=6 firmware default, RMS 4.02° PASS); Kp=5 koşusu `…/20260526_204240/`
 - Görseller: `matlab/.../results/2_7_mirror/{mirror_blockdiagram,mirror_tracking_design}.png` + `artifacts/2/mirror/20260531_174740/mirror_plot.png`

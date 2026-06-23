@@ -19,12 +19,12 @@
  * @96MHz: (0+1)×(4799+1)=4800 → 20 kHz (TB6612 ile aynı, datasheet ≤25 kHz içinde). */
 #define BTS7960_PWM_ARR      4799U
 #define BTS7960_PWM_PRESC    0U
-#define MOTOR_MAX_DUTY       0.50f  /* hard cap. Stall@0.5≈0.55 A < TB6612 sürekli 1.0 A
-                                     * (amper bütçesi asama_0 §8.5; sigorta yok → konservatif).
-                                     * 2026-06-09: 0.70/0.85 denendi → motor-1 CW catch'i YENMEDİ
-                                     * (tork↑'da rate↓ = sert mekanik catch, stiction değil) +
-                                     * jam akımını artırıyordu → 0.50'de kalındı.
-                                     * Headroom Aşama 5'te (yük + sigorta/ACS712 foldback) açılır. */
+#define MOTOR_MAX_DUTY       0.50f  /* hard cap (HER İKİ EKSEN). LP: Stall@0.5≈0.55 A < TB6612 sürekli
+                                     * 1.0 A (asama_0 §8.5; sigorta yok → konservatif). HP: Sagemcom 5A +
+                                     * 940µF bulk inrush (§12.11.6); >0.5 sürekli için ≥6-7A besleme gerek.
+                                     * 2026-06-09: 0.70/0.85 denendi → ESKİ CW-kusurlu motor-1 catch'i YENMEDİ
+                                     * (o ünite değiştirildi §12.12.1; yeni HP forward-temiz) + jam akımı↑
+                                     * → 0.50'de kalındı. Headroom Aşama 5'te (yük + sigorta/ACS712 foldback). */
 #define MOTOR_RAMP_STEP      0.01f  /* her tick'te duty değişimi */
 #define MOTOR_DEAD_THRESHOLD 0.10f  /* |Δ| > 0.10 ise rampa, ≤ 0.10 ise direkt */
 #define MOTOR_SOFT_STEP_MS   5U     /* SoftStart blok rampa step bekleme */
@@ -51,13 +51,14 @@ static bool              tim4_base_ready = false;
 static volatile uint32_t g_bts_arr = BTS7960_PWM_ARR;
 
 /* ── Kanal örnekleri — pin haritası 00_donanim_semasi.md §2 ───────────────
- * Motor1 = eksen-0: HP Pololu (PL-4840) + HW-039/BTS7960. ⚠ 2026-06-17 INTERIM (docs §12.10):
- *          HP-on-TB6612 denendi (HW-039 τ_eff~450ms "yavaş" SANILDI — ⚠ §12.11/2026-06-22: bu
- *          firmware-ramp confound'uydu, HW-039 aslında HIZLI τ≈70-100ms; encoder EMI 104-kapasitörle
- *          çözüldü) ama HP-on-TB6612'de kablo arızaları çıktı
- *          (forward-ölü=AIN1/PB12 yolu + LP-encoder PWM-gürültü) → HP HW-039'da KALDI; kalıcı çözüm
- *          DFRobot sürücü siparişte. RPWM=PB8(TIM4_CH3), LPWM=PB9(TIM4_CH4), R_EN+L_EN köprü=PB14.
- *          Enkoder DEĞİŞMEZ (PA15/PB3). [TB6612 deney config'i (is_bts7960=false,PB0/12/13/14) git+docs §12.10'da.]
+ * Motor1 = eksen-0: HP Pololu (PL-4840) + HW-039/BTS7960 — HP'nin AKTİF/karakterize sürücüsü
+ *          (dropout 940µF bulk ile çözüldü §12.11.6; cascade karakterize+tasarlandı §12.12).
+ *          Geçmiş: HP-on-TB6612 denendi (HW-039 τ_eff~450ms "yavaş" SANILDI — §12.11/2026-06-22:
+ *          firmware-ramp confound'uydu, HW-039 HIZLI τ≈70-100ms; encoder EMI 104-kapasitörle çözüldü)
+ *          ama kablo arızaları çıktı (forward-ölü=AIN1/PB12 + LP-encoder PWM-gürültü) → HW-039'da KALDI.
+ *          DFR0601 yalnız 12A akım+2-kanal entegrasyon için planlı (HIZ için gereksiz, §12.11).
+ *          RPWM=PB8(TIM4_CH3), LPWM=PB9(TIM4_CH4), R_EN+L_EN köprü=PB14. Enkoder DEĞİŞMEZ (PA15/PB3).
+ *          [TB6612 deney config'i (is_bts7960=false,PB0/12/13/14) git+docs §12.10'da.]
  * Motor2 = eksen-1: SAĞLIKLI LP Pololu + TB6612 (K=53.89/τ=60.5ms, DOĞRULANMIŞ — dokunma). */
 MotorCh_t Motor1 = {
     .is_bts7960 = true,

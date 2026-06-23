@@ -12,26 +12,26 @@
 
 ## 1. Sistem topolojisi (ASCII bağlantı şeması)
 
-> ⚠ **INTERIM (2026-06-17, bkz. §12.10 + §7.2):** Motor-1/HP ekseninin GÜNCEL sürücüsü **HW-039/BTS7960** (RPWM=**PB8**/LPWM=**PB9** sign-magnitude; R_EN+L_EN enable=**PB14**). Aşağıdaki §1 ASCII şeması ve güç-kutusundaki **"TB6612-1"** gösterimi HP-on-TB6612 deneyinden (askıya alındı) kalmadır, **güncel değildir** — Motor-1 pin gerçeği **§2 master tablosunda düzeltildi** (firmware struct + §7.2 ile tutarlı). DFRobot sürücü gelince §1 yeniden çizilecek.
+> ⚠ **INTERIM (2026-06-17, bkz. §12.11 (revize; §12.10 çürütüldü) + §7.2):** Motor-1/HP ekseninin GÜNCEL sürücüsü **HW-039/BTS7960** (RPWM=**PB8**/LPWM=**PB9** sign-magnitude; R_EN+L_EN enable=**PB14**). §1 ASCII şeması ve güç-kutusu aşağıda **HW-039/BTS7960 ile çizildi** (Motor-1 pin gerçeği = §2 master tablosu + firmware struct + §7.2 ile tutarlı). HW-039 ile devam kararı kalıcı (`§12.11.5` — "DFR0601 gelince yeniden çiz" ertelemesi DÜŞTÜ).
 
 ```
 ┌─ GÜÇ DAĞITIMI ───────────────────────────────────────────────┐
-│ 12V/3A adaptör (+) → TB6612-1.VM  +  TB6612-2.VM  (motor gücü)│
+│ 12V/5A adaptör (+) → HW-039 B+    +  TB6612-2.VM  (motor gücü)│
 │ BlackPill 5V       → enc-1.Vcc 🔵  +  enc-2.Vcc 🔵  (encoder) │
-│ BlackPill 3.3V     → TB6612-1.VCC + TB6612-2.VCC + MPU6050.VCC│
+│ BlackPill 3.3V     → HW-039 VCC   + TB6612-2.VCC + MPU6050.VCC│
 │                      (lojik — IMU 3.3V! encoder'la KARIŞTIRMA)│
-│ ORTAK GND ⏚ (TEK NOKTA) → BlackPill.GND + TB6612-1/2.GND      │
+│ ORTAK GND ⏚ (TEK NOKTA) → BlackPill.GND + HW-039/TB6612-2.GND │
 │                           + 12V(−) + enc-1/2.GND 🟢 + MPU.GND │
 └──────────────────────────────────────────────────────────────┘
 
-MOTOR-1 EKSENİ (mevcut, çalışıyor)            MOTOR-2 EKSENİ (Aşama 3)
+MOTOR-1 EKSENİ (HP, dış/yük — §7.2)           MOTOR-2 EKSENİ (LP, iç/stand — Aşama 3)
 ──────────────────────────────────           ──────────────────────────────
-PB0  ─PWM ─▶ TB6612-1 PWMA                    PB1  ─PWM ─▶ TB6612-2 PWMA
-PB12 ─AIN1─▶ TB6612-1 AIN1                    PB4  ─AIN1─▶ TB6612-2 AIN1
-PB13 ─AIN2─▶ TB6612-1 AIN2                    PB5  ─AIN2─▶ TB6612-2 AIN2
-PB14 ─STBY─▶ TB6612-1 STBY                    PB10 ─STBY─▶ TB6612-2 STBY
-             TB6612-1 AO1 ─🔴▶ Motor1 +                   TB6612-2 AO1 ─🔴▶ Motor2 +
-             TB6612-1 AO2 ─⚫▶ Motor1 −                   TB6612-2 AO2 ─⚫▶ Motor2 −
+PB8  ─RPWM─▶ HW-039/BTS7960 RPWM              PB1  ─PWM ─▶ TB6612-2 PWMA
+PB9  ─LPWM─▶ HW-039/BTS7960 LPWM              PB4  ─AIN1─▶ TB6612-2 AIN1
+PB14 ─EN  ─▶ HW-039 R_EN+L_EN                 PB5  ─AIN2─▶ TB6612-2 AIN2
+                                              PB10 ─STBY─▶ TB6612-2 STBY
+             HW-039 M+ ─🔴▶ Motor1 +                      TB6612-2 AO1 ─🔴▶ Motor2 +
+             HW-039 M− ─⚫▶ Motor1 −                      TB6612-2 AO2 ─⚫▶ Motor2 −
 PA15 ◀─enc A 🟡 sarı                          PA8  ◀─enc A 🟡 sarı
 PB3  ◀─enc B ⚪ beyaz                         PA9  ◀─enc B ⚪ beyaz
   (TIM2, 32-bit)                                (TIM1, 16-bit → yazılım count-genişletme)
@@ -91,17 +91,19 @@ ucu swap'la veya firmware'de yön çevir. **(3)** **Encoder Vcc = 5V**, **sürü
 
 ## 4. Güç rayları & bütçe (datasheet-doğrulanmış)
 
-> ⚠ **INTERIM güç notu (2026-06-17):** Aşağıdaki tablo eski "2× TB6612 / tek 12V-3A adaptör" tasarımınadır. Asimetrik gerçek (Motor-1/HP → HW-039, Motor-2/LP → TB6612) ve eksen-başı ayrı besleme **§7.2**'de; şu an teşhis için tek bench supply (12V) kullanılıyor (**§12.10**). DFRobot sürücü gelince güç bütçesi yeniden hesaplanacak.
+> ⚠ **INTERIM güç notu (2026-06-17):** Aşağıdaki tablo eski "2× TB6612 / tek adaptör" tasarımınadır. Asimetrik gerçek (Motor-1/HP → HW-039, Motor-2/LP → TB6612) ve eksen-başı ayrı besleme **§7.2**'de; şu an tek **Sagemcom CS50001 (Salcomp OEM 12V/5A/60W, `[Sagemcom_PSU]`)** adaptör kullanılıyor (**§12.11 (revize; §12.10 çürütüldü)**). HW-039 ile devam kararı kalıcı (`§12.11.5`).
 
 | Ray | Kaynak | Tüketiciler | Limit |
 |---|---|---|---|
 | **3.3V** | BlackPill AP7343 reg | BlackPill 50–80 mA + MPU6050 3.9 mA + 2× TB6612 lojik 4.4 mA ≈ **90 mA** | 300 mA |
 | **5V** | USB direkt | 2× encoder ≈ 30 mA + reg girişi | 500 mA |
-| **12V** | Mervesan 12V/3A | 2 motor: normal ~0.6 A · ikisi stall @ duty %50 ~1.6 A · @ %100 ~2.2 A | **3.0 A** |
+| **12V** | Sagemcom CS50001 (Salcomp OEM 12V/5A/60W) `[Sagemcom_PSU]` | 2 motor: normal ~0.6 A · ikisi stall @ duty %50 ~1.6 A · @ %100 ~2.2 A | **5.0 A** |
 
-Güç & koruma **kararları** (3A yeterli, dar boğaz = sürücü 1.0 A, 2 ayrı TB6612 termal,
-duty cap %50, polyfuse ~2.5–3 A) → `ROADMAP.md` "Aşama 3 güç & koruma planı". Detay amper
-bütçesi → asama_0 §8.5. Kaynaklar: `[Pololu_25D]` Page 1, `[TB6612_DS]` sf 3.
+Güç & koruma **kararları** (mevcut Sagemcom 5A adaptör sürekli rejimde yeterli, OCP ~6A
+inrush-sınırlı → bulk kapasitör geçici inrush'ı yutar §4.1; dar boğaz = sürücü 1.0 A TB6612 /
+HW-039 12A, duty cap %50, polyfuse ~2.5–3 A) → `ROADMAP.md` "Aşama 3 güç & koruma planı".
+Detay amper bütçesi → asama_0 §8.5. ⚠ Tam-zarf/stall sürekli rejim için ideali ≥6-7A CC-capable
+besleme. Kaynaklar: `[Pololu_25D]` Page 1, `[TB6612_DS]` sf 3, `[Sagemcom_PSU]`.
 
 ### 4.1. Decoupling & bulk kapasitörler (HP/HW-039 yolu, 2026-06-23)
 
@@ -113,7 +115,7 @@ EMI (fırça gürültüsü) + dropout (adaptör OCP-hiccup) düzeltmesi — gere
 | **M+ ↔ M−** (motor terminali) | 0.1µF (104) seramik | fırça/komütasyon HF gürültüsü bastırma → encoder noise-spike'larını siler |
 | **VCC ↔ GND** (lojik besleme) | 0.1µF (104) seramik | lojik decoupling (besleme dalgalanması bastırma) |
 
-⚠ Bulk yalnız geçici inrush'ı (ms) çözer, **sürekli akım tavanını yükseltmez** (tam zarf/stall → ideali ≥6-7A / CC-capable besleme).
+⚠ Mevcut **Sagemcom 5A / OCP ~6A inrush-sınırlı** besleme: bulk yalnız geçici inrush'ı (ms) yutar (OCP-hiccup'ı önler), **sürekli akım tavanını yükseltmez** → tam-zarf/stall sürekli rejim için ideali **≥6-7A / CC-capable** besleme.
 
 ## 5. ACS712 akım sensörü — Faz-2 rezervi (şu an BAĞLI DEĞİL)
 
@@ -190,8 +192,8 @@ Fiziksel iskelet — 2 eksen, asimetrik kol geometrisi:
 | **Dış (base)** | yük-taşıyan, 9 cm kaldıraç | **HP** Pololu 25D | HW-039/BTS7960 (20 kHz) | **20:1** ⚠ | `Motor1` / eksen-0 |
 | **İç (stand)** | telefon, hafif, hassas | **LP** Pololu 25D | TB6612 (20 kHz) | **9.7:1** | `Motor2` / eksen-1 |
 
-> ⚠ **20:1 (HP redüktör):** firmware şu an eksen-0'a da **LP 9.7/466** uyguluyor (geçici) — HP cascade re-tune
-> bekliyor, aşağıdaki ⚠ **Açık (entegrasyon)** notuna bak.
+> ⚠ **20:1 (HP redüktör):** firmware eksen-0 artık **HP per-eksen split** (gear=20/cpr=960) ile flash'lı (§12.12 Faz3) —
+> eski "LP 9.7/466 uyguluyor" durumu GİDERİLDİ. Aşağıdaki ⚠ **Açık (entegrasyon)** notuna bak.
 
 **Gerekçe (özet):** HP-tork yük-taşıyan dış eksende; hassas-LP kamera ekseninde. Hassasiyet önceliği için
 optimal — iç eksen LP ile **bedava hassas** (TB6612, ~0 ölü-bölge), yalnız dış HP'nin ölü-bölgesi
@@ -199,7 +201,10 @@ optimal — iç eksen LP ile **bedava hassas** (TB6612, ~0 ölü-bölge), yalnı
 hızları yakın; HP@20 torku LP@9.7'nin $\approx 4\times$'i. Güç: dış HP→5 A adaptör (duty-cap %50'de stall
 $\approx 2.8$ A), iç LP→3 A. Tam karar analizi: bu oturum + `ROADMAP.md` (Kontrol Merdiveni).
 
-> ⚠ **Açık (entegrasyon):** HP step-ID **yapıldı** ($K_{HP}=83.35$ rad/s/V, $\tau_{eff}\approx 400$-$450$ ms —
-> HW-039 sürücü yavaş, `docs §12.10`); firmware **HÂLÂ** LP paramıyla ($K=53.89$) sürüyor → HP cascade
-> re-tune DFR0601 sonrasına ertelendi. Önkoşul: HP step-ID
-> ($K_{HP}, \tau_{HP}, V_{dead}$) → dead-band telafisi → eksen-0 cascade re-tune (`asama_3 §12.6`, K1 basamağı).
+> ✅ **HP cascade TAMAMLANDI (`asama_3 §12.12`, 3 faz):** Faz1 karakterizasyon — $K_g=1043$ rad/s(motor)/duty,
+> $\tau\approx 70$ ms (HW-039 **HIZLI**; eski "$\tau\approx 400$-$450$ ms HW-039 yavaş" hükmü `§12.11`'de
+> firmware-ramp confound olarak ÇÜRÜTÜLDÜ; terk-edilen önceki ID $K_{HP}=83.35$ rad/s/V de buradandı),
+> dead-band statik $0.21 \gg$ kinetik $0.14$. Faz2 analitik cascade — iç PI $K_p=0.00167$/$K_i=0.0548$ (PM 68°),
+> dış P $K_{p,pos}=2.0$ (PM 88°), `pidtune` doğrulandı. Faz3 — firmware per-eksen split, **eksen-0 = HP** flash OK
+> (terk-edilen önceki LP paramı $K=53.89$ artık kullanılmıyor). **Kalan açık konu:** loop-rate fix
+> (kontrol döngüsü IMU'dan ayrı ~1kHz timer-ISR — `§12.12.5`/`§12.12.6`, stick-slip kök-neden).

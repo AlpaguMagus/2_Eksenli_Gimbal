@@ -36,7 +36,7 @@
  *
  * ── Stall detection / lockout — COUNT-TABANLI (2026-05-31 düzeltme) ──────
  * Tetik: 200 ms pencerede |Δ encoder_count| < 2  VE  current_duty > 0.20.
- * NEDEN count (hız değil): hız ~7 ms loop periyodunda 1 count = 18.7 rad/s
+ * NEDEN count (hız değil): hız loop periyodunda (eski ~7ms; ÖLÇÜLEN ~32ms, §12.12.5) 1 count = 18.7 rad/s (7ms-dönemi; 32ms'te ~4)
  * kuantizasyonla ölçülür → yavaş ama DÖNEN mil (mirror takibi, ~5 rad/s motor
  * şaftı) ω=0 okunur → YANLIŞ-POZİTİF stall (2.T6 koşusunda yaşandı). 200 ms
  * pencerede count deltası 1 count = 0.67 rad/s çözünürlük verir (28× ince);
@@ -107,7 +107,7 @@ void  MotorCh_SetBtsPwm(uint16_t psc, uint16_t arr); /* BTS7960 PWM freq runtime
 void  MotorCh_SetDir(MotorCh_t *m, MotorDir_t dir);
 void  MotorCh_SetDuty(MotorCh_t *m, float duty01);   /* clamp [0, MOTOR_MAX_DUTY], rampa+dead-band (açık döngü) */
 void  MotorCh_SetDutySigned(MotorCh_t *m, float duty); /* signed, RAMPA YOK — kapalı döngü PI için */
-void  MotorCh_Tick(MotorCh_t *m);             /* main loop'tan her iterasyon (~140 Hz) — açık döngü rampa */
+void  MotorCh_Tick(MotorCh_t *m);             /* main loop'tan her iterasyon (~31 Hz, loop ~32ms ÖLÇÜLEN) — açık döngü rampa */
 
 void  MotorCh_SoftStart(MotorCh_t *m, float target_duty01); /* bloklayan ~200 ms rampa, init için */
 void  MotorCh_Stop(MotorCh_t *m);             /* PWM=0, dir=STOP */

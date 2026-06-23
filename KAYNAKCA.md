@@ -4,7 +4,7 @@
 > Her giriş **etiketli** (`[Yazar+Yıl]`), commit mesajlarında, kod yorumlarında
 > ve ROADMAP'te bu etiketle referans verilir.
 >
-> **Son güncelleme:** 2026-06-09 (doküman denetimi — DOI/ISBN/üretici-URL'ler eklendi)
+> **Son güncelleme:** 2026-06-23 (HP dropout-fix bench-doğrulandı + Sagemcom/BTS7960 kök-neden + HP cascade kaynakları)
 >
 > Bu dosya canlıdır — her yeni teknik karar için ek girişler eklenir.
 > BibTeX/LaTeX yok (gerekirse sonra dönüşüm).
@@ -24,16 +24,17 @@
 - **[Olsson1998]** H. Olsson, K.J. Åström, C. Canudas de Wit, M. Gäfvert, P. Lischinsky, *"Friction Models and Friction Compensation"*, European Journal of Control, vol. 4, no. 3, pp. 176-195, 1998. DOI: <https://doi.org/10.1016/S0947-3580(98)70113-X>
   - Coulomb + viskoz + stiction (statik) sürtünme modelleri; LuGre dinamik model
   - Aşama 2.6.5: cascade gerçekçi simde Coulomb/stiction (Karnopp minimal hali) — sürtünme limit-cycle'ı söndürdü, sim-to-real gap kapandı
+  - §6: friction compensation/feedforward — §12.8 yüklü Coulomb FF (u_c=0.090) + §12.12 HP stick-slip Coulomb FF (kff_coul=0.14)
 
 ## Klasik Kontrol (PID, Cascade)
 
 - **[Franklin2010]** G. Franklin, J.D. Powell, A. Emami-Naeini, *"Feedback Control of Dynamic Systems"*, 6th ed., Pearson, 2010. ISBN 978-0-13-601969-5.
   - §3: dinamik model çıkarımı
-  - §4-6: root locus + PID design
-  - §4.2: system type & error constants (tip-1 $K_v$, ramp takip hatası $e_{ss}=\omega/K_v$ — mirror $K_{p,pos}$)
+  - §4-6: root locus + PID design (root-locus pole placement — frekans/s-düzlemi tasarım; §9 state-space pole placement'tan AYRI)
+  - §4.2: system type & error constants (tip-1 $K_v$, ramp takip hatası $e_{ss}=\omega/K_v$ — mirror $K_{p,pos}$; §4.2/§4.3 ayrıca §12.12 HP cascade dış-P $K_{p,pos}=2.0$ tip-1 dayanağı)
   - §6.1: reference tracking (kapalı-çevrim $T(s)$ ile takip hatası — Aşama 3.3 sim-to-real RMS doğrulama, docs §12.4.4)
-  - §6.4: cascade kontrol, iç döngü en az 5× daha hızlı kuralı
-  - §9: durum uzayı + pole placement
+  - §6.4: cascade kontrol, iç döngü en az 5× daha hızlı kuralı (§12.12.2 HP cascade iç/dış ayrımı, ωc≤ωn/5)
+  - §9: durum uzayı + pole placement (state-space; §6 root-locus pole placement'tan ayrı — MIMO/LQR tasarımına temel)
 
 - **[Ogata2010]** K. Ogata, *"Modern Control Engineering"*, 5th ed., Prentice Hall, 2010. ISBN 978-0-13-615673-4.
   - Daha klasik yaklaşım, Türkçe çevirisi de var
@@ -150,6 +151,7 @@
 - **[Sagemcom_PSU]** Sagemcom CS50001 güç adaptörü = **Salcomp OEM switching** (P/N 191211367-XX / TT Electronics T7810RW; 60W varyant **ATS065T-P120**) — kullanıcının 12V beslemesi (set-top-box/router adaptörü).
   - **12V/5A/60W** (5A KATI tavan, headroom YOK); regülasyon 11.4-12.6V (±5%), yük-reg ~0.35V, ripple 60-65mV.
   - **⚠ OCP ~6A → hiccup** (komple kapanır + ~1s reset, akım-LİMİTLEMEZ — bench supply'ın CC'sinin aksine). HP inrush 5.6A bunu aşar → **aralıklı dropout kök-nedeni** (docs §12.11.6). **Fix bench-DOĞRULANDI (2026-06-23):** ~940µF (2×470µF/25V paralel) low-ESR bulk B+/B− geçici inrush'ı yutar → 0.50 dropout YOK; ⚠ sürekli akım tavanını yükseltmez, tam zarf/stall için ideali ≥6-7A/CC-capable kaynak. Kaynak: `motor-noise-dropout-literatur` workflow (Digikey-host ATS065 DS, 2016).
+  - Yerel kopya yok — yalnız çevrimiçi (Digikey-host ATS065T-P120 DS, 2016)
 
 - **[L298N_DS]** STMicroelectronics, *"L298 — Dual Full-Bridge Driver"*.
   - Yerel: `datasheets/L298N/L298N-datasheet.pdf`

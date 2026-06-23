@@ -36,7 +36,7 @@ Axis_t g_axis[AXIS_COUNT] = {
     { .motor = &Motor1, .enc_count = Encoder_GetCount,
       .enc_reset = Encoder_Reset,  .enc_speed = Encoder_GetSpeed,
       .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false,   /* gyro-FF default kazanç (analitik), KAPALI */
-      .kff_grav = 0.097f, .kff_coul = 0.090f, .coul_db = 0.34f, .load_ff_en = false },  /* ⚠ yüklü-FF: LP-rig placeholder (§12.8); HP yüklü-FF + kinetik dead-band 0.14 = Aşama 5; KAPALI */
+      .kff_grav = 0.097f, .kff_coul = 0.090f, .coul_db = 0.34f, .load_ff_en = false },  /* ⚠ yüklü-FF: LP-rig placeholder (§12.8); HP'de bipolar sign-FF bench'te limit-cycle tetikledi (§12.12.4) → kök çözüm loop-rate, FF palyatif; KAPALI */
     { .motor = &Motor2, .enc_count = Encoder2_GetCount,
       .enc_reset = Encoder2_Reset, .enc_speed = Encoder2_GetSpeed,
       .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false,
@@ -115,7 +115,7 @@ int main(void)
     MPU6050_Init();
     Encoder_Init();              /* TIM2, PA15+PB3 (eksen-0) */
     Encoder2_Init();             /* TIM1, PA8+PA9  (eksen-1, 16-bit→yazılım 32-bit) */
-    MotorCh_Init(&Motor1);       /* HW-039/BTS7960 (interim, docs §12.10): TIM4 RPWM=PB8/LPWM=PB9 (20 kHz), EN=PB14=LOW */
+    MotorCh_Init(&Motor1);       /* HW-039/BTS7960 (HP aktif sürücü; dropout çözüldü §12.11.6, karakterize §12.12): TIM4 RPWM=PB8/LPWM=PB9 (20 kHz), EN=PB14=LOW */
     MotorCh_Init(&Motor2);       /* TIM3 CH4, PB1 PWM, PB4/PB5/PB10 GPIO, STBY=LOW */
 
     /* Hız iç döngü PI kazançları — EKSENE-ÖZEL (Faz 3, 2026-06-23):
@@ -143,12 +143,12 @@ int main(void)
                                        * 2.1 conservative 58× yüksekti (P-term doyar → bang-bang) */
         .Ki       = 0.1f,
         .Ts       = 0.005f,           /* Tustin SABIT adımı (5 ms = 200 Hz NOMINAL).
-                                       * DİKKAT: gerçek ana döngü ~7 ms (~140 Hz, docs
-                                       * asama_0 §5.4) — Ts gerçek dt değil. Efektif integral
-                                       * kazancı nominalin Ts/dt≈5/7≈0.71 katı; Ki=0.1 bu
-                                       * sabit-Ts varsayımı altında geçerli (donanımda doğrulandı).
-                                       * Döngü hızı değişir/Ts gerçek dt'ye bağlanırsa integral
-                                       * etkisi sessizce kayar (latent kuplaj — docs §11.11.8 notu). */
+                                       * DİKKAT: ana döngü Aşama 0-2'de ~7 ms (~140 Hz, donanımda
+                                       * doğrulanmıştı) → ŞİMDİ ÖLÇÜLEN ~32 ms (~31 Hz): loop YAVAŞLADI,
+                                       * neden AÇIK (27 ms IMU/işlem, main.c:409 / docs §12.12.5).
+                                       * Efektif integral Ts/dt: 5/7≈0.71 (eski) → 5/32≈0.16 (güncel).
+                                       * Ki=0.1 LP için sabit-Ts altında geçerli; HP'de bu de-rating
+                                       * stick-slip kök-nedeni (§12.12.5) — latent kuplaj (eski §11.11.8). */
         .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı (0.70 denendi, motor-1
                                        * CW catch'i yenmedi → 0.50'de kalındı, motor.c notu) */
         .T_t      = 0.02f             /* Kp/Ki — Aström-Murray T_t = T_i */
@@ -173,8 +173,9 @@ int main(void)
      *   İç PI: Kp=duty_max/ω_max (doyum-kısıtı, Aşama 2.3 bang-bang dersi), Ki=ωn²·τ/Kg
      *     (ωn=2/τ=28.6) → PM=68°, ζ=0.68; pidtune ~%15-20 uyum.
      *   Dış P: Kp_pos=2.0 (ωc=2.0, PM=88°, 5×-kuralı içi [Franklin2010 §6.4]; gear sadeleşir).
-     * ⚠ Ts=0.005 vs gerçek loop ~32ms latent kuplaj (LP'de ampirik doğrulandı, §12.11.6).
-     * ⚠ Mirror takip için Kv↑ (≤4) veya gyro-FF (§12.9) — runtime KPP/KFF. */
+     * ⚠ Ts=0.005 vs ÖLÇÜLEN loop ~32ms → efektif Ki 0.16× (de-rating) = HP stick-slip KÖK-NEDENİ
+     *   (§12.12.5; kazanç-uzayı tüketildi, kanıtlanmış fix=loop-rate ayrımı). Bu kazançlar bench'te stick-slip verdi.
+     * ⚠ Mirror takip için Kp_pos=Kv=6 (cmd_parser.c:66 mod-girişinde atanır, §12.2.5) veya gyro-FF (§12.9). */
     static const SpeedPI_Config SPEED_PI_CFG_HP = {
         .Kp       = 0.00167f,   /* doyum-kısıtı duty_max/ω_max = 0.5/300 */
         .Ki       = 0.0548f,    /* pole place ωn=2/τ → ωn²τ/Kg (Kg=1043; LP'nin yarısı, plant 1.6×) */
@@ -275,7 +276,7 @@ int main(void)
         }
 
         /* dt: DWT cycle counter ile µs hassas (Aşama 2.3).
-         * HAL_GetTick ms çözünürlüğü loop ~7 ms'te ±14% jitter veriyordu →
+         * HAL_GetTick ms çözünürlüğü loop'ta (eski ~7 ms, ÖLÇÜLEN ~32 ms) jitter veriyordu →
          * ω = Δcount/dt ölçümünü bozup hız PI'yi bang-bang'e sokuyordu.
          * DWT 96 MHz → dt çözünürlüğü ~10 ns. Unsigned fark wrap-safe. */
         uint32_t cyc_now  = DWT->CYCCNT;
@@ -290,7 +291,7 @@ int main(void)
         for (int i = 0; i < AXIS_COUNT; i++)
             MotorCh_InjectFakeStall(g_axis[i].motor, key_pressed);
 
-        /* ── Eksen ölçümleri + stall (her iterasyon ~140 Hz) ──────────
+        /* ── Eksen ölçümleri + stall (her iterasyon ~31 Hz, loop ~32 ms ÖLÇÜLEN) ──────────
          * Stall COUNT-tabanlı (2026-05-31, gerekçe motor.h): anlık hız
          * 1 count = 18.7 rad/s kuantize olduğundan yavaş takipte yanlış-pozitif
          * veriyordu. raw hız yalnız telemetri + PI (filtreli) içindir. */

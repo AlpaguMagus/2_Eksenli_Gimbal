@@ -2,8 +2,8 @@
 
 > **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
-> - **Son güncelleme:** 2026-06-13 (**Yüklü tek-eksen sürtünme/gravite feedforward** 🧪 bench PASS — `docs §12.8`: serbest-mil cascade yük altında stick-slip limit-cycle; computed-torque FF bastırdı, sim doğrulandı; Coulomb FF transfer-edilebilir, gravite rig-spesifik; `STALLEN` toggle + watchdog-heartbeat fix. Önceki: **Kontrol Yöntemleri Merdiveni** + donanımsız ön-tasarımlar)
-> - **Aktif aşama:** **Aşama 3 (İki Motor MIMO Model) 🟡 AKTİF** — branch `feature/asama-3-mimo-model`; **3.3 tek-eksen (K0) ✅ bench PASS** (cascade/mirror/stab, motor-2) + **yüklü sürtünme FF 🧪 bench PASS** (`§12.8`); ⚠ motor-1 kurtarılamaz → **redüktörsüz yedek siparişte, tek sağlam motorla ilerleme**; sıradaki: tez düzeltmeleri, yeni motorla K1 (2-eksen) + 3.4 MIMO ID
+> - **Son güncelleme:** 2026-06-23 (**HP cascade Faz 1-3** + **stick-slip teşhisi** + **loop-rate kök-neden** — `docs §12.12`: RPWM kablo-fix + ~940µF bulk sonrası HP serbest-milde karakterize (Kg=1043 rad/s/duty, τ≈70ms, forward TEMİZ); analitik cascade (iç PI Kp=0.00167/Ki=0.0548, dış P Kp_pos=2.0, PM 68°/88°) + firmware per-eksen split flash. **Bench: HP stick-slip** (hedefi 3-15° aşıp yapışıyor); Coulomb FF ÇÖZMEDİ (bipolar sign-FF limit-cycle); **kök neden KANITLANDI = ~32ms IMU-bağlı loop hızlı HP'yi büyük stiction'la kontrol edemiyor (kazanç-uzayı tükendi)**; **kanıtlanmış fix = loop-rate ayrımı (~1kHz timer-ISR, mimari, bağımsız oturum bekler)**. Önceki: dropout ÇÖZÜLDÜ (~940µF bulk, Sagemcom CS50001 OCP-hiccup kök-neden, `docs §12.11`); HW-039 HIZLI teyidi (τ≈70-100ms))
+> - **Aktif aşama:** **Aşama 3 (İki Motor MIMO Model) 🟡 AKTİF** — branch `feature/asama-3-mimo-model`; **3.3 tek-eksen (K0) ✅ bench PASS** (cascade/mirror/stab, LP) + **yüklü sürtünme FF 🧪 bench PASS** (`§12.8`) + **HP cascade Faz 1-3 karakterize** (`§12.12`); donanım ASİMETRİK ve yerinde (HP=Motor1/HW-039/BTS7960/20:1 + LP=Motor2/TB6612/9.7:1, yeni motorlar 2026-06-14/15 GELDİ); **sıradaki = HP loop-rate fix** (~1kHz timer-ISR, kontrol döngüsünü IMU'dan ayır — stick-slip kök-neden kanıtlandı, `§12.12.5/6`; MİMARİ, tasarım onayı bekler)
 > - **Dokümantasyon:** Aşama-bazlı `docs/` ekosistemi (README vitrin + `docs/asama_<N>_*.md` derin içerik)
 > - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
 
@@ -43,7 +43,7 @@
 
 ## ⚠ Açık Emniyet Uyarısı
 
-**12V hattında donanım sigortası yok** (Mervesan 12V/3A adaptör, sigorta planlı ama henüz temin edilmedi). Tek koruma katmanları:
+**12V hattında donanım sigortası yok** (besleme **Sagemcom CS50001 12V/5A**, OCP-hiccup ~6A — eski "Mervesan 3A" değil; sigorta planlı ama henüz temin edilmedi). Tek koruma katmanları:
 
 1. **Yazılım** — stall detection, duty cap %50, soft-start rampa, watchdog (Aşama 0'da implementasyon tamamlandı)
 2. **TB6612 dahili termal shutdown** — 175°C tetik (datasheet sf 5)
@@ -341,7 +341,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 | # · olgunluk | Basamak | Ne ekler | Kapı (ne zaman gerekçeli) | "Elde" / sonuç | Faz |
 |---|---|---|---|---|---|
 | **K0** · ✅ validated | Decentralized cascade PID (tek eksen) | poz P → hız PI, per-eksen | — (kanıtlı) | mirror/stab bench PASS (`docs §12.4`) | 2–3.3 |
-| **K1** · ⛔ donanım | 2-eksen decentralized cascade | 2. ekseni entegre | yeni motor (donanım) | 2-eksen cascade gimbal | 3.3 |
+| **K1** · 🔧 firmware + 🧪 HP bench | 2-eksen decentralized cascade | 2. ekseni entegre | **HP loop-rate fix** (~1kHz timer-ISR, mimari — donanım GELDİ; §12.12.5/6) | 2-eksen cascade gimbal | 3.3 |
 | **K2** · 🔧 firmware + 🧪 lag-kanıtlı | + **Gyro feedforward** (2-DOF) | bozucuyu doğrudan ileri-besle (gy_dps) | bedava sinyal | sim 4.1× reddi-bant; firmware+gate; **lag faydası ÖLÇÜLDÜ** (165→0 ms, 🔬teşhis §12.9); RMS-faydası konfound (fast-rig bekler) `§12.7/§12.9` | 3.8 |
 | **K3** · 📐 sim | + **Gain scheduling** | çalışma-noktası kazanç tablosu | τ-bağımlılığı (43→134ms) | τ(duty)→Ki LUT; saturation tavizi → "default kapalı" `§12.7` | 3.9 |
 | **K4** · 📐 çerçeve | Kuplaj karakterizasyonu (MIMO ID + **RGA**) | 2×2 $G(s)$, RGA, condition no. | 2 motor mekanik bağlı | **KARAR KAPISI**; sentetik doğrulandı, gerçek-veri bekler `§12.7` | 3.5 |
@@ -352,7 +352,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
 > **Paralel kestirim izi:** complementary ✅ → Mahony/Madgwick (singülarite) → EKF/Kalman (bias/füzyon).
 >
-> **Şu an (2026-06-13):** K0 ✅ validated. **Donanımsız ön-tasarımlar TAMAM** (2026-06-12/13, hepsi
+> **Şu an (2026-06-23):** K0 ✅ validated. **Donanımsız ön-tasarımlar TAMAM** (2026-06-12/13, hepsi
 > analitik-önce + kaynaklı, `docs §12.7` banner'lı): K2 🔧 firmware+gate + 🧪 kısmi bench (FF-faydası
 > belirsiz), K3 📐 sim (Ki-LUT), K4 📐 çerçeve (sentetik), K6 📐 sim (cascade'i 6× geçer), K7 📐 sim
 > (complementary'yi 2.8× geçer). **Yüklü tek-eksen sürtünme/gravite FF 🧪 bench PASS** (`docs §12.8`):
@@ -362,10 +362,12 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 > (dengesiz sarkaç). Bench iki firmware kusuru ortaya çıkardı: watchdog-heartbeat eksikliği + stall
 > yük-altı yanlış-pozitifi (`STALLEN` toggle eklendi). **Asıl hedef — yük altında STAB bench** (`§12.8.7`):
 > STAB yasası yük altında çalışıyor; sürtünme FF takip-RMS'i $2.84\to1.81^\circ$ (yüzde 36), max hata
-> $13.3\to7.2^\circ$ iyileştirdi (base-IMU yasa demosu; payload inertial doğrulama Aşama 5). **Donanım bekleyen:** K1 (2-eksen, yeni motor),
+> $13.3\to7.2^\circ$ iyileştirdi (base-IMU yasa demosu; payload inertial doğrulama Aşama 5). **Donanım GELDİ** (asimetrik: HP=Motor1/HW-039/BTS7960/20:1 + LP=Motor2/TB6612/9.7:1, 2026-06-14/15); **HP cascade Faz 1-3 karakterize** (`§12.12`, Kg=1043 rad/s/duty, τ≈70ms, forward TEMİZ + analitik cascade + per-eksen firmware split). **Açık/bekleyen:**
 > K4 gerçek-veri (MIMO ID), K5 (RGA kuplaj gösterirse), stall kriteri yük-bilinçli yeniden-tasarım
-> (Aşama 5), dengeli payload + gravite-yardımlı iniş kontrolü (Aşama 5). **Sıradaki:** tez düzeltmeleri;
-> yeni motor gelince K1 + 3.4 MIMO ID.
+> (Aşama 5), dengeli payload + gravite-yardımlı iniş kontrolü (Aşama 5). **Sıradaki (BİRİNCİL, KANITLANDI):**
+> HP **loop-rate fix** — bench teşhisi HP stick-slip'in kök-nedenini ~32ms IMU-bağlı loop'a izole etti
+> (kazanç-uzayı tükendi: zayıf Ki=stuck, güçlü Ki=kararsız); kanıtlanmış çözüm kontrol döngüsünü
+> IMU'dan ayırmak (~1kHz timer-ISR, MİMARİ, her iki ekseni etkiler — bağımsız oturum + tasarım onayı bekler, `§12.12.5/6`).
 >
 > Kaynaklar: `[Skogestad2005] §10` (decentralized/RGA), `[Franklin2010] §6.4` (cascade),
 > `[Anderson2007]` (LQR), `[Simon2006]` (Kalman). Tarama detayı: yöntem-bazlı gerekçe + verdict.
@@ -374,21 +376,23 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
 ## 🟡 Aşama 3 — İki Motor MIMO Modelleme  *(AKTİF — 2026-06-07 açıldı)*
 
-> ⚠ **DURUM (2026-06-17) — interim donanım + DFR0601 kararı:** Yük-taşıyan HP ekseni sürücüsü
-> **HW-039/BTS7960 çok yavaş** çıktı (τ_eff≈400–450 ms sürücü-domeni, freq-bağımsız; `docs §12.10`).
-> **⚠ REVİZE (2026-06-22, `docs §12.11`): bu "çok yavaş" hükmü ÇÜRÜTÜLDÜ** — 450 ms **firmware-ramp**
-> confound'uydu (analitik+literatür+kod+temiz bench yakınsadı); HW-039 **HIZLI** (τ≈70-100 ms, ~12 Hz).
-> DFR0601 **hız için gereksiz** (değeri: 12 A akım + 2-kanal entegrasyon); **2-eksen bench validasyonu (K1)
-> artık HW-039 ile yapılabilir** (aşağıdaki "DFR0601 sonrasına ertelenir" gerekçesi düştü). Encoder EMI
-> 104-kapasitörle (motor terminali + enc-Vcc) çözüldü.
-> Alternatif HP-on-TB6612 deneyi kablo arızalarıyla (forward-ölü AIN1 + LP-encoder PWM-gürültü) askıya
-> alındı. **Kalıcı çözüm: DFRobot DFR0601** (2-kanal, 2×15A, 290W) sipariş edildi → gelince **HEM HP
-> HEM LP** tek bu sürücüde (kanal-1/kanal-2), asimetrik HW-039+TB6612 kurulumu kalkar. **Interim
-> (DFR0601'e kadar):** HP→HW-039 (yavaş ama çalışır), LP→TB6612 (doğrulanmış). Bu sürede kontrol teorisi
-> **HW-039 limitinde** ilerletilir: donanımsız sim/tasarım (K2–K4 çerçeve, K6/K7 sim) + LP ekseninde
-> validasyon; **2-eksen bench validasyonu (K1) ve HP cascade re-tune DFR0601 sonrasına ertelenir**
-> (HW-039 ~0.4 Hz bandı hızlı takip için yetersiz). ⚠ Aşağıdaki "2× TB6612 / tek 3A adaptör" güç planı
-> (3.x) bu kararla **kısmen bayat** (asimetrik + DFR0601 2×15A güncel değil) — kapsamlı denetimde düzeltilecek.
+> ✅ **DURUM (2026-06-23) — dropout ÇÖZÜLDÜ + HP cascade karakterize:** Donanım ASİMETRİK ve yerinde:
+> yük-taşıyan **HP = Motor1/HW-039/BTS7960/20:1** + telefon-standı **LP = Motor2/TB6612/9.7:1** (yeni
+> motorlar 2026-06-14/15 GELDİ). **HW-039 "çok yavaş (τ≈400–450 ms)" hükmü ÇÜRÜTÜLDÜ** (2026-06-22,
+> `docs §12.11`) — 450 ms **firmware-ramp** confound'uydu (analitik+literatür+kod+temiz bench yakınsadı);
+> HW-039 **HIZLI** (τ≈70-100 ms, ~12 Hz). **DROPOUT ÇÖZÜLDÜ** (2026-06-23 bench-doğrulandı, `docs §12.11.6`):
+> kök neden **Sagemcom CS50001 adaptör OCP-hiccup** (~6 A'da komple kapanır+reset; HP inrush 5.6 A aşar) —
+> çözüm ~940µF low-ESR bulk (2×470µF/25V) B+/B− + 0.1µF (104) seramik M+/M− & VCC/GND (EMI). Encoder
+> kesintisiz, τ63=76 ms (HW-039 hızlı teyidi); kanonik kapasitör envanteri `docs/00_donanim_semasi.md §4.1`.
+> ⚠ bulk yalnız geçici inrush'ı (ms) çözer, sürekli akım tavanını yükseltmez → tam zarf/stall için
+> **≥6-7 A besleme hâlâ gerekir**. **DFRobot DFR0601 hız için GEREKSİZ** (değeri yalnız 12 A akım +
+> 2-kanal entegrasyon). **HP cascade Faz 1-3 karakterize** (2026-06-23, `docs §12.12`): RPWM kablo-fix +
+> bulk sonrası HP serbest-milde temiz step-ID (Kg=1043 rad/s/duty, τ≈70ms, forward TEMİZ, K/τ simetrik) +
+> analitik cascade (iç PI / dış P, PM 68°/88°) + firmware per-eksen split (eksen-0 HP, eksen-1 LP DEĞİŞMEZ).
+> **Bench: HP stick-slip** (hedefi 3-15° aşıp yapışıyor) → kök neden ~32ms IMU-bağlı loop; **sıradaki = HP
+> loop-rate fix** (~1kHz timer-ISR, mimari, §12.12.5/6). ⚠ Aşağıdaki "2× TB6612 / tek 3A adaptör" güç planı
+> (3.x) **bayat** (gerçek = asimetrik HP=BTS7960 + LP=TB6612 + Sagemcom CS50001 + dropout kapasitör çözümü) —
+> güç planı bölümünde aşağıda düzeltildi.
 
 ### Vizyon
 
@@ -402,11 +406,12 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 - Encoder-2: **TIM1 quadrature PA8/PA9** (eski adaylar elendi: TIM4 PB6/7=I2C ✗, TIM5 PA0=KEY ✗); TIM1 16-bit → yazılım count-genişletme (3.2)
 - ACS712 rezervi: PA1/PA2 (ADC1_IN1/IN2, Faz-2)
 
-**Güç & koruma planı (2026-05-31 datasheet denetimi — `[Pololu_25D]`, `[TB6612_DS]`, `[ACS712_DS]`):**
+**Güç & koruma planı (⚠ GÜNCELLENDİ 2026-06-23 — asimetrik donanım + Sagemcom besleme; eski 2026-05-31 "2× TB6612 / tek 3A" planı simetrik-TB6612 varsayımı bayatladı. `[Pololu_25D]`, `[TB6612_DS]`, `[BTS7960_DS]`, `[Sagemcom_PSU]`, `[ACS712_DS]`):**
 
-- **Tek 3A adaptör 2 motora YETERLİ** (karar: 5A alınmadı): ikisi stall @ duty %50 ≈ 1.6 A, @ tam 12V (en kötü) 2.2 A < 3.0 A. Şartlar: duty cap %50 korunur, soft-start'lar kademeli (eşzamanlı inrush yok), 12V hattına bulk kapasitör.
-- **2 AYRI TB6612 modülü** (karar — ikisi de mevcut): tek çipte iki motor stall'da disipasyon ~1.2 W > PD limiti (0.78–0.89 W) → TSD riski; iki çipte ~0.6 W/çip güvenli (`[TB6612_DS]` sf 3/5).
-- **Dar boğaz = SÜRÜCÜ** (adaptör değil): motor stall @12V 1.1 A > TB6612 sürekli 1.0 A; TB6612'de ayrık OCP YOK (yalnız TSD ~175°C) → sürücü koruması **yazılımdadır** (duty cap + stall detection; ileride ACS712 foldback).
+- **ASİMETRİK sürücü kurulumu (güncel gerçek):** HP ekseni (yük-taşıyan, Motor1, 20:1) = **BTS7960/HW-039** (12 A kanal, sign-magnitude TIM4 RPWM=PB8/LPWM=PB9); LP ekseni (telefon-standı, Motor2, 9.7:1) = **TB6612** (sürekli 1.0 A kanonik — `[TB6612_DS]` sf 3 / `00_donanim_semasi §4`). Eski "2 AYRI TB6612 modülü" planı (tek çipte iki motor → TSD riski gerekçesiyle) artık geçerli değil — HP yüksek-akım BTS7960'a geçti.
+- **Besleme = Sagemcom CS50001** (Salcomp OEM 12V/5A/60W) — eski "Mervesan 12V/3A adaptör" yerine. ⚠ **OCP-hiccup** (~6 A'da komple kapanır+reset); HP inrush 5.6 A bunu aşıyordu → **dropout çözümü: ~940µF low-ESR bulk** (2×470µF/25V) B+/B− + 0.1µF (104) seramik (EMI), `docs/00_donanim_semasi.md §4.1` (kanonik kapasitör envanteri) + `docs §12.11.6`.
+- **Sürekli akım tavanı uyarısı:** bulk yalnız geçici inrush'ı (ms) çözer, sürekli akım tavanını yükseltmez → **tam zarf/stall için ≥6-7 A besleme hâlâ gerekir** (mevcut 5 A nominal yetersiz kalabilir).
+- **Dar boğaz = SÜRÜCÜ değil artık besleme/sürekli-akım** (HP-tarafında): BTS7960 12 A kanal motor stall'ı kaldırır; LP-tarafında dar boğaz hâlâ TB6612 sürekli 1.0 A — TB6612'de ayrık OCP YOK (yalnız TSD ~175°C) → LP sürücü koruması **yazılımdadır** (duty cap + stall detection; ileride ACS712 foldback).
 - **ACS712 ±5A akım sensörü — planlı açık konu (karar kaydı):** duty %100 gevşetmenin **ön koşulu** (1.1 A > 1.0 A'yı foldback ile spec içinde tutar) + "elle müdahalede sistem durmasın" gereksinimi (orantısal güç kısma yalnız akım ölçümüyle olur). Eksen-başı 2 sensör (hangi motor stall bilgisi); ADC1 boş, PA1–PA7 serbest; ≤1.1 A aralığımızda çıkış 2.5±0.21 V → 3.3V ADC uyumlu; çözünürlük kaba (gürültü ~113 mA) ama koruma eşiği için yeterli (`[ACS712_DS]`). NOT: ACS712 pasif backstop'un (polyfuse) yerine geçmez — MCU çökerse yazılım limiti de ölür; katmanlar tamamlayıcıdır.
 
 **MATLAB:** `matlab/asama_3_mimo_model/`
@@ -421,15 +426,17 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 - **3.2 — Encoder-2 + motor-2 sürücü firmware**
   - 3.2a — encoder-2 (TIM1 PA8/PA9, 16-bit→32-bit) ✅ **PASS** (`artifacts/3/enc2_test/`)
   - 3.2b — motor-2 sürücü (PB1/PB4/PB5/PB10) — **firmware ✅ + bench PASS** (2026-06-09): `Motor2_*` minimal açık-döngü, `DUTY2:` + `U2` telemetri; `motor2_sign_test.py` → motor-2 ±0.30'da +1203/−1199 count/s, **polarite +duty→+count = motor-1 ile AYNI** → 3.3 cascade işaret çevirme YOK. `artifacts/3/motor2_sign/`. Motor-2 stall + shared-struct refactor → 3.3'e ertelendi.
-    - ⚠ **Bench bulgusu:** rewire'da roller değişti — karakterize sağlıklı ünite şimdi **motor-2**; **motor-1 fiziksel ünitesinde yöne-bağlı mekanik kusur** (CCW serbest, CW'de 0.50 duty'de bile takılır, elle de zor — gearbox asimetri). Kullanıcı kararı: olduğu gibi devam → 3.4'te asimetrik $G_{11}$ karakterize.
+    - ⚠ **Bench bulgusu (terk-edilen ara durum, 2026-06-09):** rewire'da roller değişti — karakterize sağlıklı ünite şimdi **motor-2**; **motor-1 fiziksel ünitesinde yöne-bağlı mekanik kusur** (CCW serbest, CW'de 0.50 duty'de bile takılır — gearbox asimetri). **⚠ SÜPERSEDED (2026-06-14/15): yeni motorlar GELDİ → asimetrik eşleme kuruldu** (kusurlu eski motor-1 ünitesi değiştirildi). Güncel eksen haritası: **g_axis[0] = HP = Motor1 = HW-039/BTS7960, 20:1** (yük-taşıyan eksen) + **g_axis[1] = LP = Motor2 = TB6612, 9.7:1** (telefon-standı). "Motor-1 kurtarılamaz / motor-2 tek sağlam" anlatısı bu donanım yenilemesiyle artık geçersiz; HP ekseni `§12.12`'de karakterize edildi.
 - **3.3 — Baseline 2-eksen (yeniden kullan):** kanıtlı Aşama-2 cascade'ini her motora **bağımsız** uygula → 2-eksenli sistemi test et → çalışan referans + kuplajı **ampirik** gör
   - **Firmware ✅ (2026-06-11, `9def197`):** instance-based eksen mimarisi — `SpeedPI_t`/`PositionP_t`/`MotorCh_t` + `g_axis[2]`; cascade/MIRROR eksen-1'de (motor-2) bugün kullanılabilir (`MODE2:`/`POS_DEG2:`/`KPP2:` …); motor-2 stall kazandı; telemetri +`OMEGA2/SP2/TR2` (eski script regex'leri korunur). 21-ajan adversarial davranış-denetimi: 3 gerçek fark → 2 düzeltildi (RESET motor-Stop, geçersiz MODE watchdog), 1 bilinçli kabul (DUTY2 mod-şartı).
-  - **Strateji (kullanıcı 2026-06-11):** motor-1 ünitesi kurtarılamaz (CW catch) → **redüktörsüz yedek sipariş edildi**; gelene kadar **tek sağlam motor (motor-2 ekseni) üzerinden proje tamamlanır**; yeni motor tak-çalıştır entegre (yalnız yön/kimlik testi).
-  - ✅ **Motor-2 cascade/mirror/stab bench PASS (2026-06-12)** [merdiven K0 tek-eksen tamam]: `MODE2:POS` 6/6 (ss_err<1°, Test 2.5 ile birebir); `MODE2:MIRROR` RMS 5.53°; `MODE2:STAB` motor IMU'ya TERS döndü (stabilizasyon yasası demoland), RMS 6.72°. IMU sertleştirme (uyku auto-wake) `94a36e3`. `artifacts/3/{cascade,mirror,stab}_m2/`
-  - ⬜ **K1 — 2-eksen cascade:** yeni motor gelince motor-1 ekseni entegre + 2-eksen mirror/stab
+  - **Strateji (kullanıcı 2026-06-11 — ⚠ süperseded 2026-06-14/15):** o tarihte eski motor-1 ünitesi kurtarılamaz (CW catch) sayıldı → redüktörsüz yedek sipariş edildi; **yeni motorlar GELDİ → asimetrik eşleme kuruldu** (HP=Motor1/HW-039/20:1 + LP=Motor2/TB6612/9.7:1), "tek sağlam motorla ilerle" geçici stratejisi kapandı.
+  - ✅ **LP (Motor2) cascade/mirror/stab bench PASS (2026-06-12)** [merdiven K0 tek-eksen tamam]: `MODE2:POS` 6/6 (ss_err<1°, Test 2.5 ile birebir); `MODE2:MIRROR` RMS 5.53°; `MODE2:STAB` motor IMU'ya TERS döndü (stabilizasyon yasası demoland), RMS 6.72°. IMU sertleştirme (uyku auto-wake) `94a36e3`. `artifacts/3/{cascade,mirror,stab}_m2/`
+  - 🧪 **HP (Motor1) cascade Faz 1-3 — karakterize (2026-06-23, `docs §12.12`):** RPWM kablo-fix + ~940µF bulk sonrası HP serbest-milde karakterize. **Faz1** (`hp_identify.m`): Kg=1043 rad/s(motor)/duty, τ≈70ms, **forward ARTIK TEMİZ** (RPWM kablo-fix), K/τ simetrik, statik dead-band 0.21 ≫ kinetik 0.14. **Faz2** (`hp_cascade_design.m`): analitik cascade — iç PI Kp=0.00167/Ki=0.0548 (PM 68°), dış P Kp_pos=2.0 (PM 88°), pidtune doğrulandı. **Faz3:** firmware per-eksen config split (eksen-0=HP gear=20/cpr=960, eksen-1=LP DEĞİŞMEZ) flash OK + 3 bayat yorum düzeltildi.
+    - ⚠ **Bench TEŞHİS — HP stick-slip (açık, kök-neden KANITLANDI):** HP hedefi 3-15° aşıp yapışıyor. Coulomb FF (analitik kff_coul=0.14, `[Olsson1998]`) **ÇÖZMEDİ** (bipolar sign-FF limit-cycle tetikledi — dürüst sonuç). **Kök neden = ~32ms IMU-bağlı loop hızlı HP'yi büyük stiction'la kontrol edemiyor → kazanç-uzayı tükendi** (zayıf Ki=stuck, güçlü Ki=kararsız, arada yok). **Birincil sıradaki adım = HP loop-rate fix** (kontrol döngüsünü IMU'dan ayır, ~1kHz timer-ISR — MİMARİ, her iki ekseni etkiler, bağımsız oturum + tasarım onayı ister; `§12.12.5/6`).
+  - ⬜ **K1 — 2-eksen cascade:** HP loop-rate fix sonrası iki eksen birlikte cascade/mirror/stab (donanım GELDİ — kapı artık loop-rate mimarisi, donanım değil)
 - **3.8 — K2: Gyro feedforward (aday, 2026-06-12 onaylı):** IMU gyro hızı (gy_dps, bedava sinyal) → motor hız-ref'e 2-DOF ileri-besle → yavaş (~0.3 Hz) cascade dış-döngüsünü atla, stabilizasyon gecikmesini düşür. Analitik $k_{ff}$=redüktör oranı (deneme-yanılma değil). **Donanımsız tasarlanır**; STAB ref'iyle çift-sayım önlenir; bench sıra gelince. Cascade'i bozmaz (üstüne eklenir).
 - **3.9 — K3: Gain scheduling (kanıtla-sonra aday):** τ duty-bağımlılığı (43→134ms, Aşama-1 NRMSE U-eğrisi) tek-kazancın uçlarda sub-optimalliğini gösteriyor. **Önce** uçlarda before/after step ile somut kazanç ölç; kanıtlanırsa çalışma-noktası kazanç tablosu. Mevcut Aşama-1 verisiyle ön-tasarım donanımsız.
-- **3.4 — K4/MIMO sistem tanımlama:** her motoru ayrı sür / diğer ekseni ölç → 2×2 $G(s)$ (`tfest`); $G_{22}$ = motor-2 modeli **bedavaya** çıkar (sıfırdan Aşama-1 kampanyası DEĞİL). ⚠ 2 motor mekanik bağlı olmadan çapraz terimler ~0 → anlamlı kuplaj yüklü gimbalda
+- **3.4 — K4/MIMO sistem tanımlama:** her motoru ayrı sür / diğer ekseni ölç → 2×2 $G(s)$ (`tfest`). ⚠ **Donanım ASİMETRİK** — HP (Motor1, 20:1) ve LP (Motor2, 9.7:1) farklı redüktör/Kg → eksenler **özdeş değil**; her eksen **ayrı karakterize** edilir (HP zaten `§12.12`'de: Kg=1043 rad/s/duty, τ≈70ms; LP Aşama-1/2 modeli). Eski "motorlar nominal özdeş → $G_{22}$ bedava" varsayımı bu asimetriyle **geçersiz**. ⚠ 2 motor mekanik bağlı olmadan çapraz terimler ~0 → anlamlı kuplaj yüklü gimbalda
 - **3.5 — K4/RGA + condition number:** kuplajı **sayıyla** ölç → decoupling potansiyeli → **KARAR KAPISI**
 - **3.6 — Kanıta-dayalı kontrolcü kararı:** RGA ≈ birim → decoupled SISO yeterli (K0/K1 kalır); güçlü kuplaj → decoupler/MIMO (K5/K6, Aşama 4'e devir)
 - **3.7 — Coupling derecesinin akademik raporu**
@@ -442,7 +449,10 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 > yeterli olabilir; (3) projenin kanıtlı dersi (sim-to-real, `asama_2_kontrol.md` §11.14) testin
 > tasarımı açığa çıkardığıdır. ⚠ **Disiplin guard:** her adım **model-bazlı analitik** tasarım —
 > knob-twiddling/deneme-yanılma DEĞİL (mirror Kp_pos dersi); iterasyon *analitik tasarımların*,
-> tahminlerin değil. Motorlar nominal özdeş → Aşama-1 modeli (K≈54, τ≈60 ms) güçlü ön-kabul.
+> tahminlerin değil. ⚠ **GÜNCEL (2026-06-14/15 donanım):** "motorlar nominal özdeş → Aşama-1 modeli
+> (K≈54, τ≈60 ms) güçlü ön-kabul" varsayımı **artık geçerli değil** — donanım ASİMETRİK (HP 20:1 vs
+> LP 9.7:1, farklı Kg). LP için Aşama-1 modeli geçerli; **HP ayrı karakterize** edildi (`§12.12`:
+> Kg=1043 rad/s/duty, τ≈70ms). Her eksen kendi modeliyle.
 
 > Kaynaklar: `[Skogestad2005] §3, §10`, `[Ljung1999] §16`, `[Franklin2010] §6.4` (cascade yeniden-kullanım).
 
@@ -554,7 +564,7 @@ sistem tanımlama + kazanç ayarı** alt-adımı eklenmeli.
 
 ## Kapsam Dışı (Sonraki İterasyonlar)
 
-- **VM hattı sigorta entegrasyonu** — Tek motor döneminde 1.5 A polyfuse planlanmıştı; **2 motorda (Aşama 3+) ~2.5–3 A polyfuse** gerekir (normal 2-motor stall 1.6 A'yi taşımalı; oto-reset PTC "sistem ölü kalmasın" hedefine uygun). Kullanıcı temin edince aktif aşamaya alınır. ⚠ Polyfuse kabloyu/adaptörü korur, 1.0 A'lik sürücüyü KORUMAZ (o, yazılım katmanlarının işi — ROADMAP Aşama 3 güç planı).
+- **VM hattı sigorta entegrasyonu** — Tek motor döneminde 1.5 A polyfuse planlanmıştı. ⚠ **ASİMETRİK güncelleme (2026-06-14/15):** HP (HW-039, stall 5.6 A — duty-cap %50 ile sınırlı) + LP (TB6612, stall 1.1 A); besleme Sagemcom 5A/OCP~6A + ~940µF bulk (inrush). Eski "2-motor stall 1.6 A → 2.5–3 A PTC" simetrik-TB6612 varsayımıydı; polyfuse sizing asimetrik gerçeğe göre yeniden değerlendirilmeli. Kullanıcı temin edince aktif. ⚠ Polyfuse kabloyu/adaptörü korur, sürücüyü KORUMAZ (o, yazılım katmanlarının işi).
 - **Duty cap %50 → %100 gevşetme** — Ön koşul: **ACS712 akım foldback** (stall @12V 1.1 A > TB6612 sürekli 1.0 A — dar boğaz sürücü, Aşama 3 güç planı) + sigorta. Kontrolcü stabilse.
 - **Madgwick / quaternion füzyon** — ±90° singülarite çözümü. Mevcut complementary ±45° için yeterli; gerekirse Aşama 5+'ta eklenir.
 - **µ-synthesis, H∞ kontrol** — `[Skogestad2005] §11`. Akademik olarak zengin ama proje kapsamı dışı.
