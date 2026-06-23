@@ -1243,8 +1243,22 @@ Kullanıcı çağrısıyla HP parametreleri **eski-değer/placeholder** açısı
 (base 0.15–0.50, oran **1.22×**) ~sabit → **tek-kazanç tüm çalışma-aralığında yeterli**, scheduling gerekmiyor.
 (Aşama-1 NRMSE U-eğrisi duty-bağımlılık sezgisi rijit-mengenede çürüdü.)
 
-**Yüksüz iş durumu:** plant char + K0 + K1 + K4-coupling + HP-FF + izlenebilirlik/Ts düzeltmeleri + K3 → **TAMAM.**
-Kalan **K2 (gyro-FF rijit re-validate)** kullanıcı eğmesini ister (STAB bozucu); **derin RGA/K7/loaded** = Aşama-5.
+**Yüksüz iş durumu:** plant char + K0 + K1 + K4-coupling + HP-FF + izlenebilirlik/Ts düzeltmeleri + K3 + **K2 (§12.14.8)**
+→ **TAMAM (yüksüz tüm merdiven basamakları bench-valide).** **Derin RGA/K7/loaded** = Aşama-5.
+
+#### 12.14.8. K2 — gyro-FF rijit re-validate: stabilizasyon lag 272→32 ms (DOĞRULANDI)
+
+LP STAB modunda gyro-FF off/on A/B (`motor_mirror_test.py --kff 0|9.7`, artifact `stab_m2/k2_OFF|k2_ON`), HP `k_ff`
+düzeltmesinden (§12.14.7) sonra. Metrik: **xcorr lag** (fp → −motor), amplitüd-bağımsız (RMS konfound — §12.9 dersi):
+
+| | lag | peak corr | RMS @ eğme |
+|---|---|---|---|
+| gyro-FF KAPALI | **272 ms** | 0.94 | 5.92° @ 81° |
+| gyro-FF AÇIK | **32 ms** | 0.99 | 2.24° @ 128° |
+
+**Bulgu:** gyro-FF stabilizasyon lag'ını **272→32 ms (%88↓)** düşürdü + korelasyon 0.94→0.99; ON-pass 2× sert
+eğmeye rağmen RMS düştü (muhafazakâr kıyas) → **K2 rijit DOĞRULANDI** (§12.9'un 165→0 ms sezgisi teyit; mutlak
+değer tilt-pattern'e bağlı). Gyro-FF dışsal sinyal → cascade kararlılığını bozmaz; default KAPALI (gate, §12.7).
 
 > 📊 Üreten: `scripts/{lp_deadband,lp_stepid,motor_cascade_test,motor_mirror_test,k1_2axis_test,k4_coupling_check,hp_ff_compare,k3_tau_vs_duty}.py`.
 > Artifact: `artifacts/3/{smoke_test,lp_deadband,lp_stepid,cascade_m2,mirror_m2,stab_m2,k1_2axis,k4_coupling,hp_ff_compare,k3_tau_duty}/`.
