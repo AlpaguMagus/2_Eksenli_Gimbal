@@ -814,7 +814,7 @@ Temiz testte encoder **noise spike'ları** (62314, 126893 cnt/s = fiziksel imkâ
 > temiz karakterize et → analitik cascade tasarla → firmware'e taşı → bench doğrula. **Neden:** firmware
 > eksen-0'a o güne dek **LP parametreleri** (gear 9.7, cpr 466, Kg 654.8) uyguluyordu (geçici, `docs/00_donanim_semasi.md` §7.2) — HP
 > 20:1 ve farklı motor olduğundan cascade yanlıştı. **Sonuç:** karakterizasyon + tasarım temiz; bench
-> **stick-slip** (stiction) ortaya çıkardı; analitik Coulomb FF denendi ama **ÇÖZMEDİ** → "asıl darboğaz ~32 ms loop-rate" sanıldı (§12.12.5) **ama 32 ms kopuk-IMU artefaktıydı → `GPIO_PULLUP` ile loop 32→6 ms (§12.13); HP stick-slip re-test bekliyor**. Üç-faz onaylı plan (Faz-kapılı).
+> **stick-slip** (stiction) ortaya çıkardı; analitik Coulomb FF denendi ama **ÇÖZMEDİ** → "asıl darboğaz ~32 ms loop-rate" sanıldı (§12.12.5) **ama 32 ms kopuk-IMU artefaktıydı → `GPIO_PULLUP` ile loop 32→6 ms (§12.13; gerçek 8 ms IMU-okunurken §12.14.1); HP stick-slip re-test YAPILDI (§12.13.4 rijit — gross çözüldü, residual limit-cycle yapısal→K7)**. Üç-faz onaylı plan (Faz-kapılı).
 
 #### 12.12.1. Faz 1 — HP karakterizasyon (mil serbest, ≤0.5 duty cap, EC-canary)
 
@@ -925,7 +925,7 @@ bazen daha kötü. **Hüküm: Coulomb FF tek başına yetersiz** — asıl darbo
 > kanıtlandı: **32 ms kopuk-IMU I2C-bus-wedge artefaktıydı** (IMU bağlı değildi → BUSY-flag 25 ms HAL-timeout).
 > Tek-satır `GPIO_PULLUP` fix → **loop 32→6 ms**, $T_s/dt$ 0.16→**0.83**. Dolayısıyla aşağıdaki "kazanç-uzayı
 > tüketildi / mimari (timer-ISR) fix gerekli" hükmü **32 ms'e özgüydü**, büyük olasılıkla **artık geçerli değil**
-> — HP stick-slip 6 ms loop'la **re-test bekliyor**. Aşağıdaki veri (Ki süpürme, sürekli-takip) gerçektir ama
+> — HP stick-slip **re-test YAPILDI (§12.13.4 rijit; gross çözüldü, residual yapısal→K7)**. Aşağıdaki veri (Ki süpürme, sürekli-takip) gerçektir ama
 > **IMU-suz 32 ms firmware'le** alınmıştır.
 
 FF'in çözememesi + LP cascade'in temiz çalışması (Test 2.5, 6/6 PASS) karşıtlığı asıl nedeni gösterir:
@@ -945,7 +945,7 @@ kopunca depolanmış enerji motoru sertçe sürüyor → overshoot; sign-FF bunu
 
 **Sonuç (32 ms'e göre — üstteki ⚠ güncellemeyi oku):** 32 ms'te HP temiz pozisyon kontrolü **mimari** çözüm
 ister görünüyordu (timer-ISR ~1 kHz). **AMA 32 ms kopuk-IMU artefaktıydı (§12.13);** `GPIO_PULLUP` ile loop
-6 ms → mimari rebuild **muhtemelen gereksiz**. Re-test bekliyor; parametre tuning yine de palyatif olabilir.
+6 ms (gerçek 8 ms, §12.14.1) → mimari rebuild **gereksiz** (re-test YAPILDI §12.13.4: gross stick-slip çözüldü; residual limit-cycle yapısal, temiz fix K7).
 
 **Kazanç-uzayı TÜKETİLDİ (ampirik kanıt — iki uç da başarısız):** Loop **ölçüldü** (T_US deltaları): medyan
 **32 ms (~31 Hz)**, de-rating $T_s/dt = 0.16$ → efektif $K_{i,\text{eff}} = K_i\cdot T_s/dt = 0.0088$.
@@ -964,7 +964,7 @@ gain tuning'in (FF/Ki/Kp_pos) HP pozisyon için neden palyatif kaldığının **
 
 #### 12.12.6. Açık konular + yol haritası
 
-- **Loop-rate fix ✅ ÇÖZÜLDÜ (§12.13):** "BİRİNCİL mimari fix" sanılan sorun aslında **kopuk-IMU I2C bus-float**'tı — `I2C1_Init` `GPIO_PULLUP` (tek satır) → loop **32→6 ms**, $T_s/dt$ 0.16→0.83. Timer-ISR rebuild GEREKMEDİ. ⏳ **HP stick-slip re-test (motor):** 6 ms loop'la mevcut gain'ler (Kp=0.00167/Ki=0.0548) stick-slip'i çözüyor mu? (kazanç-uzayı-tüketildi hükmü 32 ms artefaktına dayanıyordu.)
+- **Loop-rate fix ✅ ÇÖZÜLDÜ (§12.13):** "BİRİNCİL mimari fix" sanılan sorun aslında **kopuk-IMU I2C bus-float**'tı — `I2C1_Init` `GPIO_PULLUP` (tek satır) → loop **32→6 ms** (gerçek 8 ms IMU-okunurken, §12.14.1), $T_s/dt$ 0.16→0.625. Timer-ISR rebuild GEREKMEDİ. ✅ **HP stick-slip re-test YAPILDI (§12.13.4 rijit):** mevcut gain'ler (Kp=0.00167/Ki=0.0548) **gross stick-slip'i çözdü**; kalan residual sürtünme-limit-cycle **yapısal** (kazanç-uzayı değil), temiz fix K7/Kalman (Aşama-5).
 - **STAB + gyro-FF (belirsiz, base-tilt ister):** sürekli-takip proxy'si stuck verdi AMA gerçek STAB'de gyro-FF (§12.9) $\omega_{ref}$'i jiroskoptan doğrudan besler → motoru sürekli hareket ettirip stiction'ı baypas edebilir (proxy'de FF yoktu). Düşük öncelik; loop-rate fix sonrası daha anlamlı.
 - **Yük:** serbest-mil tasarımı; gravite-FF + yüklü stiction = Aşama 5 (payload inertial).
 
@@ -1121,3 +1121,70 @@ cascade redesign artık **güvenilir rijit-mount modeli** üzerinden yapılır (
 
 > 📊 Üreten: `loop-slowdown-archaeology` + `imu-26ms-diagnosis` workflow'ları + geçici I2C teşhis enstrümantasyonu
 > (kaldırıldı). FIX: `main.c:476` `GPIO_PULLUP`. Kanıt: I2CPROF BUSY@giriş 1→0, RD 26000→94 µs, LOOP 32→6 ms.
+
+---
+
+### 12.14. Bench bring-up + LP rijit re-do + K0/K1 rijit validasyon (2026-06-23) · 🧪 bench-validated
+
+Tüm bench (IMU + LP/Motor2/TB6612 + HP/Motor1/HW-039) **mengeneli (rijit) + serbest milli** bağlandı; tek 12 V.
+"LP sıfırdan + K0 rijit re-validate" planı yürütüldü.
+
+#### 12.14.1. Bring-up + gerçek loop-rate (8 ms — IMU okunurken)
+
+Smoke test dört alt-sistemi bağımsız doğruladı (artifact `3.SMOKE`):
+- **Loop = 8.00 ms / 125 Hz** — IMU **okunurken** gerçek değer. ⚠ **§12.13'teki "6 ms" IMU-NACK durumuydu**
+  (IMU yanıt vermeyince hızlı-NACK → 6 ms); başarılı I2C okuma +2 ms ekler → **8 ms gerçek**. 32 ms artefaktı kesin
+  gitti. Kontrol de-rating: $T_s/dt = 5/8 = 0.625$ (32 ms'in 0.16'sından çok iyi; §12.13'ün NACK-temelli 0.83'ünün altında).
+- **IMU:** FP = −64.8°, GX/GY canlı. Bring-up'ta **SCL teli gevşekti** — teşhis: FP/GX/GY tam `0.0` **+ loop 6.00 ms TAM**
+  (hızlı-NACK imzası; başarılı okuma 8 ms verirdi). Re-seat → IMU okudu. **Ders:** hızlı loop tek başına IMU çalışıyor
+  demek değil — NACK de 6 ms verir; IMU'yu **veri** kanıtlar, loop değil.
+- **Encoder'lar:** elle çevirmede EC + EC2 sayıyor. **Motorlar:** HP/LP ±0.30 duty iki yönde döndü, ilgili encoder
+  tutarlı-işaret ΔEC üretti (HP +2054/−2010, LP +1162/−1135).
+
+#### 12.14.2. LP rijit plant karakterizasyon (sıfırdan) — §12.13.5'in LP eşleniği
+
+`scripts/lp_deadband.py` + `scripts/lp_stepid.py` (OMEGA2 rad/s telemetrisi, çok-duty en-küçük-kareler fit).
+Artifact `3.LP-deadband`, `3.LP-stepid`.
+
+| Parametre | LP (fwd / rev) | HP (§12.13.5) | Yorum |
+|---|---|---|---|
+| $K_g$ (rad/s/duty) | 559.8 / 555.1 | ~974 / 897 | LP simetrik (Δ<%1); HP'den yavaş (motor/sürücü farkı) |
+| $\tau_{63}$ | 40 / 40 ms | ~72 ms | LP daha hızlı |
+| Coulomb ofset (duty0) | 0.024 / 0.023 | 0.14 / 0.20 | LP çok düşük + simetrik |
+| Statik breakaway | ~0.05 / ~0.05 | 0.22 / 0.25 | LP munis |
+| stiction/kinetik | ~1.0× | ~1.6× | LP **stick-slip eğilimi YOK** |
+
+ω-duty **mükemmel lineer** (0.15→70.5 … 0.50→266 rad/s). **Bulgu:** LP **simetrik, lineer, düşük-sürtünme, hızlı** —
+HP'nin yön-asimetrisi + stiction'ı YOK → LP cascade'i HP'nin limit-cycle derdini yaşamaz. **vs eski Aşama-1 LP**
+(K=53.89 rad/s/V → ~647 rad/s/duty nominal, τ=60.5 ms): ölçülen $K_g$ ~%14 düşük (TB6612 Vds-drop + duty→voltaj
+yaklaşımı), τ 40<60.5 ms (eski muhtemelen ramp/yük confound) → **rijit+serbest-mil = kanonik LP modeli.**
+
+#### 12.14.3. K0 — LP cascade rijit re-validation (hand-held confound kapatıldı)
+
+Eski LP K0 testleri hand-held olabilirdi → rijit mount + 8 ms loop'ta **mevcut gain'lerle** tekrarlandı:
+
+| Test | Sonuç | Aşama-2 kıyas |
+|---|---|---|
+| Pozisyon cascade (30 90 45 0 −45 0) | **PASS 6/6**, ss_err 0.00–0.74°, θ_std ≤ 1.05° | 6/6 (tutarlı) |
+| IMU mirror | **PASS RMS 5.72°** | 5.53° (tutarlı) |
+| Stabilizasyon (ters-dönme) | **PASS RMS 5.08°**, ref ±60° içinde, FP↑→ref↓ net | corr −0.95 (tutarlı) |
+
+→ **K0 (LP decentralized cascade) RİJİT TEYİT** — plant re-char gain'lerin hâlâ uygun olduğunu doğruladı.
+(Stab ilk koşuda ref −60° doygundu: giriş anı board kıpırdıyordu → pitch0 yanlış; sabit başlangıçla temiz tekrar.)
+
+#### 12.14.4. K1 — 2-eksen decentralized cascade (DEMONSTRE)
+
+HP+LP **eşzamanlı** pozisyon cascade (`scripts/k1_2axis_test.py`, artifact `3.K1-2axis`):
+
+| Eksen | Ulaşılan | Max θ_std | Yorum |
+|---|---|---|---|
+| **LP** | 6/6 (ss_err ≤ 2.5°) | 0.69° | Temiz |
+| **HP** | 2/6 | 8.34° | Hedefi ~6° aşıp stiction-hold (§12.13.4 residual) |
+
+**Bulgu:** İki cascade **paralel koştu, her eksen kendi hedefini BAĞIMSIZ izledi** (LP temiz dururken HP kendi
+sürtünme-residual'ını yaşadı — **çapraz-girişim yok**) → **decentralized K1 mimarisi ÇALIŞIYOR.** HP doğruluğu kendi
+sürtünme-plant'ıyla sınırlı (§12.13.4, temiz fix K7/Kalman, Aşama-5) — 2-eksen sorunu değil. **Anlamlı kuplaj
+(RGA/K4) yüklü gimbalda** (serbest-milde mekanik bağ yok → kuplaj ~0).
+
+> 📊 Üreten: `scripts/{lp_deadband,lp_stepid,motor_cascade_test,motor_mirror_test,k1_2axis_test}.py`.
+> Artifact: `artifacts/3/{smoke_test,lp_deadband,lp_stepid,cascade_m2,mirror_m2,stab_m2,k1_2axis}/`.
