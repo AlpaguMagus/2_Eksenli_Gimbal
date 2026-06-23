@@ -52,7 +52,7 @@ HAL_StatusTypeDef MPU6050_Read(int16_t *ax, int16_t *ay, int16_t *az,
 void MPU6050_Recover(void);   /* I2C bus-clear + re-init (kendini-iyileştirme) */
 
 /* Sürtünme+gravite feedforward (computed-torque, yüklü) — cascade duty'sine eklenir.
- *   u_ff = kff_grav·sin(θ_out) + (|ω_ref|>coul_db ? kff_coul·sign(ω_ref) : 0)
+ *   u_ff = kff_grav·sin(θ_out) + kff_coul·tanh(ω_ref/coul_db)   (pürüzsüz Coulomb, §12.13.4-A)
  * θ_out = çıkış mili açısı (derece, RESET=dip=0) → gravite torku a·sinθ telafisi;
  * Coulomb ω_ref (=pozisyon hatası) yönünde, ölü-bant setpoint-civarı işaret-chatter'ını keser.
  * Gyro-FF'ten FARKLI: bu bozucu DUTY-domeninde ölçüldü → duty'ye enjekte (ω_ref'e değil).
@@ -62,8 +62,11 @@ static float LoadFF_Apply(const Axis_t *axp, float theta_out_deg, float omega_re
 {
     if (!axp->load_ff_en) return u;
     float u_ff = axp->kff_grav * sinf(theta_out_deg * DEG2RAD);
-    if (fabsf(omega_ref) > axp->coul_db)
-        u_ff += axp->kff_coul * (omega_ref >= 0.0f ? 1.0f : -1.0f);
+    /* Pürüzsüz Coulomb FF (§12.13.4 seçenek A, 2026-06-23): sign(ω_ref)→tanh(ω_ref/ε), ε=coul_db.
+     * Sert sign-flip, setpoint civarı ω_ref-chatter'ında (poz-hunting ±3-10° → ω_ref ±0.1-0.35 rad/s)
+     * limit-cycle besliyordu (mengeneli re-test §12.13.4). tanh: |ω_ref|>>ε → ±kff_coul (tam telafi),
+     * ω_ref→0 → ~lineer (chatter yok). ε=0.34 rad/s o chatter ölçeğinde. [Olsson1998] §6. */
+    u_ff += axp->kff_coul * tanhf(omega_ref / axp->coul_db);
     return u + u_ff;   /* toplam clamp MotorCh_SetDutySigned içinde (±0.50) */
 }
 
