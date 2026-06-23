@@ -70,7 +70,7 @@ PB7 ◀─SDA─▶ MPU6050 SDA                       PA2 ◀─ ACS712-2 OUT   
 **Kullanılmayan / yasak pinler:** PA0=KEY · PA4–PA7=SPI-flash footprint (`[WeAct_BP]`) ·
 PB2=BOOT1 · PA13/14=SWD. Gerekçeler → asama_0 §8.1 (Aşama 0) + asama_3 §12.2 (motor-2).
 
-## 3. Kablolama — renk renk (Pololu 25D, motor-1 ↔ motor-2 paralel)
+## 3. Kablolama — renk renk (Pololu 25D motor-1 + motor-2 — ⚠ AYRI sürücüler, elektriksel paralel DEĞİL; tablo yan-yana karşılaştırma)
 
 Renk kodu `[Pololu_25D]` Page 2. **Pololu 25D tek gövde** (motor+encoder, 6 telli tek kablo).
 
@@ -201,10 +201,12 @@ optimal — iç eksen LP ile **bedava hassas** (TB6612, ~0 ölü-bölge), yalnı
 hızları yakın; HP@20 torku LP@9.7'nin $\approx 4\times$'i. Güç: dış HP→5 A adaptör (duty-cap %50'de stall
 $\approx 2.8$ A), iç LP→3 A. Tam karar analizi: bu oturum + `ROADMAP.md` (Kontrol Merdiveni).
 
-> ✅ **HP cascade TAMAMLANDI (`asama_3 §12.12`, 3 faz):** Faz1 karakterizasyon — $K_g=1043$ rad/s(motor)/duty,
+> ✅ **HP cascade TAMAMLANDI (`asama_3 §12.12`, 3 faz):** Faz1 karakterizasyon — $K_g=1043$ rad/s(motor)/duty (serbest-mil; rijit re-char §12.13.5 → ~974/897 DOĞRULADI),
 > $\tau\approx 70$ ms (HW-039 **HIZLI**; eski "$\tau\approx 400$-$450$ ms HW-039 yavaş" hükmü `§12.11`'de
 > firmware-ramp confound olarak ÇÜRÜTÜLDÜ; terk-edilen önceki ID $K_{HP}=83.35$ rad/s/V de buradandı),
-> dead-band statik $0.21 \gg$ kinetik $0.14$. Faz2 analitik cascade — iç PI $K_p=0.00167$/$K_i=0.0548$ (PM 68°),
+> dead-band statik $0.21$/kinetik $0.14$ (rijit §12.13.5: YÖN-ASİMETRİK $u_s$ 0.22/0.25, $u_c$ 0.14/0.20). Faz2 analitik cascade — iç PI $K_p=0.00167$/$K_i=0.0548$ (PM 68°),
 > dış P $K_{p,pos}=2.0$ (PM 88°), `pidtune` doğrulandı. Faz3 — firmware per-eksen split, **eksen-0 = HP** flash OK
-> (terk-edilen önceki LP paramı $K=53.89$ artık kullanılmıyor). **Kalan açık konu:** loop-rate fix
-> (kontrol döngüsü IMU'dan ayrı ~1kHz timer-ISR — `§12.12.5`/`§12.12.6`, stick-slip kök-neden).
+> (terk-edilen önceki LP paramı $K=53.89$ artık kullanılmıyor). **Loop-rate ÇÖZÜLDÜ (`§12.13`):**
+> "stick-slip kök-neden = ~32ms loop / timer-ISR mimari fix" sanıldı AMA **32ms KOPUK-IMU I2C-BUSY-timeout
+> artefaktıydı** (IMU bağlı değildi) → tek-satır `GPIO_PULLUP` (loop 32→6ms; **timer-ISR GEREKMEDİ**). HP gross
+> stick-slip çözüldü → **K0/K1 baseline KAPALI**; residual sürtünme-limit-cycle temiz fix = K7 (Kalman, Aşama-5).
