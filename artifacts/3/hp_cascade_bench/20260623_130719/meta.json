@@ -1,0 +1,128 @@
+{
+  "test_id": "3.HP-cascade-bench",
+  "timestamp": "2026-06-23T13:07:56",
+  "commit": "80f0606",
+  "status": "STICK_SLIP",
+  "kp_pos": 2.0,
+  "inner": {
+    "Kp": 0.00167,
+    "Ki": 0.0548
+  },
+  "plant": {
+    "Kg": 1043,
+    "tau_ms": 70,
+    "gear": 20,
+    "cpr": 960
+  },
+  "coulomb_ff": {
+    "enabled": true,
+    "kff_coul": 0.14,
+    "coul_db": 0.35
+  },
+  "targets": [
+    30,
+    90,
+    45,
+    0,
+    -45,
+    0
+  ],
+  "results": [
+    {
+      "target": 30,
+      "n": 179,
+      "valid": true,
+      "theta_start": 0.0,
+      "theta_ss": 37.0,
+      "ss_err_deg": 7.0,
+      "ss_err_pct": 23.3,
+      "overshoot_deg": 26.62,
+      "overshoot_pct": 88.8,
+      "settling_s": null,
+      "theta_std_ss": 20.51,
+      "limit_cycle": true,
+      "stuck": false,
+      "dropout": false
+    },
+    {
+      "target": 90,
+      "n": 179,
+      "valid": true,
+      "theta_start": 15.0,
+      "theta_ss": 101.6,
+      "ss_err_deg": 11.6,
+      "ss_err_pct": 15.5,
+      "overshoot_deg": 12.75,
+      "overshoot_pct": 17.0,
+      "settling_s": null,
+      "theta_std_ss": 0.09,
+      "limit_cycle": false,
+      "stuck": true,
+      "dropout": false
+    },
+    {
+      "target": 45,
+      "n": 179,
+      "valid": true,
+      "theta_start": 101.2,
+      "theta_ss": 59.57,
+      "ss_err_deg": 14.57,
+      "ss_err_pct": 25.9,
+      "overshoot_deg": 21.38,
+      "overshoot_pct": 38.0,
+      "settling_s": null,
+      "theta_std_ss": 0.31,
+      "limit_cycle": false,
+      "stuck": false,
+      "dropout": false
+    },
+    {
+      "target": 0,
+      "n": 179,
+      "valid": true,
+      "theta_start": 59.6,
+      "theta_ss": -9.2,
+      "ss_err_deg": 9.2,
+      "ss_err_pct": 15.4,
+      "overshoot_deg": 35.62,
+      "overshoot_pct": 59.7,
+      "settling_s": null,
+      "theta_std_ss": 0.31,
+      "limit_cycle": false,
+      "stuck": true,
+      "dropout": false
+    },
+    {
+      "target": -45,
+      "n": 179,
+      "valid": true,
+      "theta_start": -9.4,
+      "theta_ss": -42.21,
+      "ss_err_deg": 2.79,
+      "ss_err_pct": 7.8,
+      "overshoot_deg": 2.62,
+      "overshoot_pct": 7.4,
+      "settling_s": null,
+      "theta_std_ss": 0.19,
+      "limit_cycle": false,
+      "stuck": false,
+      "dropout": false
+    },
+    {
+      "target": 0,
+      "n": 179,
+      "valid": true,
+      "theta_start": -42.4,
+      "theta_ss": 11.64,
+      "ss_err_deg": 11.64,
+      "ss_err_pct": 27.5,
+      "overshoot_deg": 15.38,
+      "overshoot_pct": 36.3,
+      "settling_s": null,
+      "theta_std_ss": 0.34,
+      "limit_cycle": false,
+      "stuck": true,
+      "dropout": false
+    }
+  ]
+}

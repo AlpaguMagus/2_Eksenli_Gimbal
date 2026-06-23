@@ -29,13 +29,14 @@ USBD_HandleTypeDef hUsbDeviceFS;           /* usbd_cdc_if.c tarafından extern *
 I2C_HandleTypeDef  hi2c1;
 
 /* --- Eksen demetleri (Aşama 3.3 — axis.h) ---------------------------------
- * g_axis[0] = motor-1 ekseni (⚠ mevcut ünite CW-kusurlu, yedek bekleniyor)
- * g_axis[1] = motor-2 ekseni (karakterize SAĞLIKLI ünite — aktif geliştirme) */
+ * g_axis[0] = eksen-0 = Motor1/HW-039 = HP Pololu 20:1 (Faz1 karakterize 2026-06-23,
+ *             Faz2 analitik cascade; eski CW-kusurlu ünitenin yerini aldı)
+ * g_axis[1] = eksen-1 = Motor2/TB6612 = LP 9.7:1 (Aşama 1-2 karakterize, DEĞİŞMEZ) */
 Axis_t g_axis[AXIS_COUNT] = {
     { .motor = &Motor1, .enc_count = Encoder_GetCount,
       .enc_reset = Encoder_Reset,  .enc_speed = Encoder_GetSpeed,
       .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false,   /* gyro-FF default kazanç (analitik), KAPALI */
-      .kff_grav = 0.097f, .kff_coul = 0.090f, .coul_db = 0.34f, .load_ff_en = false },  /* yüklü-FF ölçülen, KAPALI (emniyet explicit) */
+      .kff_grav = 0.097f, .kff_coul = 0.090f, .coul_db = 0.34f, .load_ff_en = false },  /* ⚠ yüklü-FF: LP-rig placeholder (§12.8); HP yüklü-FF + kinetik dead-band 0.14 = Aşama 5; KAPALI */
     { .motor = &Motor2, .enc_count = Encoder2_GetCount,
       .enc_reset = Encoder2_Reset, .enc_speed = Encoder2_GetSpeed,
       .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false,
@@ -117,10 +118,11 @@ int main(void)
     MotorCh_Init(&Motor1);       /* HW-039/BTS7960 (interim, docs §12.10): TIM4 RPWM=PB8/LPWM=PB9 (20 kHz), EN=PB14=LOW */
     MotorCh_Init(&Motor2);       /* TIM3 CH4, PB1 PWM, PB4/PB5/PB10 GPIO, STBY=LOW */
 
-    /* Hız iç döngü PI kazançları — HER İKİ EKSENE AYNI set yüklenir:
-     * kazançlar Aşama 1-2'de karakterize edilen üniteye göre tasarlandı
-     * (o ünite rewire sonrası MOTOR-2 ekseninde); motor-1 ekseni yeni motor
-     * gelince aynı başlangıç setiyle doğrulanacak (3.4 MIMO ID zaten ölçer).
+    /* Hız iç döngü PI kazançları — EKSENE-ÖZEL (Faz 3, 2026-06-23):
+     *   eksen-1 (LP) = aşağıdaki LP set (Aşama 1-2 karakterize, DEĞİŞMEZ);
+     *   eksen-0 (HP) = SPEED_PI_CFG_HP (Faz1 karakterize + Faz2 analitik, hp_cascade_design.m).
+     * (önceki "her iki eksene aynı set" TERK edildi — HP plant farklı: Kg 1043 vs LP 655.)
+     * LP set'in tasarım gerekçesi (Aşama 2.3 dersi):
      *
      * ⚠ Aşama 2.3 BULGUSU: Aşama 2.1 Simulink tasarımı (conservative pole
      * placement Kp=0.1163, Ki=4.0447) gerçek sistemde BANG-BANG limit cycle
@@ -135,7 +137,7 @@ int main(void)
      *
      * Runtime KP:/KI:/SLEW: (+2 sonekli eksen-1) komutlarıyla flash'sız ayarlanabilir.
      * Kaynaklar: [AstromMurray2008] §10.2 (Tustin), §10.4 (back-calculation) */
-    static const SpeedPI_Config SPEED_PI_CFG = {
+    static const SpeedPI_Config SPEED_PI_CFG_LP = {
         .Kp       = 0.002f,           /* analitik: doyum-kısıtı Kp≈duty_max/ω_max
                                        * (design_speed_pi_corrected.m, docs §11.11.3);
                                        * 2.1 conservative 58× yüksekti (P-term doyar → bang-bang) */
@@ -158,16 +160,41 @@ int main(void)
      *   (ilk tahmin iç ω_n≈9.4; Vsupply dahil gerçek ω_n≈33 → ayrım ~16×, docs §11.13.2b)
      *   PM 69.7°, tip-1 → P ile ss_error=0 [Franklin2010 §4.3]
      * Gerçek motor: Test 2.5 PASS (6/6 segment, ss_err<0.8°, limit-cycle YOK). */
-    static const PositionP_Config POS_P_CFG = {
+    static const PositionP_Config POS_P_CFG_LP = {
         .Kp_pos         = 2.0f,
         .gear_ratio     = 9.7f,
         .counts_per_rev = 466.0f,   /* 48 × 9.7 (çıkış mili event/rev) */
         .omega_ref_max  = 300.0f    /* rad/s motor şaftı güvenlik limiti */
     };
 
+    /* === HP cascade (eksen-0 / Motor1 / HW-039, 20:1) — Faz1 karakterize + Faz2 analitik ===
+     * matlab/asama_3_mimo_model/hp_cascade_design.m (docs §12.12):
+     *   Plant (Faz1 mil-serbest, ≤0.5 duty): Kg=1043 rad/s(motor)/duty, τ≈70 ms (63-76 aralık).
+     *   İç PI: Kp=duty_max/ω_max (doyum-kısıtı, Aşama 2.3 bang-bang dersi), Ki=ωn²·τ/Kg
+     *     (ωn=2/τ=28.6) → PM=68°, ζ=0.68; pidtune ~%15-20 uyum.
+     *   Dış P: Kp_pos=2.0 (ωc=2.0, PM=88°, 5×-kuralı içi [Franklin2010 §6.4]; gear sadeleşir).
+     * ⚠ Ts=0.005 vs gerçek loop ~32ms latent kuplaj (LP'de ampirik doğrulandı, §12.11.6).
+     * ⚠ Mirror takip için Kv↑ (≤4) veya gyro-FF (§12.9) — runtime KPP/KFF. */
+    static const SpeedPI_Config SPEED_PI_CFG_HP = {
+        .Kp       = 0.00167f,   /* doyum-kısıtı duty_max/ω_max = 0.5/300 */
+        .Ki       = 0.0548f,    /* pole place ωn=2/τ → ωn²τ/Kg (Kg=1043; LP'nin yarısı, plant 1.6×) */
+        .Ts       = 0.005f,     /* firmware Tustin sabit adımı (LP ile aynı konvansiyon) */
+        .duty_max = 0.50f,      /* akım cap (Sagemcom 5A + 940µF bulk inrush, §12.11.6) */
+        .T_t      = 0.0305f     /* Kp/Ki — Aström-Murray T_t=T_i */
+    };
+    static const PositionP_Config POS_P_CFG_HP = {
+        .Kp_pos         = 2.0f,     /* ωc=2.0, PM=88° (plant-bağımsız, gear sadeleşir) */
+        .gear_ratio     = 20.0f,    /* HP 20:1 */
+        .counts_per_rev = 960.0f,   /* 48 × 20 (çıkış mili event/rev) */
+        .omega_ref_max  = 300.0f    /* rad/s motor şaftı güvenlik limiti */
+    };
+
+    /* Eksene-özel config: [0]=HP (Motor1/HW-039), [1]=LP (Motor2/TB6612) — donanim §7.2 */
+    const SpeedPI_Config*   speed_cfg[AXIS_COUNT] = { &SPEED_PI_CFG_HP, &SPEED_PI_CFG_LP };
+    const PositionP_Config* pos_cfg[AXIS_COUNT]   = { &POS_P_CFG_HP,   &POS_P_CFG_LP };
     for (int i = 0; i < AXIS_COUNT; i++) {
-        SpeedPI_Init(&g_axis[i].spi, &SPEED_PI_CFG);
-        PositionP_Init(&g_axis[i].ppos, &POS_P_CFG);
+        SpeedPI_Init(&g_axis[i].spi, speed_cfg[i]);
+        PositionP_Init(&g_axis[i].ppos, pos_cfg[i]);
         SpeedFilter_Reset(&g_axis[i].filt);
     }
 

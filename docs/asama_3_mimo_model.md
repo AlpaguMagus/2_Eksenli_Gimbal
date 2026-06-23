@@ -807,3 +807,136 @@ Temiz testte encoder **noise spike'ları** (62314, 126893 cnt/s = fiziksel imkâ
 > 📊 **Üreten betikler:** `scripts/hp_stepid_clean.py` (DUTYR temiz step), `scripts/hp_observe.py`
 > (EMI/dropout gözlem), `scripts/hp_stepid_rampasiz.py` (ilk A/B — ramp-sabote, ders). Literatür:
 > `driver-motor-literatur` workflow. Ham veri: `artifacts/3/hp_stepid_clean/`.
+
+### 12.12. HP ekseni (eksen-0) cascade — karakterizasyon + analitik tasarım + stick-slip teşhisi (2026-06-23) · 🧪 bench
+
+> **Ne:** RPWM kablo-fix + ~940µF bulk (§12.11.6) sonrası HP eksenini (Motor1/HW-039, 20:1) serbest-milde
+> temiz karakterize et → analitik cascade tasarla → firmware'e taşı → bench doğrula. **Neden:** firmware
+> eksen-0'a o güne dek **LP parametreleri** (gear 9.7, cpr 466, Kg 654.8) uyguluyordu (geçici, §7.2) — HP
+> 20:1 ve farklı motor olduğundan cascade yanlıştı. **Sonuç:** karakterizasyon + tasarım temiz; bench
+> **stick-slip** (stiction) ortaya çıkardı → Coulomb feedforward ile çözülüyor. Üç-faz onaylı plan (Faz-kapılı).
+
+#### 12.12.1. Faz 1 — HP karakterizasyon (mil serbest, ≤0.5 duty cap, EC-canary)
+
+Onaylı tam paket: dead-band (iki yön) → K(duty) eğrisi (iki yön) → step-ID τ (iki yön). Güvenlik: duty 0.5
+sert cap (akım — ACS712 yok), EC-freeze canary, kısa burst + soğuma.
+
+| Parametre | fwd | rev | Hüküm |
+|---|---|---|---|
+| Kg (cnt/s/duty, regresyon eğimi) | 7965 | ~7900 | **%2 simetrik** |
+| Kg (rad/s motor/duty) | 1043 | — | LP'nin (655) **1.6×**'i (hızlı motor) |
+| τ63 | 63 ms | 64 ms | **simetrik** (clean 76ms ile ~32ms loop çözünürlüğü içinde tutarlı) |
+| Statik kopma (breakaway) | 0.21 | 0.22 | **simetrik** |
+| Kinetik dropout (sustain min) | 0.14 | ~0.18 | stiction/kinetik **≈1.5×** |
+| K_motor | ≈87 rad/s/V | — | önceki 83.35 ile tutarlı |
+
+**Üç kritik bulgu:** (1) **Forward (CW/RPWM) artık TEMİZ** — eskiden flaky/ölüydü (§12.10), kablo-fix
+doğrulandı; iki yön simetrik → **tek cascade tasarımı yeter**. (2) **Büyük stiction:** statik 0.21 ≫
+kinetik 0.14 → stick-slip eğilimi (cascade'de telafi ister). (3) **0.5 cap güvenli** — hiç dropout/OCP yok.
+
+> 📊 **Üreten:** `scripts/hp_characterize.py`, `scripts/hp_deadband.py`. Ham veri:
+> `artifacts/3/hp_charac/`, `artifacts/3/hp_deadband/`.
+
+#### 12.12.2. Faz 2 — analitik cascade tasarımı
+
+LP'de doğrulanmış yöntem (doyum-kısıtı + doğru-plant pole placement, §11.11.3) HP plant'ına uygulandı.
+
+**İç hız-PI** — plant $G_p(s) = K_g/(\tau s + 1)$, $K_g = 1043$, $\tau = 0.070$. Kapalı-çevrim karakteristik:
+
+$$\tau s^2 + (1 + K_g K_p)\,s + K_g K_i = 0 \;\Rightarrow\; \omega_n^2 = \frac{K_g K_i}{\tau},\quad 2\zeta\omega_n = \frac{1 + K_g K_p}{\tau}$$
+
+- Doyum-kısıtı (Aşama 2.3 bang-bang dersi): $K_p = u_{max}/\omega_{max} = 0.5/300 = 0.00167$.
+- Pole placement: $\omega_n = 2/\tau = 28.6$ rad/s $\Rightarrow K_i = \omega_n^2 \tau / K_g = 0.0548$, ortaya çıkan $\zeta = 0.68$.
+- **Toolbox doğrulama:** PM $= 68.4^\circ$, GM $= \infty$, $\omega_c = 32.4$ rad/s; `pidtune` (@$\omega_c$) $K_p=0.0014/K_i=0.062$ → analitikle **~%15-20 uyum** (doyum-kısıtı için bilinçli fark, `pidtune` stiction'ı bilmez).
+
+**Dış pozisyon-P** — açık-çevrim $L_{out}(s) = K_{p,pos}\,T_{in}(s)/s$; redüktör ileri/geri sadeleşir → $\omega_c = K_{p,pos}$. 5× kuralı [Franklin2010 §6.4]: $\omega_c \le \omega_{n,\text{iç}}/5 = 5.7$. Seçim $K_{p,pos}=2.0$ ($\omega_c=2.0$, PM $88^\circ$, proven LP değeri).
+
+| Blok | Parametre | HP | LP (değişmez) |
+|---|---|---|---|
+| İç PI | Kp / Ki | 0.00167 / 0.0548 | 0.002 / 0.1 |
+| Dış P | Kp_pos | 2.0 | 2.0 |
+| Mekanik | gear / cpr | 20 / 960 | 9.7 / 466 |
+
+![HP iç hız döngüsü](../matlab/asama_3_mimo_model/results/hp_cascade/hp_inner_speed_pi.png)
+
+> 📊 **Üreten betik:** `matlab/asama_3_mimo_model/hp_cascade_design.m` → `results/hp_cascade/`. Firmware:
+> `main.c` eksen-0 `SPEED_PI_CFG_HP`/`POS_P_CFG_HP` (manuel transfer, yorum atıflı).
+
+#### 12.12.3. Faz 3 — bench TEŞHİS: stick-slip (stiction limit-cycle) · 🔬 veri-temelli
+
+Firmware'e (per-eksen config split) taşındıktan sonra POS step bench (hedefler 30/90/45/0/−45/0°, ≤0.5 cap).
+**Sonuç PASS değil — ama dropout da DEĞİL:** motor her step'e yanıt verdi, fakat hedefi **3-15° aşıp yapıştı**.
+
+İki düzeltme: **(a) TR telemetri = setpoint** (ölçülen açı değil); gerçek ölçüm $\theta = EC\times 360/960$ (HP
+cpr=960). **(b) Script "DROPOUT" hükmü yanlış-pozitif** — canary stiction-stuck'ı OCP sandı; duty hiç 0.5'e
+değmedi (max ~0.37), motor donmadı **lurch** yaptı.
+
+**Dört-yol kanıt (plot):**
+
+| Sinyal | Gözlem | Yorum |
+|---|---|---|
+| duty | testere dişi: yavaş rampa ~0.21-0.37 → düşüş | integral stiction'a karşı yavaş şişiyor, kopunca boşalıyor |
+| ω ölçülen | ω_ref ~20-40 ama ölçülen **130-280 ani spike** | **lurch** (ani fırlama), arada ω≈0 (yapışık) |
+| θ | her hedefi 3-15° aşıp yapışıyor | breakaway sonrası slip, stiction past-target kilitliyor |
+
+**Kök neden (4 faktör birleşik):** (1) büyük stiction (breakaway $u_s = 0.21$); (2) **zayıf efektif Ki** —
+Tustin sabit $T_s = 0.005$ vs gerçek loop $\approx 32$ ms → $K_{i,\text{eff}} = K_i\,T_s/dt \approx 0.16\,K_i$,
+hedefe yakın breakaway'i $\approx 12$ s'de kırıyor (4 s hold yetmiyor, §12.11.6 latent kuplajı **HP'nin büyük
+stiction'ında ısırıyor**); (3) hızlı HP motoru kopunca yavaş loop frenleyemeden aşıyor; (4) ~32 ms loop fast
+lurch'ü yakalayamıyor. **Analitik tasarım doğru — modellenmemiş stiction + loop-hızı baskın** (sim ≠ validasyon, §12.7).
+
+![HP bench stick-slip (FF öncesi)](../matlab/asama_3_mimo_model/results/hp_cascade/hp_bench_noFF_stickslip.png)
+
+> 📊 Ham veri: `artifacts/3/hp_cascade_bench/`. Üreten: `scripts/hp_cascade_bench.py`.
+
+#### 12.12.4. Coulomb feedforward — ANALİTİK tasarım (deneme-yanılma DEĞİL)
+
+Çözüm: ölçülen Coulomb sürtünmesini **önceden besle** ki kontrolcü integral şişirmeden koparsın
+[Franklin2010 §7.5 bilinen-bozucu FF, Olsson1998 §6 sürtünme telafisi]. FF değeri **sürtünme modelinin
+kendisi** (ölçülen kinetik sürtünme), keyfi değil:
+
+$$u_{ff} = u_c\cdot\mathrm{sign}(\omega_{ref}),\qquad K_{ff,coul} = u_c = 0.14\ \text{(Faz1 kinetik dropout)}$$
+
+- $K_{ff,grav} = 0$ — serbest-mil HP **dengeli** (Faz1 K-eğrisi fwd/rev simetrik → gravite asimetrisi yok; aksi halde $|u_{fwd}| \ne |u_{rev}|$ olurdu).
+- FF sonrası PI'nın kıracağı **artık stiction** $= u_s - u_c = 0.07$ → integral windup **3.0× azalır** ($u_s/(u_s-u_c)$).
+- Ölü-bant: $\text{coul\_db} = K_{p,pos}\cdot\text{gear}\cdot e_{off} = 2\cdot 20\cdot(0.5^\circ) = 0.35$ rad/s (setpoint-civarı sign-chatter'ı keser; FF $\pm 0.5^\circ$ bandında kapanır).
+- Beklenen breakaway: FF yok $\approx 12$ s $\to$ FF var $\approx 3.9$ s (yine de $K_{i,\text{eff}}$ zayıf → tam settle için Ki düzeltmesi $K_i\,dt/T_s \approx 0.35$ **ayrı adım**, izole değişken disiplini).
+
+**Runtime (reflash yok, eksen-0):** `LFFG:0` · `LFFC:0.14` · `LFFDB:0.35` · `LFF:1`.
+
+**🔬 Bench sonucu — FF stick-slip'i ÇÖZMEDİ (dürüst):** Analitik FF (kff_coul=0.14) açıkken POS step
+(hold 6s) — ss_err **tutarsız** (seg5 temiz 2.79°, ama seg1-4/6 hâlâ 7-15°) ve **bazı segmentlerde KÖTÜLEŞTİ**:
+bipolar sign-FF (ω_ref işaret çevirince ±0.14 = 0.28 sıçrama) stick-slip salınımına **enerji pompaladı** →
+t=14-20s'de **limit-cycle** (θ çılgın salınım, ω ±100-380 rad/s spike). FF off↔on ~aynı mertebe (3-15°), on
+bazen daha kötü. **Hüküm: Coulomb FF tek başına yetersiz** — asıl darboğaz daha derin (§12.12.5).
+
+![HP bench FF açık — limit-cycle](../matlab/asama_3_mimo_model/results/hp_cascade/hp_bench_FF_limitcycle.png)
+
+> 📊 **Üreten betik:** `matlab/asama_3_mimo_model/hp_cascade_design.m §4b` (analitik FF). Firmware FF:
+> `LoadFF_Apply` (`main.c`), runtime `LFF*` (`cmd_parser.c`). Kaynak: `[Franklin2010]`, `[Olsson1998]`.
+
+#### 12.12.5. Asıl darboğaz — loop hızı (analitik) · 🔬 kök-neden
+
+FF'in çözememesi + LP cascade'in temiz çalışması (Test 2.5, 6/6 PASS) karşıtlığı asıl nedeni gösterir:
+**~32 ms IMU-bağlı loop, hızlı HP motorunu büyük stiction'la kontrol etmek için çok yavaş.**
+
+Breakaway sonrası HP **lurch hızı ~200 rad/s motor** (gözlenen ω spike) = **573°/s çıkış**. Bir loop
+periyodunda ($dt = 32$ ms) motor **18.3° çıkış** kat eder — settling band'ından (2°) **9× büyük**. Loop,
+motoru hedefi aşmadan **frenleyemiyor** (overshoot ancak gerçekleştikten SONRA ölçülüyor):
+
+$$dt_{\text{gerekli}} = \frac{\theta_{band}}{\dot\theta_{lurch}} = \frac{2^\circ}{573^\circ/\text{s}} \approx 3.5\ \text{ms} \;\Rightarrow\; \sim 9\times\ \text{daha hızlı loop}$$
+
+LP (yavaş motor, $K$ 1.6× küçük + küçük stiction) sample başına az hareket → 32 ms yakalayabiliyordu; HP
+yakalanamıyor. Üstelik **integral, motor yapışıkken aşırı şişiyor** (zayıf $K_{i,\text{eff}}$ geç unwind) →
+kopunca depolanmış enerji motoru sertçe sürüyor → overshoot; sign-FF bunu bang-bang ile besliyor.
+
+**Sonuç:** HP temiz pozisyon kontrolü **mimari** çözüm ister — kontrol döngüsünü IMU'dan ayır (timer-ISR
+~1 kHz), §12.11.6 loop-darboğazının doğrudan tezahürü. Parametre tuning (FF, Kp_pos) palyatif, kök çözüm değil.
+
+#### 12.12.6. Açık konular + yol haritası
+
+- **Loop-rate fix (mimari, BİRİNCİL):** kontrol döngüsünü IMU'dan ayır (timer-ISR ~1 kHz) → §12.12.5/§12.11.6. HP temiz pozisyon için zorunlu; LP zaten çalışıyor (yavaş motor).
+- **STAB/MIRROR (gerçek kullanım) testi:** gimbalın işi sürekli takip, ayrık step değil — sürekli hareket stick-slip'i baypas edebilir; düşük-maliyet ayırt edici deney (kök çözümden önce değer verir mi?).
+- **Ki de-rating:** $K_{i,\text{eff}} \approx 0.16\,K_i$ — loop-rate fix bunu da çözer; ara çözüm $K_i\,dt/T_s \approx 0.35$ telafi (ama tek başına lurch'ü çözmez).
+- **Mirror/takip:** $K_{p,pos}=2.0$ cascade-step için; takip lag'i (e_ss=15°@30°/s) için gyro-FF (§12.9) tercih.
+- **Yük:** serbest-mil tasarımı; gravite-FF + yüklü stiction = Aşama 5 (payload inertial).

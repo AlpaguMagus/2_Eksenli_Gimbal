@@ -94,9 +94,41 @@ fprintf('\n========== FİRMWARE eksen-0 (HP) — main.c transfer ==========\n');
 fprintf('  SpeedPI:  Kp = %.5f   Ki = %.4f   (T_t=Kp/Ki=%.3f)\n', Kp_in, Ki_in, Kp_in/Ki_in);
 fprintf('  PositionP: Kp_pos = %.1f   gear_ratio = %g   counts_per_rev = %g   omega_ref_max=%g\n',...
         Kp_pos, GEAR, CPR, wref_max);
-fprintf('  Coulomb FF (stick-slip): coul_db≈%.2f  kff_coul≈%.2f (kinetik dead-band, default kapalı)\n', Vdead_k, Vdead_k);
+fprintf('  Coulomb FF (stick-slip): analitik türetme asagida §4b (kff_coul=u_c, coul_db, windup azalma)\n');
 fprintf('  LP karşılaştırma: HP Ki %.3f vs LP %.2f (Kg %.0f vs %.0f → daha yüksek plant, az integral)\n',...
         Ki_in, Ki_LP, Kg, Kg_LP);
+
+%% ---------- 4b) COULOMB FEEDFORWARD — ANALİTİK (Faz3 bench teşhisi sonrası) ----------
+% Faz 3 bench (artifacts/3/hp_cascade_bench): cascade STICK-SLIP verdi — motor stiction'ı
+% kırmak için integral'i yavaşça şişirip ANİ kopuyor (lurch), hedefi 3-15° aşıp yapışıyor.
+% Kök neden: büyük stiction (u_s=0.21) + zayıf efektif Ki (Ts/dt de-rating) → integral
+% breakaway'i ~12s'de kırıyor (4s hold yetmiyor) + hızlı HP yavaş loop'ta aşıyor.
+%
+% ÇÖZÜM — Coulomb feedforward (computed-torque, [Franklin2010]§7.5 bilinen-bozucu FF,
+% [Olsson1998]§6 sürtünme telafisi): ÖLÇÜLEN kinetik sürtünmeyi önceden besle (deneme-yanılma
+% DEĞİL — FF = sürtünme modelinin kendisi):
+%   u_ff = u_c · sign(ω_ref),  u_c = ölçülen kinetik sürtünme duty'si = %.2f (Faz1 kinetik dropout)
+u_s = Vdead_s;  u_c = Vdead_k;                    % statik / kinetik (Faz1 ölçülen)
+kff_coul = u_c;                                   % FF = Coulomb sürtünme (analitik = ölçülen)
+kff_grav = 0.0;                                   % serbest-mil HP DENGELİ (K-eğrisi fwd/rev simetrik → gravite asimetrisi YOK)
+resid    = u_s - u_c;                             % FF sonrası PI'nın kıracağı artık stiction
+windup_x = u_s / resid;                           % windup azalma faktörü
+% coul_db: ω_ref'in setpoint-civarı sign-chatter'ını kesen ölü-bant. e_off açısında FF kapanır:
+e_off_deg = 0.5;                                  % FF-off bandı (hedefe yakın chatter önle)
+coul_db   = Kp_pos * GEAR * (e_off_deg*pi/180);   % = ω_ref @ e_off (motor rad/s)
+% Efektif Ki de-rating (latent kuplaj) + breakaway süresi tahmini:
+Ki_eff = Ki_in * Ts/dt_real;
+e_stuck_deg = 3.0; wref_stuck = Kp_pos*GEAR*(e_stuck_deg*pi/180);
+t_break_noff = u_s   /(Ki_eff*wref_stuck);
+t_break_ff   = resid /(Ki_eff*wref_stuck);
+fprintf('\n=== COULOMB FF (analitik, Faz3 teşhis çözümü) ===\n');
+fprintf('  u_s(statik)=%.2f  u_c(kinetik)=%.2f → kff_coul=u_c=%.2f  kff_grav=0 (serbest-mil dengeli)\n', u_s,u_c,kff_coul);
+fprintf('  FF sonrası artık stiction = u_s−u_c = %.2f → windup %.1f× azalır\n', resid, windup_x);
+fprintf('  coul_db = Kp_pos·gear·e_off(%.1f°) = %.2f rad/s (FF-off bandı, anti-chatter)\n', e_off_deg, coul_db);
+fprintf('  breakaway @%.0f° hata: FF YOK ~%.1fs → FF VAR ~%.1fs (Ki_eff=%.4f, Ts/dt de-rating)\n',...
+        e_stuck_deg, t_break_noff, t_break_ff, Ki_eff);
+fprintf('  ⚠ FF lurch+windup''ı çözer; kalan yavaş-settle için Ki_eff (Ki·dt/Ts≈%.2f) ayrı adım.\n', Ki_in*dt_real/Ts);
+fprintf('  RUNTIME (reflash yok): LFFG:0  LFFC:%.2f  LFFDB:%.2f  LFF:1  (eksen-0)\n', kff_coul, coul_db);
 
 %% ---------- 5) PLOTLAR ----------
 f1=figure('Position',[100 100 980 380],'Color','w');
