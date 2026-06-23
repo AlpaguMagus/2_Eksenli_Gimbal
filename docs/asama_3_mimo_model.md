@@ -1062,6 +1062,17 @@ durduruldu — analitik-önce). Seçenekler (sonraki oturum, MATLAB cascade+fric
   21.8 rad/s kuantizasyonu giderir → iç loop ince çalışır.
 - **(C) İç Ki↓ / integral dead-zone:** hunting'i bastırır ama bozucu-reddi düşer (palyatif).
 
+> **Sim sonucu (`matlab/.../hp_cascade_redesign.m`, 2026-06-23 — nonlineer Karnopp+kuantizasyon, rijit §12.13.5
+> modeli):** no-FF limit-cycle'ı ÜRETTİ (θ_std~3°, bench'le tutarlı — mekanizma doğrulandı) ve **(B)'yi KESİN
+> ELEDİ:** iç P-only ($u=K_{p,in}\cdot w_{err}$) sürtünmeyi kıramaz — $u_s=0.22$ için $w_{err}>132$ rad/s gerek →
+> ss_err 88°. **İç integral sürtünme-kırma için ZORUNLU**, B yanlış. ⚠ Ama sim **FF-limit-cycle'ı ÜRETEMEDİ**
+> (sim FF temiz ~1°, bench FF limit-cycle ~3-6°; ω-kuant + pozisyon-kuant + MA-gecikme eklense de gap kapanmadı)
+> → **FF fix sim'le güvenilir tasarlanamaz** (modellenmemiş mekanizma; muhtemel: nonlineer sürtünme detayı /
+> motor dinamiği / FF-zamanlama). **Ölçülen kök = ω-kuantizasyon 21.8 rad/s@6ms** → proper fix **(D) iyi
+> hız-kestirimi** (period-timing/Kalman, Aşama-5'e bağlanır); FF/dead-zone band-aid'leri **bench-validasyon**
+> ister (analitik-motive: yön-bağımlı FF §12.13.5 friction-asimetrisi). Analitik-önce'nin değeri: B firmware'e
+> geçmeden elendi.
+
 > Pürüzsüz tanh FF firmware'de KALDI (`main.c` `LoadFF_Apply`; default KAPALI) — §12.12.4 sert sign-FF
 > chatter'ına göre ilkesel iyileştirme; ama rijit-mount limit-cycle'ı FF değil **cascade-yapısı** sorunudur.
 - ⚙ **Opsiyonel** — $dt=T_s$ tam eşitleme: loop 6 ms, $T_s=5$ ms → $T_s/dt=0.83$. Tam 1.0 için loop'u 5 ms'e
