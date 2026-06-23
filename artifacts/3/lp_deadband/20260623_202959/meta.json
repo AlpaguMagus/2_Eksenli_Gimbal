@@ -1,0 +1,13 @@
+{
+  "test_id": "3.LP-deadband",
+  "timestamp": "20260623_202959",
+  "commit": "df989e7",
+  "status": "PASS",
+  "key_metrics": {
+    "static_fwd": 0.08,
+    "static_rev": 0.08,
+    "kinetic_fwd": 0.08,
+    "kinetic_rev": 0.08,
+    "stiction_ratio_fwd": 1.0
+  }
+}
