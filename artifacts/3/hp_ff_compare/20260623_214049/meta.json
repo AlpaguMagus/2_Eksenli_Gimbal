@@ -1,0 +1,49 @@
+{
+  "test_id": "3.HP-FF-compare",
+  "timestamp": "20260623_214049",
+  "commit": "f2ce0b4",
+  "status": "DONE",
+  "key_metrics": {
+    "err_off_avg": 2.21,
+    "err_on_avg": 1.04,
+    "delta": -1.17,
+    "verdict": "Coulomb-FF HP statik-offset'i AZALTIYOR",
+    "segments": [
+      {
+        "tgt": 30,
+        "err_off": 2.47,
+        "err_on": 0.22,
+        "std_off": 0.18,
+        "std_on": 6.7
+      },
+      {
+        "tgt": 90,
+        "err_off": 2.49,
+        "err_on": 0.78,
+        "std_off": 0.18,
+        "std_on": 6.42
+      },
+      {
+        "tgt": -45,
+        "err_off": 2.99,
+        "err_on": 0.97,
+        "std_off": 0.06,
+        "std_on": 5.29
+      },
+      {
+        "tgt": 60,
+        "err_off": 0.51,
+        "err_on": 3.01,
+        "std_off": 5.66,
+        "std_on": 0.18
+      },
+      {
+        "tgt": 0,
+        "err_off": 2.61,
+        "err_on": 0.23,
+        "std_off": 0.08,
+        "std_on": 6.08
+      }
+    ]
+  }
+}

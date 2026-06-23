@@ -35,8 +35,8 @@ I2C_HandleTypeDef  hi2c1;
 Axis_t g_axis[AXIS_COUNT] = {
     { .motor = &Motor1, .enc_count = Encoder_GetCount,
       .enc_reset = Encoder_Reset,  .enc_speed = Encoder_GetSpeed,
-      .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false,   /* gyro-FF default kazanç (analitik), KAPALI */
-      .kff_grav = 0.097f, .kff_coul = 0.14f, .kff_coul_rev = 0.20f, .coul_db = 0.34f, .load_ff_en = false },  /* HP Coulomb FF: u_c rijit-ölçüldü 0.14 fwd / 0.20 rev (yön-asimetri §12.13.5); pürüzsüz tanh + yön-bağımlı (§12.13.4 — symmetric FF reverse'i eksik telafiyle limit-cycle vermişti). gravite 0.097 LP-rig placeholder. default KAPALI */
+      .mode = CMD_MODE_DUTY, .k_ff = 20.0f, .gyro_ff_en = false,  /* gyro-FF kazanç = HP redüktör 20:1 (ÖNCE 9.7=LP-placeholder DÜZELTİLDİ §12.14.7); K2 default KAPALI */
+      .kff_grav = 0.0f, .kff_coul = 0.14f, .kff_coul_rev = 0.20f, .coul_db = 0.34f, .load_ff_en = false },  /* HP Coulomb FF: u_c rijit-ölçüldü 0.14 fwd / 0.20 rev (yön-asimetri §12.13.5); pürüzsüz tanh + yön-bağımlı (§12.13.4). gravite 0.0 (HP yüksüz/serbest-mil — gravite yok; HP loaded gravite char = Aşama-5; ÖNCE 0.097=LP-placeholder §12.14.7). default KAPALI */
     { .motor = &Motor2, .enc_count = Encoder2_GetCount,
       .enc_reset = Encoder2_Reset, .enc_speed = Encoder2_GetSpeed,
       .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false,
@@ -145,15 +145,16 @@ int main(void)
         .Kp       = 0.002f,           /* analitik: doyum-kısıtı Kp≈duty_max/ω_max
                                        * (design_speed_pi_corrected.m, docs §11.11.3);
                                        * 2.1 conservative 58× yüksekti (P-term doyar → bang-bang) */
-        .Ki       = 0.1f,
-        .Ts       = 0.005f,           /* Tustin SABIT adımı (5 ms = 200 Hz NOMINAL).
+        .Ki       = 0.1f,             /* eski LP-model (K=53.89/τ60.6ms); rijit-textbook 4/(τ·Kg)=0.18 (§12.14.7)
+                                       * ama 0.1=conservative VALİDE; Ts=8ms ile effective 0.1 (rijit-plant için makul, agresif değil) */
+        .Ts       = 0.008f,           /* GERÇEK loop 8 ms (§12.14.1; önce 5ms varsayım — loop HİÇ 5ms olmadı, de-rate giderildi §12.14.7).
                                        * ÇÖZÜLDÜ (§12.13, 2026-06-23): "26 ms IMU read / 32 ms loop" KOPUK-IMU
                                        * ARTEFAKTIYDI — IMU/pull-up yokken I2C bus float → BUSY-flag stuck →
                                        * her okuma 25 ms HAL BUSY-timeout (RD=26 ms, ST=BUSY, ERR=0x20) → loop 32 ms.
-                                       * FIX: I2C1_Init GPIO_PULLUP → BUSY temizlendi → okuma 94 us (IMU yok=hızlı
-                                       * NACK) → LOOP 32→6 ms ÖLÇÜLDÜ. Ts/dt = 5/6 ≈ 0.83 (önce 0.16) → de-rating
-                                       * büyük ölçüde giderildi. "7 ms/140 Hz" hâlâ varsayımdı (§12.13.1, hiç ölçülmedi).
-                                       * ⏳ HP stick-slip re-test bekliyor (motor hazır olunca; §12.12.5/§12.13). */
+                                       * FIX: I2C1_Init GPIO_PULLUP → BUSY temizlendi → LOOP 32→6 ms (IMU-NACK);
+                                       * IMU-okunurken GERÇEK 8 ms (§12.14.1). Ts=8ms ile integral de-rate GİDERİLDİ
+                                       * (§12.14.7; önce Ts=5ms → de-rate). "7 ms/140 Hz" varsayımdı (çürütüldü §12.13.1).
+                                       * HP stick-slip re-test YAPILDI (§12.13.4/§12.14.4): gross çözüldü, residual→K7. */
         .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı (0.70 denendi, motor-1
                                        * CW catch'i yenmedi → 0.50'de kalındı, motor.c notu) */
         .T_t      = 0.02f             /* Kp/Ki — Aström-Murray T_t = T_i */
@@ -175,20 +176,21 @@ int main(void)
     /* === HP cascade (eksen-0 / Motor1 / HW-039, 20:1) — Faz1 karakterize + Faz2 analitik ===
      * matlab/asama_3_mimo_model/hp_cascade_design.m (docs §12.12):
      *   Plant (Faz1 mil-serbest, ≤0.5 duty): Kg=1043 rad/s(motor)/duty, τ≈70 ms (63-76 aralık).
-     *   (Rijit-mengene re-char §12.13.5 DOĞRULADI: ~974/897, τ~72ms, ~%7 fark → gainler DEĞİŞMEZ;
+     *   (Rijit-mengene re-char §12.13.5 DOĞRULADI: ~974/897, τ~72ms → Ki rijit-Kg'den re-derive 0.0548→0.0570, §12.14.7;
      *    sürtünme YÖN-ASİMETRİK u_c 0.14 fwd/0.20 rev → axis.h kff_coul_rev.)
      *   İç PI: Kp=duty_max/ω_max (doyum-kısıtı, Aşama 2.3 bang-bang dersi), Ki=ωn²·τ/Kg
      *     (ωn=2/τ=28.6) → PM=68°, ζ=0.68; pidtune ~%15-20 uyum.
      *   Dış P: Kp_pos=2.0 (ωc=2.0, PM=88°, 5×-kuralı içi [Franklin2010 §6.4]; gear sadeleşir).
      * ⚠ ÇÖZÜLDÜ (§12.13): loop ~32ms = KOPUK-IMU I2C BUSY-timeout artefaktıydı (IMU bağlı değildi) → GPIO_PULLUP
-     *   fix → loop 6ms, Ts/dt 0.16→0.83. Bu kazançlar 32ms'li (IMU-suz) bench'te stick-slip verdi → 6ms loop'la RE-TEST bekliyor.
+     *   fix → loop GERÇEK 8ms (IMU-okunurken §12.14.1); Ts=8ms ile integral de-rate giderildi (§12.14.7). RE-TEST
+     *   YAPILDI (§12.13.4/§12.14.4): gross stick-slip çözüldü; residual chatter yapısal → K7. FF statik-offset düzeltir §12.14.6.
      * ⚠ Mirror takip için Kp_pos=Kv=6 (cmd_parser.c:66 mod-girişinde atanır, §12.2.5) veya gyro-FF (§12.9). */
     static const SpeedPI_Config SPEED_PI_CFG_HP = {
         .Kp       = 0.00167f,   /* doyum-kısıtı duty_max/ω_max = 0.5/300 */
-        .Ki       = 0.0548f,    /* pole place ωn=2/τ → ωn²τ/Kg (Kg=1043; LP'nin yarısı, plant 1.6×) */
-        .Ts       = 0.005f,     /* firmware Tustin sabit adımı (LP ile aynı konvansiyon) */
+        .Ki       = 0.0570f,    /* pole place ωn²τ/Kg — RİJİT Kg=974/τ=72ms (§12.14.7; önce 0.0548=eski mil-serbest Kg1043) */
+        .Ts       = 0.008f,     /* GERÇEK loop 8ms (§12.14.1); önce 5ms varsayımdı (loop HİÇ 5ms olmadı) → integral de-rate giderildi §12.14.7 */
         .duty_max = 0.50f,      /* akım cap (Sagemcom 5A + 940µF bulk inrush, §12.11.6) */
-        .T_t      = 0.0305f     /* Kp/Ki — Aström-Murray T_t=T_i */
+        .T_t      = 0.0293f     /* Kp/Ki=0.00167/0.0570 — Aström-Murray T_t=T_i */
     };
     static const PositionP_Config POS_P_CFG_HP = {
         .Kp_pos         = 2.0f,     /* ωc=2.0, PM=88° (plant-bağımsız, gear sadeleşir) */
