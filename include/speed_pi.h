@@ -41,8 +41,8 @@ typedef struct {
     float Kp;
     float Ki;
     float Ts;        /* Tustin SABIT adımı (s) — 0.005 (5 ms = 200 Hz nominal).
-                      * Döngü ÖLÇÜLEN ~32 ms/~31 Hz ('7ms/0.71× hiç ölçülmedi, varsayımdı — REGRESYON DEĞİL,
-                      * docs §12.13.1; profil: 26ms IMU read) → efektif Ki ~0.16× = HP stick-slip kök-nedeni; bkz main.c */
+                      * Döngü 32→6 ms (GPIO_PULLUP fix §12.13; 32ms = KOPUK-IMU I2C BUSY-timeout ARTEFAKTI, inherent
+                      * DEĞİL) → Ts/dt 0.16→0.83 (de-rating ~giderildi). '7ms' hiç ölçülmedi (§12.13.1). bkz main.c Ts */
     float duty_max;  /* saturation (0.50 = MOTOR_MAX_DUTY) */
     float T_t;       /* anti-windup tracking time (s) — tipik Kp/Ki */
 } SpeedPI_Config;

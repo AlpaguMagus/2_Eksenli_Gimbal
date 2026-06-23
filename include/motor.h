@@ -36,7 +36,7 @@
  *
  * ── Stall detection / lockout — COUNT-TABANLI (2026-05-31 düzeltme) ──────
  * Tetik: 200 ms pencerede |Δ encoder_count| < 2  VE  current_duty > 0.20.
- * NEDEN count (hız değil): hız loop periyodunda (ÖLÇÜLEN ~32ms; '7ms' varsayımdı §12.13.1) 1 count = 18.7 rad/s (varsayılan-7ms'te; 32ms'te ~4)
+ * NEDEN count (hız değil): hız loop periyodunda (loop 32→6ms, GPIO_PULLUP §12.13) 1 count = 18.7 rad/s @7ms (6ms'te ~22, 32ms'te ~4)
  * kuantizasyonla ölçülür → yavaş ama DÖNEN mil (mirror takibi, ~5 rad/s motor
  * şaftı) ω=0 okunur → YANLIŞ-POZİTİF stall (2.T6 koşusunda yaşandı). 200 ms
  * pencerede count deltası 1 count = 0.67 rad/s çözünürlük verir (28× ince);

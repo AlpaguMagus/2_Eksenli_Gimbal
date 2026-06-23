@@ -143,12 +143,13 @@ int main(void)
                                        * 2.1 conservative 58× yüksekti (P-term doyar → bang-bang) */
         .Ki       = 0.1f,
         .Ts       = 0.005f,           /* Tustin SABIT adımı (5 ms = 200 Hz NOMINAL).
-                                       * DİKKAT: ana döngü ÖLÇÜLEN ~32 ms (~31 Hz). "7 ms/140 Hz" iddiası
-                                       * git-arkeolojisiyle ÇÜRÜTÜLDÜ (hiç ölçülmedi, HAL_Delay(5) nominalinden
-                                       * varsayım) — loop muhtemelen HEP ~32 ms, REGRESYON DEĞİL (docs §12.13.1).
-                                       * Profil: 26 ms'i MPU6050_Read (IMU I2C) yiyor (§12.13.2).
-                                       * Efektif integral Ts/dt = 5/32 ≈ 0.16 → HP stick-slip kök-nedeni (§12.12.5).
-                                       * Ki=0.1 LP için bu de-rating altında geçerli (Test 2.5 PASS). */
+                                       * ÇÖZÜLDÜ (§12.13, 2026-06-23): "26 ms IMU read / 32 ms loop" KOPUK-IMU
+                                       * ARTEFAKTIYDI — IMU/pull-up yokken I2C bus float → BUSY-flag stuck →
+                                       * her okuma 25 ms HAL BUSY-timeout (RD=26 ms, ST=BUSY, ERR=0x20) → loop 32 ms.
+                                       * FIX: I2C1_Init GPIO_PULLUP → BUSY temizlendi → okuma 94 us (IMU yok=hızlı
+                                       * NACK) → LOOP 32→6 ms ÖLÇÜLDÜ. Ts/dt = 5/6 ≈ 0.83 (önce 0.16) → de-rating
+                                       * büyük ölçüde giderildi. "7 ms/140 Hz" hâlâ varsayımdı (§12.13.1, hiç ölçülmedi).
+                                       * ⏳ HP stick-slip re-test bekliyor (motor hazır olunca; §12.12.5/§12.13). */
         .duty_max = 0.50f,            /* = MOTOR_MAX_DUTY firmware tarafı (0.70 denendi, motor-1
                                        * CW catch'i yenmedi → 0.50'de kalındı, motor.c notu) */
         .T_t      = 0.02f             /* Kp/Ki — Aström-Murray T_t = T_i */
@@ -173,8 +174,8 @@ int main(void)
      *   İç PI: Kp=duty_max/ω_max (doyum-kısıtı, Aşama 2.3 bang-bang dersi), Ki=ωn²·τ/Kg
      *     (ωn=2/τ=28.6) → PM=68°, ζ=0.68; pidtune ~%15-20 uyum.
      *   Dış P: Kp_pos=2.0 (ωc=2.0, PM=88°, 5×-kuralı içi [Franklin2010 §6.4]; gear sadeleşir).
-     * ⚠ Ts=0.005 vs ÖLÇÜLEN loop ~32ms → efektif Ki 0.16× (de-rating) = HP stick-slip KÖK-NEDENİ
-     *   (§12.12.5; kazanç-uzayı tüketildi, kanıtlanmış fix=loop-rate ayrımı). Bu kazançlar bench'te stick-slip verdi.
+     * ⚠ ÇÖZÜLDÜ (§12.13): loop ~32ms = KOPUK-IMU I2C BUSY-timeout artefaktıydı (IMU bağlı değildi) → GPIO_PULLUP
+     *   fix → loop 6ms, Ts/dt 0.16→0.83. Bu kazançlar 32ms'li (IMU-suz) bench'te stick-slip verdi → 6ms loop'la RE-TEST bekliyor.
      * ⚠ Mirror takip için Kp_pos=Kv=6 (cmd_parser.c:66 mod-girişinde atanır, §12.2.5) veya gyro-FF (§12.9). */
     static const SpeedPI_Config SPEED_PI_CFG_HP = {
         .Kp       = 0.00167f,   /* doyum-kısıtı duty_max/ω_max = 0.5/300 */
@@ -276,7 +277,7 @@ int main(void)
         }
 
         /* dt: DWT cycle counter ile µs hassas (Aşama 2.3).
-         * HAL_GetTick ms çözünürlüğü loop'ta (ÖLÇÜLEN ~32 ms; '7ms' varsayımdı §12.13.1) jitter veriyordu →
+         * HAL_GetTick ms çözünürlüğü loop'ta (6ms, GPIO_PULLUP §12.13; eski 32ms kopuk-IMU artefaktı) jitter veriyordu →
          * ω = Δcount/dt ölçümünü bozup hız PI'yi bang-bang'e sokuyordu.
          * DWT 96 MHz → dt çözünürlüğü ~10 ns. Unsigned fark wrap-safe. */
         uint32_t cyc_now  = DWT->CYCCNT;
@@ -472,7 +473,11 @@ void I2C1_Init(void)
     GPIO_InitTypeDef gpio = {0};
     gpio.Pin       = GPIO_PIN_6 | GPIO_PIN_7;
     gpio.Mode      = GPIO_MODE_AF_OD;
-    gpio.Pull      = GPIO_NOPULL;
+    gpio.Pull      = GPIO_PULLUP;    /* ⚠ FIX (§12.13): NOPULL→PULLUP. IMU/pull-up yokken bus float →
+                                      * BUSY flag stuck → her okuma 25ms HAL BUSY-timeout (RD=26ms, ST=BUSY,
+                                      * ERR=0x20) → loop 32ms = KOPUK-IMU ARTEFAKTI. İç pull-up bus'ı idle-HIGH
+                                      * tutar → BUSY temizlenir → IMU yoksa hızlı NACK, varsa ~1.5ms okuma.
+                                      * (İdeal harici 4.7k — GY-521 modülünde var; iç ~40k idle için yeter.) */
     gpio.Speed     = GPIO_SPEED_FREQ_VERY_HIGH;
     gpio.Alternate = GPIO_AF4_I2C1;
     HAL_GPIO_Init(GPIOB, &gpio);

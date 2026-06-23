@@ -53,7 +53,7 @@ float   Encoder2_GetSpeed(float dt_sec); /* MOTOR ŞAFTI rad/s (ham) — enc-1 G
  *   hem yüksek frekans gürültüyü bastırır (A: filtre).
  *   WINDOW=5 → efektif çözünürlük 18.7/5 ≈ 3.74 rad/s, gecikme ~(N-1)/2·Δt ≈ 14 ms.
  * Kontrolcü faz marjına etkisi (ÇALIŞAN döngü Kp=0.002, analitik §11.11.3):
- *   MA-hariç sürekli PM≈60°; MA grup gecikmesi ~14 ms (döngü ÖLÇÜLEN ~32ms; '7ms' varsayımdı §12.13.1 → MA gecikmesi ~64ms, yeniden değerlendir). TAM AYRIK margin
+ *   MA-hariç sürekli PM≈60°; MA grup gecikmesi ~14 ms (döngü 32→6ms, GPIO_PULLUP §12.13 → MA gecikmesi 6ms'te ~12ms; 32ms'te ~64ms idi). TAM AYRIK margin
  *   (ZOH + Tustin PI + MA; verify_speed_margin_discrete.m): PM≈40°, ωc≈29 rad/s — kararlı,
  *   spec ≥45°'nin marjinal altında (C1 efektif-Ki düşüklüğü ωc'yi indirip kısmen telafi eder; docs §11.11.8).
  *   [Eski conservative Kp=0.1163 PM=80.8° KULLANILMIYOR — ωc=1259'da MA fazı zaten battırır.]

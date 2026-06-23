@@ -814,7 +814,7 @@ Temiz testte encoder **noise spike'ları** (62314, 126893 cnt/s = fiziksel imkâ
 > temiz karakterize et → analitik cascade tasarla → firmware'e taşı → bench doğrula. **Neden:** firmware
 > eksen-0'a o güne dek **LP parametreleri** (gear 9.7, cpr 466, Kg 654.8) uyguluyordu (geçici, `docs/00_donanim_semasi.md` §7.2) — HP
 > 20:1 ve farklı motor olduğundan cascade yanlıştı. **Sonuç:** karakterizasyon + tasarım temiz; bench
-> **stick-slip** (stiction) ortaya çıkardı; analitik Coulomb FF denendi ama **ÇÖZMEDİ** → asıl darboğaz ~32 ms **loop-rate** (kazanç-uzayı tüketildi, mimari fix gerekli — §12.12.5). Üç-faz onaylı plan (Faz-kapılı).
+> **stick-slip** (stiction) ortaya çıkardı; analitik Coulomb FF denendi ama **ÇÖZMEDİ** → "asıl darboğaz ~32 ms loop-rate" sanıldı (§12.12.5) **ama 32 ms kopuk-IMU artefaktıydı → `GPIO_PULLUP` ile loop 32→6 ms (§12.13); HP stick-slip re-test bekliyor**. Üç-faz onaylı plan (Faz-kapılı).
 
 #### 12.12.1. Faz 1 — HP karakterizasyon (mil serbest, ≤0.5 duty cap, EC-canary)
 
@@ -915,7 +915,14 @@ bazen daha kötü. **Hüküm: Coulomb FF tek başına yetersiz** — asıl darbo
 > 📊 **Üreten betik:** `matlab/asama_3_mimo_model/hp_cascade_design.m §4b` (analitik FF). Firmware FF:
 > `LoadFF_Apply` (`main.c`), runtime `LFF*` (`cmd_parser.c`). Kaynak: `[Franklin2010]`, `[Olsson1998]`.
 
-#### 12.12.5. Asıl darboğaz — loop hızı (analitik) · 🔬 kök-neden
+#### 12.12.5. Asıl darboğaz — loop hızı (analitik) · 🔬 kök-neden · ⚠ 32 ms ARTEFAKT ÇIKTI → §12.13
+
+> ⚠ **GÜNCELLEME (2026-06-23, §12.13):** Aşağıdaki tüm analiz **32 ms loop** varsayımına dayanır. Sonradan
+> kanıtlandı: **32 ms kopuk-IMU I2C-bus-wedge artefaktıydı** (IMU bağlı değildi → BUSY-flag 25 ms HAL-timeout).
+> Tek-satır `GPIO_PULLUP` fix → **loop 32→6 ms**, $T_s/dt$ 0.16→**0.83**. Dolayısıyla aşağıdaki "kazanç-uzayı
+> tüketildi / mimari (timer-ISR) fix gerekli" hükmü **32 ms'e özgüydü**, büyük olasılıkla **artık geçerli değil**
+> — HP stick-slip 6 ms loop'la **re-test bekliyor**. Aşağıdaki veri (Ki süpürme, sürekli-takip) gerçektir ama
+> **IMU-suz 32 ms firmware'le** alınmıştır.
 
 FF'in çözememesi + LP cascade'in temiz çalışması (Test 2.5, 6/6 PASS) karşıtlığı asıl nedeni gösterir:
 **~32 ms IMU-bağlı loop, hızlı HP motorunu büyük stiction'la kontrol etmek için çok yavaş.**
@@ -932,8 +939,9 @@ LP (yavaş motor, $K$ 1.6× küçük + küçük stiction) sample başına az har
 yakalanamıyor. Üstelik **integral, motor yapışıkken aşırı şişiyor** (zayıf $K_{i,\text{eff}}$ geç unwind) →
 kopunca depolanmış enerji motoru sertçe sürüyor → overshoot; sign-FF bunu bang-bang ile besliyor.
 
-**Sonuç:** HP temiz pozisyon kontrolü **mimari** çözüm ister — kontrol döngüsünü IMU'dan ayır (timer-ISR
-~1 kHz), §12.11.6 loop-darboğazının doğrudan tezahürü. Parametre tuning (FF, Kp_pos) palyatif, kök çözüm değil.
+**Sonuç (32 ms'e göre — üstteki ⚠ güncellemeyi oku):** 32 ms'te HP temiz pozisyon kontrolü **mimari** çözüm
+ister görünüyordu (timer-ISR ~1 kHz). **AMA 32 ms kopuk-IMU artefaktıydı (§12.13);** `GPIO_PULLUP` ile loop
+6 ms → mimari rebuild **muhtemelen gereksiz**. Re-test bekliyor; parametre tuning yine de palyatif olabilir.
 
 **Kazanç-uzayı TÜKETİLDİ (ampirik kanıt — iki uç da başarısız):** Loop **ölçüldü** (T_US deltaları): medyan
 **32 ms (~31 Hz)**, de-rating $T_s/dt = 0.16$ → efektif $K_{i,\text{eff}} = K_i\cdot T_s/dt = 0.0088$.
@@ -952,14 +960,16 @@ gain tuning'in (FF/Ki/Kp_pos) HP pozisyon için neden palyatif kaldığının **
 
 #### 12.12.6. Açık konular + yol haritası
 
-- **Loop-rate fix (mimari, BİRİNCİL — kazanç-uzayı tüketimiyle KANITLANDI):** kontrol döngüsünü IMU okuma/diğer işten ayır (timer-ISR ~1 kHz, IMU async) → §12.12.5. HP temiz pozisyon için **zorunlu** (gain tuning hem stuck hem kararsız uçlarda başarısız); LP çalışıyor (yavaş motor, küçük stiction). **Bağımsız oturum + tasarım onayı** ister (her iki ekseni etkiler, $T_s$↔dt kuplajı).
+- **Loop-rate fix ✅ ÇÖZÜLDÜ (§12.13):** "BİRİNCİL mimari fix" sanılan sorun aslında **kopuk-IMU I2C bus-float**'tı — `I2C1_Init` `GPIO_PULLUP` (tek satır) → loop **32→6 ms**, $T_s/dt$ 0.16→0.83. Timer-ISR rebuild GEREKMEDİ. ⏳ **HP stick-slip re-test (motor):** 6 ms loop'la mevcut gain'ler (Kp=0.00167/Ki=0.0548) stick-slip'i çözüyor mu? (kazanç-uzayı-tüketildi hükmü 32 ms artefaktına dayanıyordu.)
 - **STAB + gyro-FF (belirsiz, base-tilt ister):** sürekli-takip proxy'si stuck verdi AMA gerçek STAB'de gyro-FF (§12.9) $\omega_{ref}$'i jiroskoptan doğrudan besler → motoru sürekli hareket ettirip stiction'ı baypas edebilir (proxy'de FF yoktu). Düşük öncelik; loop-rate fix sonrası daha anlamlı.
 - **Yük:** serbest-mil tasarımı; gravite-FF + yüklü stiction = Aşama 5 (payload inertial).
 
-### 12.13. (1) Loop-rate kök-neden — git arkeolojisi + profil · 🔬 teşhis (REGRESYON DEĞİL; IMU read 26 ms)
+### 12.13. (1) Loop-rate kök-neden ÇÖZÜLDÜ — kopuk-IMU BUSY-timeout, tek-satır GPIO_PULLUP fix · ✅ loop 32→6 ms
 
-> **Olgunluk:** 🔬 teşhis TAMAMLANDI (2026-06-23): 2 paralel workflow + bench-profil. Kök-neden **NEREDE +
-> NEDEN** ölçüldü; düzeltme (1)'in sonraki adımı. §12.12 loop-rate'i "kök-neden" olarak kanıtlamıştı.
+> **Olgunluk:** ✅ ÇÖZÜLDÜ (2026-06-23): 3 paralel workflow + bench-teşhis + **fix uygulandı & ölçüldü**.
+> "32 ms loop" inherent DEĞİLDİ — **kopuk-IMU I2C bus-wedge artefaktı**; `GPIO_PULLUP` ile **loop 32→6 ms**.
+> §12.12 "loop-rate kök-neden"i doğruydu ama nedeni yanlış teşhis edilmişti (mimari değil, bus-float). ⏳ HP
+> stick-slip re-test motor hazır olunca (de-rating 0.16→0.83 → mevcut gain'lerle çalışması beklenir).
 
 #### 12.13.1. Git arkeolojisi — "REGRESYON" ÇÜRÜTÜLDÜ (7 ms hiç ölçülmedi)
 
@@ -978,35 +988,57 @@ YAVAŞLADI" çerçevem (d9ff8f2) **YANLIŞTI** — düzeltildi.
 "ölçülen/donanımda doğrulandı" etiketiyle ~3 hafta yayıldı. **İzlenebilirlik dersi:** niteleyicisiz değer +
 döngüsel atıf = yanlış-"ölçüm" iddiası — projenin kendi disiplininin bir vakası (arkeoloji yakaladı).
 
-#### 12.13.2. Profil — 27 ms'nin yeri: **IMU okuması (26 ms)**
+#### 12.13.2. Profil + I2C teşhis — gerçek kök-neden: **kopuk-IMU BUSY-flag timeout (25 ms HAL sabiti)**
 
-DWT-timestamp enstrümantasyonu (her loop-bloğu, geçici — kazı sonrası `git checkout`'la kaldırıldı) + idle
-bench (179 örnek):
+**(a) Profil** (DWT-timestamp, idle, 179 örnek): loop ~32 ms'nin **26 ms'i `MPU6050_Read`'de** (kontrol+füzyon
+36 µs, telemetri 51 µs ihmal). 14 byte @100 kHz ~1.3 ms olmalıyken **20× yavaş**; ⚠ **min=max=26000 µs (TAM
+sabit)** → değişken transaction değil, deterministik gecikme.
 
-| Blok | Süre (medyan) | Pay |
+**(b) I2C teşhis workflow'u** (`imu-26ms-diagnosis`, 3 açı: HAL kaynağı + MPU6050 datasheet + F411 timing)
+HAL kaynağında kanıtı buldu: `HAL_I2C_Mem_Read` girişte **BUSY-flag bekler** ve kullanıcının
+`IMU_I2C_TIMEOUT_MS=3`'ünü DEĞİL, `I2C_TIMEOUT_BUSY_FLAG = 25 ms` HAL sabitini (`hal_i2c.c:320`) kullanır.
+`> Timeout` strict + 1 SysTick tick = **25+1 = 26 ms** → TAM-sabit 26000 µs'i birebir açıklar.
+
+**(c) Bench teşhis** (geçici I2CPROF enstrümantasyonu; config DOĞRU çıktı — PCLK1=48 MHz, CCR=240 → SCL=100 kHz):
+
+| Alan | Ölçülen (IMU yok, NOPULL) | Anlam |
 |---|---|---|
-| **`MPU6050_Read` (IMU I2C)** | **26.000 µs (TAM sabit, min=max)** | **%81 — DOMİNANT** |
-| Kontrol + füzyon (PROC) | 36 µs | ihmal |
-| Telemetri (TX, CDC) | 51 µs | ihmal |
-| `HAL_Delay(5)` + misc | ~5.9 ms | %18 |
-| **LOOP** | **32 ms** | — |
+| BUSY@giriş | **1 (152/152)** | 🔴 I2C BUSY flag **girişte stuck** |
+| ST / ERR | 2 (BUSY) / 0x20 (TIMEOUT) | okuma **BAŞARISIZ** |
+| FP (fused_pitch) | 0.0 sabit | füzyon **stale — IMU hiç okunmuyor** |
+| RD | 26000 µs | = 25 ms BUSY-timeout |
 
-**Tüm gizem tek I2C okumasında:** `MPU6050_Read` **26 ms** (14 byte @100 kHz ~1.3 ms olmalıyken **20× yavaş**).
-⚠ **min=max=26000 µs (TAM sabit)** → değişken I2C-transaction değil, **SABİT gecikme** (timeout veya clock-
-stretching). `IMU_I2C_TIMEOUT_MS=3` ile çelişiyor (3 ms cap olmalıydı) → I2C-seviyesi bug/config = (1)'in odağı.
+→ **GERÇEK KÖK-NEDEN: IMU fiziksel BAĞLI DEĞİLDİ** (sıfırdan kurulum, yalnız HP motoru bağlı). `I2C1_Init`'te
+`Pull=GPIO_NOPULL` → MCU iç pull-up yok + modül pull-up'ı yok (modül takılı değil) → **SCL/SDA float → BUSY
+flag hep SET** → her okuma 25 ms HAL BUSY-timeout'unda kilitlenir → loop 32 ms. "26 ms IMU read inherent yavaş"
+yorumu (§12.13.2 v1) **YANLIŞTI** — okuma yavaş değil, **hiç başaramıyordu**. Tüm HP-cascade bench'leri de bu
+IMU-suz 32 ms'li firmware'le koştu → Ki de-rating → stick-slip = **artefakt zinciri** (§12.12.5 re-test gerek).
 
-#### 12.13.3. Düzeltme seçenekleri (IMU read'e odaklı)
+#### 12.13.3. FIX — tek satır `GPIO_PULLUP` + sonuç (ölçüldü)
 
-1. **"Neden 26 ms" teşhisi (ÖNCE — datasheet-önce):** I2C clock-stretching mi (MPU6050 SCL tutuyor mu), timeout-davranışı mı, config mi? `[MPU6050_DS]`/`[RM0383]` I2C. Bulunca →
-2. **IMU read'i hızlandır:** 400 kHz I2C · non-blocking DMA/IT read · gereksiz register atla · gerekirse FIFO/DRDY. → 26 ms düşerse loop ~6 ms → kontrol bant-genişliği geri → HP cascade muhtemelen çalışır.
-3. **`HAL_Delay(5)` kaldır** (~5 ms, kolay, ayrı kazanç).
-4. **Timer-ISR kontrol (IMU async)** — IMU yine yavaşsa: kontrolü sabit ~1 kHz ISR'da koştur, IMU'yu DMA ile arka planda oku. Son çare, en kapsamlı.
-5. **Ts → gerçek dt:** de-rating'i düzeltir AMA **her iki ekseni etkiler** — ⚠ LP de-rated $K_i=0.1$ ile çalışıyor (Test 2.5 PASS); bağlamak LP efektif $K_i$'sini ~6× artırıp LP'yi kararsızlaştırabilir → per-eksen dikkat.
+`I2C1_Init`: `gpio.Pull = GPIO_NOPULL → GPIO_PULLUP` (`main.c:476`). İç pull-up (~40 kΩ) bus'ı **idle-HIGH**
+tutar → BUSY flag temizlenir → IMU yokken okuma **hızlı NACK** (AF/0x04), takılıyken ~1.5 ms başarılı okuma.
 
-#### 12.13.4. Açık sorular / önkoşullar
+| Metrik | Önce (NOPULL) | Sonra (PULLUP) | |
+|---|---|---|---|
+| BUSY@giriş | 1 (stuck) | **0 (temiz)** | ✓ |
+| IMU read (RD) | 26000 µs | **94 µs** | **277×** |
+| **LOOP** | **32 ms** | **6.00 ms** (T_US Δ) | **5.3×** |
+| Efektif $T_s/dt$ | 5/32 = 0.16 | **5/6 = 0.83** | de-rating ~giderildi |
 
-- **NEDEN tam 26 ms?** (I2C clock-stretch / timeout / config — datasheet-önce; ilk somut adım)
-- IMU read hızlanıp loop ~6 ms'e inerse mevcut HP kazançları (Kp=0.00167/Ki=0.0548) çalışır mı? (re-test)
-- LP'yi bozmadan $T_s \leftrightarrow dt$ nasıl ayrılır? (per-eksen $T_s$ veya yalnız HP)
+→ "(1) loop-rate fix" sanılan **timer-ISR mimari rebuild GEREKMEDİ** — kök-neden inherent loop değil, kopuk-IMU
+bus-float'tı. Tek satır pull-up loop'u 32→6 ms yaptı; $T_s/dt$ 0.16→0.83 → HP stick-slip'in Ki-derating
+mekanizması büyük ölçüde giderildi → mevcut HP cascade gain'leriyle çalışması beklenir (re-test bekliyor).
 
-> 📊 Üreten: `loop-slowdown-archaeology` workflow'u + geçici DWT-profil enstrümantasyonu (kaldırıldı). Firmware kanca: `main.c` IMU read (`MPU6050_Read`), DWT (`main.c:281`).
+#### 12.13.4. Açık / sonraki adımlar
+
+- 🧪 **HP stick-slip re-test (motor gerekir):** loop 6 ms / $T_s/dt=0.83$ ile mevcut HP cascade gain'leri
+  (Kp=0.00167/Ki=0.0548) stick-slip'i çözüyor mu? §12.12.5'in "kazanç-uzayı tüketildi / mimari fix" hükmü bu
+  re-test'e bağlı — 32 ms artefaktıyla alınmıştı.
+- ⚙ **Opsiyonel** — $dt=T_s$ tam eşitleme: loop 6 ms, $T_s=5$ ms → $T_s/dt=0.83$. Tam 1.0 için loop'u 5 ms'e
+  pace et (HAL_Delay ayarı) veya $T_s=0.006$. Minör (0.83 yeterli); gerekirse.
+- 🔌 **IMU bağlanınca:** iç ~40 kΩ pull-up 100 kHz için zayıf — GY-521 modül 4.7 kΩ pull-up'ları devreye girer
+  (idealdir); doğrulama: okuma ~1.5 ms başarılı olmalı, FP tilt'le değişmeli.
+
+> 📊 Üreten: `loop-slowdown-archaeology` + `imu-26ms-diagnosis` workflow'ları + geçici I2C teşhis enstrümantasyonu
+> (kaldırıldı). FIX: `main.c:476` `GPIO_PULLUP`. Kanıt: I2CPROF BUSY@giriş 1→0, RD 26000→94 µs, LOOP 32→6 ms.
