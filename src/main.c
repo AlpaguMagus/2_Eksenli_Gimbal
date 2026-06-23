@@ -36,11 +36,11 @@ Axis_t g_axis[AXIS_COUNT] = {
     { .motor = &Motor1, .enc_count = Encoder_GetCount,
       .enc_reset = Encoder_Reset,  .enc_speed = Encoder_GetSpeed,
       .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false,   /* gyro-FF default kazanç (analitik), KAPALI */
-      .kff_grav = 0.097f, .kff_coul = 0.090f, .coul_db = 0.34f, .load_ff_en = false },  /* ⚠ yüklü-FF: LP-rig placeholder (§12.8); HP'de bipolar sign-FF bench'te limit-cycle tetikledi (§12.12.4) → kök çözüm loop-rate, FF palyatif; KAPALI */
+      .kff_grav = 0.097f, .kff_coul = 0.14f, .kff_coul_rev = 0.20f, .coul_db = 0.34f, .load_ff_en = false },  /* HP Coulomb FF: u_c rijit-ölçüldü 0.14 fwd / 0.20 rev (yön-asimetri §12.13.5); pürüzsüz tanh + yön-bağımlı (§12.13.4 — symmetric FF reverse'i eksik telafiyle limit-cycle vermişti). gravite 0.097 LP-rig placeholder. default KAPALI */
     { .motor = &Motor2, .enc_count = Encoder2_GetCount,
       .enc_reset = Encoder2_Reset, .enc_speed = Encoder2_GetSpeed,
       .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false,
-      .kff_grav = 0.097f, .kff_coul = 0.090f, .coul_db = 0.34f, .load_ff_en = false },
+      .kff_grav = 0.097f, .kff_coul = 0.090f, .kff_coul_rev = 0.090f, .coul_db = 0.34f, .load_ff_en = false },  /* LP simetrik (u_c rev=fwd; LP re-do ayrı — eski testler hand-held olabilir, §12.13.4) */
 };
 
 /* --- Prototip --- */
@@ -62,11 +62,12 @@ static float LoadFF_Apply(const Axis_t *axp, float theta_out_deg, float omega_re
 {
     if (!axp->load_ff_en) return u;
     float u_ff = axp->kff_grav * sinf(theta_out_deg * DEG2RAD);
-    /* Pürüzsüz Coulomb FF (§12.13.4 seçenek A, 2026-06-23): sign(ω_ref)→tanh(ω_ref/ε), ε=coul_db.
-     * Sert sign-flip, setpoint civarı ω_ref-chatter'ında (poz-hunting ±3-10° → ω_ref ±0.1-0.35 rad/s)
-     * limit-cycle besliyordu (mengeneli re-test §12.13.4). tanh: |ω_ref|>>ε → ±kff_coul (tam telafi),
-     * ω_ref→0 → ~lineer (chatter yok). ε=0.34 rad/s o chatter ölçeğinde. [Olsson1998] §6. */
-    u_ff += axp->kff_coul * tanhf(omega_ref / axp->coul_db);
+    /* Pürüzsüz + YÖN-BAĞIMLI Coulomb FF (§12.13.4-5, 2026-06-23): uc·tanh(ω_ref/ε), ε=coul_db,
+     * uc = ω_ref≥0 ? kff_coul(fwd) : kff_coul_rev. Rijit re-karakterizasyon sürtünme YÖN-ASİMETRİSİ
+     * (HP u_c 0.14 fwd / 0.20 rev, §12.13.5) → symmetric FF reverse'i EKSİK telafi ediyordu (bench limit-cycle).
+     * tanh: |ω_ref|>>ε → ±uc (tam telafi), ω_ref→0 → ~lineer (sert sign-flip chatter'ı yok). [Olsson1998] §6. */
+    float uc = (omega_ref >= 0.0f) ? axp->kff_coul : axp->kff_coul_rev;
+    u_ff += uc * tanhf(omega_ref / axp->coul_db);
     return u + u_ff;   /* toplam clamp MotorCh_SetDutySigned içinde (±0.50) */
 }
 

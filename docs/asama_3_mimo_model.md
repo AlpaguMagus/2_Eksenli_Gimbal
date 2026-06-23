@@ -1075,6 +1075,20 @@ durduruldu — analitik-önce). Seçenekler (sonraki oturum, MATLAB cascade+fric
 
 > Pürüzsüz tanh FF firmware'de KALDI (`main.c` `LoadFF_Apply`; default KAPALI) — §12.12.4 sert sign-FF
 > chatter'ına göre ilkesel iyileştirme; ama rijit-mount limit-cycle'ı FF değil **cascade-yapısı** sorunudur.
+
+##### 12.13.4.1. HP KAPANIŞI — K2 FF atışı + kontrol-merdiveni kararı (2026-06-23)
+
+**Yön-bağımlı friction FF** (K2/computed-torque atışı; rijit-ölçülen $u_c$ 0.14 fwd / 0.20 rev §12.13.5, pürüzsüz
+tanh) rijit-mount bench'te denendi → **hâlâ LIMIT_CYCLE (3/6)**. Yani **FF (symmetric VEYA yön-bağımlı)
+limit-cycle'ı ÇÖZMÜYOR** (sim'in FF-gap uyarısı bench'le doğrulandı). Yön-asimetri düzeltmesi **doğru-formülasyon**
+(firmware'de kaldı: HP eksen-0 `kff_coul=0.14` / `kff_coul_rev=0.20`, eski `0.090` LP-placeholder'ını düzeltti;
+default KAPALI) ama fix değil.
+
+**Kontrol-merdiveni kararı (ROADMAP §🪜):** HP = **fonksiyonel K0/K1 baseline** (gross stick-slip ÇÖZÜLDÜ;
+motor her hedefe gidiyor). Residual limit-cycle'ın temiz fix'i, ölçülen-kök (ω-kuantizasyon 21.8 rad/s@6 ms)
+gereği **K7 (Kalman/iyi-kestirim, Aşama-5)** — ki orada zaten planlı. Merdiven ilkesi *"baseline-önce; üst basamak
+ölçülünce; kapatılabilir milestone'da dur"* → K7'yi Aşama-3'e **öne çekmeyiz**. **HP baseline KAPALI;** sıradaki
+gerçek iş = **K1 (2-eksen) → K4 (MIMO/RGA, Aşama-3 ödülü)** — fiziksel olarak **LP+IMU bağlantısı** ister.
 - ⚙ **Opsiyonel** — $dt=T_s$ tam eşitleme: loop 6 ms, $T_s=5$ ms → $T_s/dt=0.83$. Tam 1.0 için loop'u 5 ms'e
   pace et (HAL_Delay ayarı) veya $T_s=0.006$. Minör (0.83 yeterli); gerekirse.
 - 🔌 **IMU bağlanınca:** iç ~40 kΩ pull-up 100 kHz için zayıf — GY-521 modül 4.7 kΩ pull-up'ları devreye girer
