@@ -1201,5 +1201,22 @@ toleransı, ihmal). Serbest-milde 2×2 $G$ ~diagonal ($G_{11}/G_{22}$ = §12.13.
 ⚠ **Anlamlı kuplaj (RGA, decoupling kararı = K4'ün asıl payoff'u) YÜKLÜ gimbalda** (iki eksen mekanik bağlı →
 Aşama-5); bu test bağsız baseline'ı belgeler, gerçek MIMO ID yüklü montajda yapılır.
 
-> 📊 Üreten: `scripts/{lp_deadband,lp_stepid,motor_cascade_test,motor_mirror_test,k1_2axis_test,k4_coupling_check}.py`.
-> Artifact: `artifacts/3/{smoke_test,lp_deadband,lp_stepid,cascade_m2,mirror_m2,stab_m2,k1_2axis,k4_coupling}/`.
+#### 12.14.6. HP Coulomb-FF deneyi — statik-offset'i düzeltir, chatter kalır (§12.13.4 rafine)
+
+K1'de HP 2/6 (hedefi ~6° aşıp stiction-hold). Coulomb-FF (yön-bağımlı 0.14/0.20) açıldı — ⚠ **gravite-FF
+KAPALI** (`LFFG:0`; HP `kff_grav=0.097` LP-rig placeholder, serbest-milde yanlış tork). `scripts/hp_ff_compare.py`
+(artifact `3.HP-FF-compare`):
+
+| | FF-OFF | FF-ON |
+|---|---|---|
+| Ortalama ss_err | 5.23° | **1.18°** (−4.05°, %77↓) |
+| θ_std (chatter) | ~0 (stuck) | ~4.3° |
+
+**Bulgu — §12.13.4'ü RAFİNE EDER:** Coulomb-FF HP **statik-offset'i %77 azaltır** (motor near-target stiction'ı
+kırıp hedefe ulaşır) **AMA ~4° chatter** ekler (küçülmüş limit-cycle). HP residual'ın **iki bileşeni**: (1) statik-offset
+→ **FF düzeltir** (yeni), (2) chatter/limit-cycle → **K7 (Kalman) gerekir** (§12.13.4'ün "FF limit-cycle'ı çözmedi"
+hükmü chatter için doğru). ⚠ **Açık karar:** HP `load_ff_en` default'u şu an KAPALI — doğruluk (−4° ss_err) vs
+pürüzsüzlük (+4° chatter) ödünleşimi; K7 ikisini birden çözeceği için default değişikliği kullanıcı kararına bırakıldı.
+
+> 📊 Üreten: `scripts/{lp_deadband,lp_stepid,motor_cascade_test,motor_mirror_test,k1_2axis_test,k4_coupling_check,hp_ff_compare}.py`.
+> Artifact: `artifacts/3/{smoke_test,lp_deadband,lp_stepid,cascade_m2,mirror_m2,stab_m2,k1_2axis,k4_coupling,hp_ff_compare}/`.
