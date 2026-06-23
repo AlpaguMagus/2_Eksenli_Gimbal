@@ -412,10 +412,9 @@ int main(void)
             }
         }
 
-        /* USB CDC transmit — throttle 5 ms AMA gerçek rate LOOP-LİMİTLİ ~31 Hz (loop ~32 ms;
-         * T_US Δ ölçüldü 2026-06-15). Throttle 25→5 yapıldı ama bağlayıcı değil — loop her
-         * iterasyonda zaten >5 ms. ⚠ AÇIK: loop ~32 ms'nin ~27 ms'i IMU/işlem (HAL_Delay 5 ms hariç) —
-         * neden bu kadar yavaş, açık inceleme (sistem-ID/τ için hızlandırma ileride değerlendirilir).
+        /* USB CDC transmit — throttle 5 ms. Loop ~6 ms (IMU GPIO_PULLUP fix sonrası, §12.13; ÖNCE
+         * ~32 ms görünüyordu = KOPUK-IMU I2C BUSY-timeout artefaktıydı — timer-ISR DEĞİL, tek-satır fix).
+         * Throttle ≤ loop → telemetri pratikte her loop çıkar; T_US Δ ≈ gerçek loop süresi.
          * T_US: DWT.CYCCNT / 96 → mikrosaniye timestamp ([ARM_DWT]) — host-jitter'siz Δt için KULLAN
          * (τ ölçümünde KRİTİK: host time.time() jitter'i fit'i bozuyordu).
          * Eksen-0 alanları (Aşama-2 script uyumlu, format korunur):
