@@ -103,6 +103,18 @@ Güç & koruma **kararları** (3A yeterli, dar boğaz = sürücü 1.0 A, 2 ayrı
 duty cap %50, polyfuse ~2.5–3 A) → `ROADMAP.md` "Aşama 3 güç & koruma planı". Detay amper
 bütçesi → asama_0 §8.5. Kaynaklar: `[Pololu_25D]` Page 1, `[TB6612_DS]` sf 3.
 
+### 4.1. Decoupling & bulk kapasitörler (HP/HW-039 yolu, 2026-06-23)
+
+EMI (fırça gürültüsü) + dropout (adaptör OCP-hiccup) düzeltmesi — gerekçe + keşif öyküsü `asama_3 §12.11`:
+
+| Konum | Kapasitör | İşlev |
+|---|---|---|
+| **B+ ↔ B−** (güç rayı) | 2×470µF/25V elektrolitik paralel ≈ **940µF** bulk | inrush/bulk enerji tamponu → adaptör OCP-hiccup'ı önler (0.50 dropout fix, bench-doğrulandı) |
+| **M+ ↔ M−** (motor terminali) | 0.1µF (104) seramik | fırça/komütasyon HF gürültüsü bastırma → encoder noise-spike'larını siler |
+| **VCC ↔ GND** (lojik besleme) | 0.1µF (104) seramik | lojik decoupling (besleme dalgalanması bastırma) |
+
+⚠ Bulk yalnız geçici inrush'ı (ms) çözer, **sürekli akım tavanını yükseltmez** (tam zarf/stall → ideali ≥6-7A / CC-capable besleme).
+
 ## 5. ACS712 akım sensörü — Faz-2 rezervi (şu an BAĞLI DEĞİL)
 
 > **Varyant:** ACS712**ELCTR-05B** (±5 A), duyarlılık **185 mV/A** TYP (180/185/190 min/typ/max),

@@ -756,12 +756,21 @@ görüldü). **`DUTYR` komutu** eklendi (`SetDutySigned`, rampa+dead-band YOK; B
 kick + temiz step. Kapalı-döngü cascade zaten `SetDutySigned` kullanır → ID artık kontrol-plant'ıyla aynı
 ($\to$ `cmd_parser.c` DUTYR/DUTYR2 bloğu).
 
-#### 12.11.4. EMI düzeltmesi — fırça gürültüsü kapasitörleri
+#### 12.11.4. EMI + dropout kapasitörleri (tam envanter)
 
 Temiz testte encoder **noise spike'ları** (62314, 126893 cnt/s = fiziksel imkânsız) + **aralıklı dropout**
 (EC donması) çıktı = motor PWM/fırça gürültüsü Pololu 6-telli ortak kabloda encoder hatlarına kuplajlanıyor
-(§12.10'daki "garabet"/"dropout" ile aynı sınıf). **0.1 µF (104) seramik:** motor terminalleri arası
-(🔴↔⚫) + encoder Vcc↔GND (🔵↔🟢) → noise spike'ları **GİTTİ**, temiz EC rampası (`scripts/hp_observe.py` A/B).
+(§12.10'daki "garabet"/"dropout" ile aynı sınıf). Üç-katmanlı kapasitör çözümü (kanonik donanım kaydı:
+`docs/00_donanim_semasi.md §4.1`):
+
+| Konum | Kapasitör | İşlev |
+|---|---|---|
+| **M+/M−** (motor terminali, 🔴↔⚫) | 0.1µF (104) seramik | fırça/komütasyon HF gürültüsü → encoder noise-spike'ları **GİTTİ** |
+| **VCC/GND** (lojik, 🔵↔🟢) | 0.1µF (104) seramik | lojik decoupling (besleme dalgalanması) |
+| **B+/B−** (güç rayı) | 2×470µF/25V paralel ≈ **940µF** bulk | inrush tamponu → adaptör OCP-hiccup önlenir (§12.11.6 dropout fix) |
+
+İlk iki 104 seramik noise spike'larını sildi (temiz EC rampası, `scripts/hp_observe.py` A/B); 940µF bulk ise
+0.50 step dropout'unu çözdü (§12.11.6).
 
 #### 12.11.5. Düzeltilmiş karar
 
@@ -773,20 +782,26 @@ Temiz testte encoder **noise spike'ları** (62314, 126893 cnt/s = fiziksel imkâ
 
 #### 12.11.6. Açık konular
 
-- **Dropout — KÖK-NEDEN BULUNDU (besleme OCP-hiccup):** `motor-noise-dropout-literatur` workflow +
-  datasheet + bench yakınsadı. Sebep **Sagemcom CS50001 adaptörünün OCP-foldback'i** (Salcomp OEM,
-  12V/5A/60W kesin tavan, headroom yok; OCP ~6A'da → **hiccup: komple kapanır + ~1s reset**, bench supply
-  gibi akım-limitlemez). **BTS7960 kendi UVLO'su DEĞİL** — o Vs(B+)≤5.4V (12V'tan 6.6V sag) ister, imkânsız.
-  HP motor inrush ~5.6A @12V (R=2.14Ω) + 0.50 duty akımı → ~6A OCP'yi aşar → adaptör hiccup → dropout.
-  **Bench teyidi:** 104-cap encoder-noise'u, 33µF+yeni-RPWM ise base(0.40) reliability'sini (4/4) çözdü AMA
-  **0.50 step hâlâ düşüyor** (74ms'te ω→0 kalıcı) = yüksek-akım OCP; 33µF inrush'ı yutamayacak kadar küçük.
-  **FİX: 470-1000µF low-ESR bulk B+/B−'a** (C=I·Δt/ΔV; ≥1µF/W) — inrush'ı yutar, adaptör spike görmez +
-  ideali ≥6-7A / CC-capable veya bench supply. (EN/PB14 pull-down opsiyonel — firmware zaten sürüyor.)
+- **Dropout — ÇÖZÜLDÜ (bulk kapasitör bench-doğrulandı, 2026-06-23):** Kök-neden **Sagemcom CS50001
+  adaptörünün OCP-hiccup'ı** (`motor-noise-dropout-literatur` workflow + datasheet + bench yakınsadı):
+  Salcomp OEM, 12V/5A/60W kesin tavan, headroom yok; OCP ~6A'da → **komple kapanır + ~1s reset**, bench
+  supply gibi akım-limitlemez. **BTS7960 kendi UVLO'su DEĞİL** — o Vs(B+)≤5.4V (12V'tan 6.6V sag) ister,
+  imkânsız. HP inrush ~5.6A @12V (R=2.14Ω) + 0.50 duty akımı → ~6A OCP'yi aşar → hiccup → dropout. Önceki
+  bench: 104-cap encoder-noise'u, 33µF+yeni-RPWM base(0.40)'ı (4/4) çözdü AMA 0.50 hâlâ düşüyordu (74ms'te
+  ω→0) = 33µF inrush'ı yutamayacak kadar küçük.
+  **FİX DOĞRULANDI:** **~940µF low-ESR bulk** (2×470µF/25V paralel) B+/B−'a takıldı (+ M+/M− & VCC/GND'de
+  0.1µF 104 seramik, §12.11.4) → 0.50 step **dropout YOK**: `hp_observe` 0.40→0.50 EC kesintisiz artar (ΔEC +14018/4s, donma yok);
+  `hp_stepid_clean` τ63=76ms, ω 2977→3764 cnt/s (ham-veri el-doğrulandı, `artifacts/3/hp_stepid_clean/`).
+  Mekanizma: bulk, ms-ölçekli inrush'ı yerelden besler → adaptör spike görmez → OCP tetiklenmez.
+  ⚠ **Kapsam sınırı (dürüst):** bulk yalnız **geçici inrush'ı** (ms) çözer, **sürekli akım tavanını
+  YÜKSELTMEZ** — daha yüksek duty / gerçek stall (5.6A sürekli) için ≥6-7A / CC-capable besleme hâlâ
+  gerçek fix; bu test 0.50'yi doğruladı, tam zarf (kapalı-çevrim + bozucu) için besleme yükseltmesi gerekir.
   Whine ayrı konu: 20kHz carrier yan-bantları (magnetostriction), **zararsız** (workflow + DS sf11 slew 6V/µs).
 - **ÇÖZÜLDÜ (birim hatası) —** $K_{eff}$ "23 rad/s/V" yanlıştı: `encoder.c:16` `EVENTS_PER_REV=48` (Pololu
   CPR zaten ×4-decoded, TI12 mode), analizde ÷192 (fazladan ×4) kullanılmıştı. Doğru ÷48 ile
   $K_{eff} \approx 89$ rad/s/V → orijinal $K_{HP}=83.35$ + datasheet $K \approx 89$ ile **tutarlı**. Fark yok.
-- **τ:** temiz koşular **70-140 ms** (32 ms loop çözünürlüğü kaba); kararlı sayı dropout-fix sonrası. Ayrıca
+- **τ:** dropout-fix sonrası kararlı sayı alındı — **τ63 = 76 ms** (2026-06-23, ~940µF (2×470µF) bulk'lı temiz
+  DUTYR koşu, ham-veri el-doğrulandı); önceki 70-140 ms aralığı dropout/loop-jitter ile genişti. Ayrıca
   firmware **döngü ~31 Hz** (IMU-bağlı, `main.c:383`) → kontrol bant-genişliği için **ayrı** darboğaz adayı.
 
 > 📊 **Üreten betikler:** `scripts/hp_stepid_clean.py` (DUTYR temiz step), `scripts/hp_observe.py`

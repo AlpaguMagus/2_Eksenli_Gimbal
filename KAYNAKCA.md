@@ -141,7 +141,7 @@
   - Yerel: `datasheets/BTS7960 (HW-039)/BTS7960-module-HW039-handsontec.pdf`
   - ~10-15A sürekli (43A pik), giriş 6-27V, arayüz **RPWM/LPWM + R_EN/L_EN** (TB6612 IN1/IN2/PWM'den FARKLI → firmware sürüş katmanı değişir). HP Pololu (5.6A stall) için yeterli; aşırı-büyük → IS akım-okuma çözünürlüğü kaba; klon güvenilirlik uyarısı.
   - **Çip dinamiği (DS Rev1.1, §12.11):** switch-delay ~3-25 µs, slew 1.6-11 V/µs, giriş Schmitt-trigger (RC YOK), p-kanal HS (charge-pump YOK) → çip **µs-mertebe hızlı**; gözlenen 450ms yavaşlık çipten DEĞİL (firmware-ramp confound'uydu, §12.11).
-  - **UVLO/koruma (§12.11.6):** V_UV(OFF) ≤5.4 V — **Vs (B+ güç rayı, 8-18V)** izler, 5V VCC lojik DEĞİL → dropout için 12V'un ≤5.4V'a (6.6V sag) düşmesi gerekir, imkânsız (kablo yapamaz). Gözlenen aralıklı dropout = **adaptör OCP-hiccup** (`[Sagemcom_PSU]`), çip değil; fix 470-1000µF bulk B+/B−.
+  - **UVLO/koruma (§12.11.6):** V_UV(OFF) ≤5.4 V — **Vs (B+ güç rayı, 8-18V)** izler, 5V VCC lojik DEĞİL → dropout için 12V'un ≤5.4V'a (6.6V sag) düşmesi gerekir, imkânsız (kablo yapamaz). Gözlenen aralıklı dropout = **adaptör OCP-hiccup** (`[Sagemcom_PSU]`), çip değil; **fix bench-DOĞRULANDI (2026-06-23):** ~940µF (2×470µF/25V) bulk B+/B− → 0.50 dropout YOK, τ63=76ms.
 
 - **[DFR0601_DS]** DFRobot, *"Dual-Channel DC Motor Driver-12A"* (SKU DFR0601) — **kalıcı sürücü, 2-eksen (HP+LP) için sipariş edildi 2026-06-17**.
   - Resmi: <https://wiki.dfrobot.com/dfr0601/> · Yerel: `datasheets/DFR0601/specs.md`
@@ -149,7 +149,7 @@
 
 - **[Sagemcom_PSU]** Sagemcom CS50001 güç adaptörü = **Salcomp OEM switching** (P/N 191211367-XX / TT Electronics T7810RW; 60W varyant **ATS065T-P120**) — kullanıcının 12V beslemesi (set-top-box/router adaptörü).
   - **12V/5A/60W** (5A KATI tavan, headroom YOK); regülasyon 11.4-12.6V (±5%), yük-reg ~0.35V, ripple 60-65mV.
-  - **⚠ OCP ~6A → hiccup** (komple kapanır + ~1s reset, akım-LİMİTLEMEZ — bench supply'ın CC'sinin aksine). HP inrush 5.6A bunu aşar → **aralıklı dropout kök-nedeni** (docs §12.11.6). Fix: 470-1000µF bulk + ideali ≥6-7A/CC-capable kaynak. Kaynak: `motor-noise-dropout-literatur` workflow (Digikey-host ATS065 DS, 2016).
+  - **⚠ OCP ~6A → hiccup** (komple kapanır + ~1s reset, akım-LİMİTLEMEZ — bench supply'ın CC'sinin aksine). HP inrush 5.6A bunu aşar → **aralıklı dropout kök-nedeni** (docs §12.11.6). **Fix bench-DOĞRULANDI (2026-06-23):** ~940µF (2×470µF/25V paralel) low-ESR bulk B+/B− geçici inrush'ı yutar → 0.50 dropout YOK; ⚠ sürekli akım tavanını yükseltmez, tam zarf/stall için ideali ≥6-7A/CC-capable kaynak. Kaynak: `motor-noise-dropout-literatur` workflow (Digikey-host ATS065 DS, 2016).
 
 - **[L298N_DS]** STMicroelectronics, *"L298 — Dual Full-Bridge Driver"*.
   - Yerel: `datasheets/L298N/L298N-datasheet.pdf`
