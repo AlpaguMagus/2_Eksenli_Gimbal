@@ -1030,11 +1030,29 @@ tutar → BUSY flag temizlenir → IMU yokken okuma **hızlı NACK** (AF/0x04), 
 bus-float'tı. Tek satır pull-up loop'u 32→6 ms yaptı; $T_s/dt$ 0.16→0.83 → HP stick-slip'in Ki-derating
 mekanizması büyük ölçüde giderildi → mevcut HP cascade gain'leriyle çalışması beklenir (re-test bekliyor).
 
-#### 12.13.4. Açık / sonraki adımlar
+#### 12.13.4. HP re-test (6 ms loop) — gross stick-slip ÇÖZÜLDÜ; ince Coulomb residual rijit-mount bekliyor
 
-- 🧪 **HP stick-slip re-test (motor gerekir):** loop 6 ms / $T_s/dt=0.83$ ile mevcut HP cascade gain'leri
-  (Kp=0.00167/Ki=0.0548) stick-slip'i çözüyor mu? §12.12.5'in "kazanç-uzayı tüketildi / mimari fix" hükmü bu
-  re-test'e bağlı — 32 ms artefaktıyla alınmıştı.
+**Re-test (2026-06-23, commit 00e8c57, `scripts/hp_cascade_bench.py`, hedefler [30,90,45,0,-45,0]):**
+
+| Koşu | Sonuç |
+|---|---|
+| **GROSS stick-slip** | ✅ **ÇÖZÜLDÜ** — 32 ms'te motor %95 stuck'tı; 6 ms'te HER hedefte hareket ediyor (90°→ FF ile ss_err **0.00°**, 45° temiz). Kıyas **sağlam** (32 vs 6 ms aynı tutuşla → konfound sabit). |
+| FF-siz | ss_err 2.6–6.2° (Coulomb dead-band), −45°'de stick-slip + seg-6 windup overshoot 85° |
+| FF'li (`--ff`, $u_c=0.14$) | büyük hareketlerde ss_err ~0 (30°:0.01°, 90°:0.00°, −45°:0.42°) **ama** setpoint civarı `sign(ω_ref)` chatter → **limit-cycle** ($\theta_{std}$ 2.6–2.7°) + seg-3 OS 15° |
+
+→ **Loop-rate kök-neden VALİDE.** §12.12.5'in "kazanç-uzayı tüketildi" hükmü 32 ms artefaktına dayanıyordu;
+6 ms'te gross stick-slip yok. Kalan = **Coulomb sürtünme telafisi** (gross değil, kontrol-tasarım rafinesi):
+FF-siz dead-band ↔ FF limit-cycle trade-off'u. Hiçbiri temiz PASS (ss_err<2° + limit-cycle<2°) değil.
+
+⚠ **KONFOUND — ince residual sayıları rijit-mount bekliyor:** re-test motor gövdesi **elle bastırılarak**
+tutuldu (rijit kelepçe değil; bazı anlar gövde geri-tepti). Reaksiyon torku + el esnekliği ince residual'ı
+(dead-band/limit-cycle, per-hedef tutarsızlık) **kontamine eder** — gross kazanım sağlam ama **niceliksel residual
+güvenilmez**. **Rijit mount şart:** Pololu 25D ön-yüz **2× M3** (çıkıştan ±8.5 mm = 17 mm aralık,
+`[Pololu_25D]` dim-diagram sf 1) → braket/plakaya vidala. Sonra Coulomb residual temiz koşulur.
+
+**Coulomb telafisi seçenekleri (rijit-mount sonrası, analitik):** (A) pürüzsüz FF `sign→tanh(ω_ref/ε)` —
+chatter'ı keser, en hafif; (B) pozisyon-integrali (P→PI dış döngü + anti-windup) — tip-2, yapısal ss_err=0;
+(C) FF tuning ($u_c$↓ / $coul\_db$↑). Öneri: A (analitik + en az invaziv).
 - ⚙ **Opsiyonel** — $dt=T_s$ tam eşitleme: loop 6 ms, $T_s=5$ ms → $T_s/dt=0.83$. Tam 1.0 için loop'u 5 ms'e
   pace et (HAL_Delay ayarı) veya $T_s=0.006$. Minör (0.83 yeterli); gerekirse.
 - 🔌 **IMU bağlanınca:** iç ~40 kΩ pull-up 100 kHz için zayıf — GY-521 modül 4.7 kΩ pull-up'ları devreye girer
