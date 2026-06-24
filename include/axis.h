@@ -54,6 +54,12 @@ typedef struct {
      * ⚠ Yanlış işaret = pozitif feedback = RUNAWAY. */
     float stab_dir;
 
+    /* STAB giriş θ_out ofseti (Aşama 5) — STAB target = stab_theta0 + stab_dir·rel.
+     * STAB girişinde o anki çıkış-mili açısı yakalanır → kontrolcü GİRİŞ pozisyonunu
+     * tutar (önceki tasarım sıfır-referanslıydı → off-hanging tutamıyordu, hep asılı
+     * pozisyona düşüyordu). MIRROR ve θ_out=0'da giren yüksüz STAB için 0 (geri-uyumlu). */
+    float stab_theta0;
+
     /* Gyro feedforward (K2, Aşama 3.8) — YALNIZ STAB; 2-DOF base-bozucu reddi.
      * ω_ff = k_ff·LPF(gy)·DEG2RAD motor-mili hız-setpoint'ine eklenir → yavaş dış
      * pozisyon-döngüsünü baypas eder (reddi-bant ~4×, matlab design_gyro_feedforward).

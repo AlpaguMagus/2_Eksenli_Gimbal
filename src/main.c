@@ -354,7 +354,12 @@ int main(void)
             bool is_mirror = (axp->mode == CMD_MODE_MIRROR);
             bool is_stab   = (axp->mode == CMD_MODE_STAB);
             bool is_track  = is_mirror || is_stab;
-            if (is_track && !axp->mirror_prev) { axp->mirror_pitch0 = fused_pitch; axp->mirror_ref = 0.0f; axp->gy_ff_lpf = 0.0f; }
+            if (is_track && !axp->mirror_prev) {
+                axp->mirror_pitch0 = fused_pitch; axp->gy_ff_lpf = 0.0f;
+                /* STAB: giriş θ_out'unu yakala (off-hanging tutabilmek için); MIRROR: 0. */
+                axp->stab_theta0 = is_stab ? axp->ppos.theta_out_deg : 0.0f;
+                axp->mirror_ref  = axp->stab_theta0;   /* slew giriş pozisyonundan başlar (sıçrama yok) */
+            }
             axp->mirror_prev = is_track;
             if (wd_active) { axp->mirror_ref = 0.0f; continue; }   /* watchdog: hedef sıfırla */
 
@@ -375,9 +380,10 @@ int main(void)
                  * (bu kurulumda IMU base'de + mil boş → yasa demosu; tam eylemsiz doğrulama
                  * IMU payload'a taşınınca Aşama 5). */
                 float rel    = fused_pitch - axp->mirror_pitch0;
-                /* STAB: target = stab_dir·rel (polarite montaj kinematik işaretinden, axis.h;
-                 * yüksüz default −1 = eski −rel davranışı; yüklü LP STABDIR2:1). MIRROR: +rel. */
-                float target = is_stab ? (axp->stab_dir * rel) : rel;
+                /* STAB: target = stab_theta0 + stab_dir·rel — GİRİŞ pozisyonunu tut + bozucu düzeltmesi
+                 * (polarite montaj kinematik işaretinden, axis.h; yüklü LP STABDIR2:1). stab_theta0=0 ise
+                 * eski sıfır-referanslı davranış (yüksüz, θ_out=0 girişi). MIRROR: +rel (sıfır-referanslı). */
+                float target = is_stab ? (axp->stab_theta0 + axp->stab_dir * rel) : rel;
                 if (target >  MIRROR_CLAMP_DEG) target =  MIRROR_CLAMP_DEG;
                 if (target < -MIRROR_CLAMP_DEG) target = -MIRROR_CLAMP_DEG;
                 /* Slew limit (90°/s): ani IMU sıçramasını yumuşat (dt — DWT µs) */
