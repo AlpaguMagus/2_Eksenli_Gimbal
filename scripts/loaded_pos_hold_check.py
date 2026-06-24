@@ -7,7 +7,7 @@ Sen sadece IZLE (motor kendi gider). Her komutta: theta_out komuta ulasti+TUTTU 
 Komut dizisi (cikis mili derece): 0 -> +25 -> -25 -> +20 -> 0.  Sinirli (+-25, +-90 kablo guvenli).
 Cikti: artifacts/5/loaded_pos_hold/<ts>/
 """
-import serial, time, re, os, csv, json, subprocess, datetime
+import serial, time, re, os, csv, json, subprocess, datetime, atexit
 PORT, BAUD = "/dev/ttyACM0", 115200
 LP_DPC=360.0/466.0
 SEQ=[0, 25, -25, 20, 0]; HOLD=3.5
@@ -16,10 +16,17 @@ def commit():
     except Exception: return "nogit"
 ser=serial.Serial(PORT,BAUD,timeout=0.02); time.sleep(0.5); ser.reset_input_buffer()
 def send(c): ser.write((c+"\n").encode()); ser.flush(); time.sleep(0.05)
+def _safe_stop():
+    try:
+        if ser.is_open:
+            ser.write(b"STOP\n"); ser.flush(); ser.close()
+    except Exception:
+        pass
+atexit.register(_safe_stop)
 ECr=re.compile(r"EC2:(-?\d+)"); FPr=re.compile(r"FP:(-?[\d.]+)"); Ur=re.compile(r"U2:(-?[\d.]+)")
 
 print("=== Loaded AKTIF pozisyon-hold check (IZLE — motor kendi gider) ===")
-send("STOP"); send("STALLEN:0"); time.sleep(0.4)
+send("STOP"); send("STALLEN2:0"); time.sleep(0.4)
 send("LFFG2:0.21"); send("LFF2:1"); send("MODE2:POS"); time.sleep(0.2); ser.reset_input_buffer()
 rows=[]; res=[]
 for tgt in SEQ:
@@ -58,4 +65,29 @@ for r in rows: w.writerow([r[0],f"{r[1]:.3f}",f"{r[2]:.2f}",f"{r[3]:.2f}",f"{r[4
 json.dump({"test_id":"5.loaded-pos-hold","timestamp":ts,"commit":commit(),"status":"PASS" if PASS else "FAIL",
     "results":[{"tgt":t,"theta_out":round(th,1),"fp":round(fp,1),"duty":round(u,3),"err":round(e,1)} for t,th,fp,u,e in res]},
     open(f"{d}/meta.json","w"),ensure_ascii=False,indent=2)
+with open(f"{d}/summary.md","w") as f:
+    f.write(f"""# 5.loaded-pos-hold — Yuklu AKTIF pozisyon-hold check
+
+- **Test ID:** 5.loaded-pos-hold
+- **Tarih:** {ts}
+- **Commit:** {commit()}
+- **Hedef:** Yuklu LP ekseni komut acilarini gravite'ye karsi tutabiliyor mu (AKTIF kontrol kaniti) olcer.
+- **Komut:** `python3 scripts/loaded_pos_hold_check.py`
+
+## Sonuc (sayisal)
+| Komut θ_out (°) | Ulasti (°) | Hata (°) | |duty| |
+|---|---|---|---|
+""")
+    for t,th,fp,u,e in res:
+        f.write(f"| {t:+d} | {th:+.1f} | {e:+.1f} | {u:.3f} |\n")
+    f.write(f"""
+- Komutlara TUTTU (|hata|<6): {'EVET' if held else 'HAYIR (sarkti/droop)'}
+- Uzak acida motor IS yapti (duty>0): {'EVET' if working else 'HAYIR'}
+
+## Durum / gerekce
+{'PASS' if PASS else 'FAIL'} — {'AKTIF kontrol kanitli: motor uzak komut acilarini gravite-FF + cascade ile tuttu (gravite uzak-aciyi tutamaz).' if PASS else 'Gravite-FF/cascade yetersiz: komut acilari tutulamadi (sarkti) veya uzak acida duty sustained olmadi.'}
+
+## Artifacts
+- raw/hold.csv
+""")
 print(f"Artifact: {d}/")

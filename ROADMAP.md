@@ -375,7 +375,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 
 ---
 
-## 🟡 Aşama 3 — İki Motor MIMO Modelleme  *(AKTİF — 2026-06-07 açıldı)*
+## ✅ Aşama 3 — İki Motor MIMO Modelleme  *(KAPALI 2026-06-24, tag `asama-3-kapali` — main'e `--no-ff` merge)*
 
 > ✅ **DURUM (2026-06-23) — dropout ÇÖZÜLDÜ + HP cascade karakterize:** Donanım ASİMETRİK ve yerinde:
 > yük-taşıyan **HP = Motor1/HW-039/BTS7960/20:1** + telefon-standı **LP = Motor2/TB6612/9.7:1** (yeni
@@ -512,7 +512,24 @@ MIMO sistemde:
 
 ---
 
-## 🎁 Aşama 5 — Gerçek 3D-Print Gimbal Entegrasyonu  *(planlanan)*
+## 🎁 Aşama 5 — Gerçek 3D-Print Gimbal Entegrasyonu  *(🟡 AÇIK 2026-06-24, branch `feature/asama-5-yuklu-gimbal`)*
+
+> ✅ **DURUM (2026-06-24) — yüklü plant-ID tamam, kontrolcü firmware'de, bench-validasyon GATED.** Yüklü LP
+> (telefon-tilt yükü, IMU stand'da) **sistematik duty-step ID** yapıldı (`docs/asama_5 §12.5`): **yön-asimetrik
+> STICTION** kök-neden (+0.10/−0.05 kopma), **k_kin=−0.84** (eski −1.04 base-drift'liydi → `stab_dir=+1`),
+> sarkaç **ω_n≈4 rad/s** (free-decay), **kff_grav=0.21**; aktif pozisyon-tutma bench-PASS (`loaded_pos_hold`).
+> Firmware default'ları yazıldı (LP: gravite 0.21, Coulomb 0.09 fwd/0.05 rev; `STABDIR`/`LFF*` komutları).
+> **Kod-review temizliği (`§12.5.6`):** ad-hoc dönem kalıntıları (inert `stab_theta0`, gyro-FF işaret-kuplajı,
+> `coul_db=0` NaN, STALLEN yanlış-eksen, bayat k_kin/FF değerleri) düzeltildi; firmware derlendi.
+> **⚠ Plan-drift kaydı (CLAUDE.md §1):** planlanan sıra 3D-baskı fixture + montaj-denge (5.1-5.2) → sonra
+> kontrol idi; gerçek iş **fixture OLMADAN bench-LP** üzerinde numerik plant-ID yaptı. Yüklü davranış doğru
+> rig'te (gerçek gimbal montajı) yeniden-doğrulanacak. **Sıradaki = bench-GATED** B1-B4 (`docs §12.5.5`,
+> "hazırım" onayı zorunlu): asimetrik FF ince-POS A/B (±10°'dan büyük) → off-hanging STAB base-reddi
+> (OFF-vs-ON hızlı-sarsıntı) → gyro-damping (gerekirse, küçük k_ff) → K7 Kalman (IMU payload, donanım).
+>
+> **Merdiven — yüklü K0:** 📐 tasarım + 🔧 firmware (cascade + asimetrik Coulomb-FF + gravite-FF yazılı),
+> **🧪 bench-validasyon BEKLİYOR** (fine_pos/stab_reject sonuçsuz/confound'lu → VALIDATED değil). Yüklü K2
+> (gyro-FF) ⛔ gated (analitik k_ff IRAKSADI; Coulomb-FF valide olduktan SONRA). K7 (Kalman) 📐 sim, donanım önkoşulu.
 
 ### Vizyon
 

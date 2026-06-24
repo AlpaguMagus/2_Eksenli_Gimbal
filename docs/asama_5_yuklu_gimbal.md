@@ -5,7 +5,8 @@
 > Okuyucu: gelecek-ben / danışman. Vitrin → [`README.md`](../README.md); plan → [`ROADMAP.md`](../ROADMAP.md).
 >
 > **Durum (2026-06-24):** Aşama 3 (yüksüz MIMO) kapalı. Aşama 5 açık — yüklü **sistem tanımlama**
-> tamamlandı (sistematik duty-step); **kontrolcü yeniden tasarımı** + bench-validasyon devam ediyor.
+> tamamlandı (sistematik duty-step); **kontrolcü yeniden tasarımı** firmware'de yazılı, **bench-validasyon
+> GATED**. Ad-hoc dönemin firmware/script kalıntıları kod-review ile temizlendi (§12.5.6).
 
 ---
 
@@ -59,6 +60,10 @@ Bu farkı atlamak (hızı ölçmeye çalışmak) yüklüde anlamsızdır — sis
 2. **Overshoot YOK** → sürtünme, **sürülürken** rezonansı söndürüyor. (Serbest-coast free-decay'de
    görülen $\omega_n{=}4$ salınımı, motor sürerken kaybolur — sürtünme baskın.)
 3. **Statik kazanç** (kopma üstü) ~**−300°/duty**; asılı denge ~−1° (base elle tutulduğu için drift'li).
+   > ⚠ **İzlenebilirlik:** `meta.json` `K_static=−200°/duty` der — bu, TÜM duty'lere (takılı +0.05/+0.08
+   > dahil, kazanç ~−20) lineer en-küçük-kareler fit'idir → ölü-bölge bölgesi eğimi aşağı çeker. Fiziksel
+   > **kopma-üstü** kazanç ~−300 (±0.10 satırları −272/−336). LS-fit ham metni, kopma-üstü değer fiziği —
+   > kontrol-tasarımına kopma-üstü ~−300 girer ("türetilmiş metrik ≠ ham", §12.5.4).
 
 ### Tamamlayıcı tanımlama (diğer ölçümler)
 
@@ -113,9 +118,58 @@ Bu, ölü-bölgeyi besleme-ileri ile geçer → kontrolcü ince ayar yapabilir h
 - **Base elle tutulunca drift eder** (asılı denge +14→+26→−1° kaydı) → mutlak-açı testleri bozulur;
   denge-relatif / off-hanging ölçüm gerekir.
 
-## 12.5.5 — Açık konular / sonraki
+## 12.5.5 — Açık konular / sonraki (bench-GATED — "hazırım" onayı zorunlu)
 
-- [ ] Asimetrik Coulomb FF (+0.09/−0.05) + gravite FF (0.21) ayarla → fine POS / STAB bench-test
-- [ ] Off-hanging STAB + **base bozucu** (kullanıcı base'i eğer) → stabilizasyon bench-validasyon (IMU-yargılı)
-- [ ] Gyro-damping pratik faydası (sürtünme zaten söndürürken) ölç
-- [ ] K7 Kalman entegrasyonu (IMU payload'a — donanım)
+Plant-ID bitti, kontrolcü firmware'de yazılı; sıradaki adımlar **fiziksel motorlu** → CLAUDE.md §4.
+
+- [ ] **B1 — Asimetrik Coulomb FF (+0.09/−0.05) + gravite FF (0.21) ince-POS bench-test:** A/B (LFF2:0 vs
+      LFF2:1), **±10°'dan BÜYÜK** adımlar (stiction eşiğini gerçekten geç), ham FP+θ_out izi kaydet.
+      (`loaded_fine_pos_test.py` — ⚠ mevcut ±10° adımlar eşiği geçmemiş olabilir → büyüt.)
+- [ ] **B2 — Off-hanging STAB + base bozucu** (kullanıcı base'i eğer) → stabilizasyon bench-validasyon.
+      Guardrail: **OFF vs ON AYNI hızlı sarsıntı** kıyası (θ_out_range tek başına CONFOUND'lu); base-eğim
+      açısı **ölçülmeli**. ⚠ `STABDIR2:1` doğrula (yoksa runaway). (`loaded_stab_reject.py`.)
+- [ ] **B3 — Gyro-damping pratik faydası** (B1 sonrası): Coulomb-FF yeterliyse atlanabilir; gerekirse
+      **küçük k_ff'ten kademeli** (analitik k_ff IRAKSADI — güvenli ~3, model 19 dedi); işaret artık
+      `stab_dir`-bağlı (§12.5.6).
+- [ ] **B4 — K7 Kalman entegrasyonu** (IMU payload'a — donanım önkoşulu).
+
+---
+
+## 12.5.6 — Kod-review + ad-hoc kalıntı temizliği (2026-06-24)
+
+**Ne:** Çok-ajanlı kod-review (15 bulgu) Aşama-5 ad-hoc döneminin (rezonans-yanlış-odağı → frustrasyon →
+sistematik-ID course-correction) firmware/script **kalıntılarını** ortaya çıkardı. Davranış-nötr +
+latent-yol düzeltmeleri uygulandı (motorsuz; firmware derlendi, RAM 4.0%/Flash 9.9%).
+
+### Firmware (`src/main.c`, `include/axis.h`, `src/cmd_parser.c`)
+- **`stab_theta0` kaldırıldı (ölü kod).** `be2adfe`'nin "off-hanging giriş θ_out yakala" alanı YAPISAL
+  olarak **hep 0** idi: `cmd_set_mode` STAB girişinde `PositionP_Reset` (θ_out=0) + `enc_reset` çağırıyor,
+  main-loop edge bunu *sonra* okuyordu. Off-hanging giriş-tutuşunu zaten `enc_reset` sağlıyor (giriş = 0°
+  referans) → `target = stab_dir·rel`'e sadeleşti, **davranış değişmedi**.
+- **Gyro-FF işareti `stab_dir`'e bağlandı.** Eski `ω_ff=+k_ff·gy` yalnız yüksüz `stab_dir=−1` için
+  doğruydu; yüklü LP `stab_dir=+1`'de ters-işaret (anti-reddi) verirdi → `ω_ff = −stab_dir·k_ff·gy`.
+  (Latent: gyro-FF default kapalı; yüklü kazanç bench-gated, IRAKSAMA notu kodda.)
+- **`coul_db=0` NaN-guard.** `LFFDB:0` ("saf sign-FF") + `ω_ref=0` → `0/0=NaN` duty riski guard'landı.
+- **MIRROR↔STAB geçişinde edge zorlandı** (`mirror_prev=false`) → bayat `mirror_ref` lurch'ü önlendi.
+- **`STABDIR2:0` no-op** (kazara "kapat" niyeti +1 runaway-işaretine düşmesin).
+- **İzlenebilirlik:** bayat `k_kin=−1.04`→`−0.84`, `kff_grav=0.097`→`0.21` (sistematik ID) yorumlarda düzeltildi.
+- ⚠ Default `stab_dir=−1` (yüksüz) **DEĞİŞMEDİ** — yüklü LP `STABDIR2:1` operasyonel kuralı korunur
+  (atlanırsa runaway; interlock tek-taraflı eklenmedi). Mutlak-encoder referansı (gravite-FF dip-referansını
+  da düzeltir) = **bench-gated ileri tasarım**.
+
+### Bench scriptleri (5× `loaded_*.py`)
+- **`STALLEN:0`→`STALLEN2:0` (KRİTİK):** yüklü eksen (axis-2) stall-koruması artık doğru kapatılıyor; eski
+  hâli HP'yi (axis-0) hedefliyordu → LP yük altında **yanlış-pozitif lockout** riski (testi sessizce keserdi).
+- **`atexit` safe-stop:** exception/Ctrl-C'de motor STOP + serial kapanır (STOP global, her iki ekseni durdurur).
+- Boş-telemetri guard (NO_DATA, çökme yerine), `summary.md`+`status` (artifact disiplini), ölü kod temizliği.
+- **`loaded_stab_reject` auto-verdict CONFOUND'lu etiketlendi** (θ_out_range pasif-gravite/creep ile şişer →
+  kesin reddi kanıtı değil); `status=INCONCLUSIVE`; gerçek yargı = OFF-vs-ON hızlı-sarsıntı kıyası + göz.
+
+### Yeniden-sınıflama (dürüstlük)
+`loaded_fine_pos` (%25 MAE↓) ve `loaded_stab_reject` (θ_out_range 66°) **VALIDATED DEĞİL** — ham-iz analizi
+yok / metrik confound'lu. B1/B2 (§12.5.5) ile doğrulanacak.
+
+### Silinen ad-hoc scriptler (dosya-geçmişi — `archive-asama5-scattered-20260624`)
+`9741468` cleanup'ı dağınık MATLAB'ın yanı sıra şu confound'lu test scriptlerini de sildi:
+`loaded_stab_offhang.py` (be2adfe'nin `stab_theta0` doğrulama testi — kod kalmıştı, alan şimdi kaldırıldı),
+`loaded_gyro_sign` / `stab_ab` tipi A/B scriptleri. Güncel araçlar yukarıdaki 5 `loaded_*.py`.

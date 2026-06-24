@@ -7,7 +7,7 @@ sarkacin omega_n (dogal frekans) ve zeta (sonum) lazim. Yontem: COAST (motor Hi-
     omega_n = 2*pi/T  (ardisik tepe periyodu),  zeta = delta/sqrt(4pi^2+delta^2), delta=ln(A_k/A_k+1)
 Pasif test (motor calismaz) -> guvenli. Cikti: artifacts/5/loaded_pendulum_id/<ts>/
 """
-import serial, time, re, os, csv, json, subprocess, datetime, math
+import serial, time, re, os, csv, json, subprocess, datetime, math, sys, atexit
 PORT, BAUD = "/dev/ttyACM0", 115200
 CAP = 16.0   # yakalama sn
 def commit():
@@ -15,9 +15,16 @@ def commit():
     except Exception: return "nogit"
 ser=serial.Serial(PORT,BAUD,timeout=0.02); time.sleep(0.5); ser.reset_input_buffer()
 def send(c): ser.write((c+"\n").encode()); ser.flush(); time.sleep(0.05)
+def _safe_stop():
+    try:
+        if ser.is_open:
+            ser.write(b"STOP\n"); ser.flush(); ser.close()
+    except Exception:
+        pass
+atexit.register(_safe_stop)
 FPr=re.compile(r"FP:(-?[\d.]+)")
 
-send("STOP"); send("STALLEN:0"); time.sleep(0.4)   # COAST (Hi-Z), motor serbest
+send("STOP"); send("STALLEN2:0"); time.sleep(0.4)   # COAST (Hi-Z), motor serbest
 print(f"=== Loaded sarkac free-decay ID (COAST/pasif) ===")
 print(f">>> {CAP:.0f} sn: stand'i ~30 KALDIR + BIRAK, serbestce salinsin (2-3 kez). Motor calismaz.")
 ser.reset_input_buffer()
@@ -29,6 +36,16 @@ while time.time()-t0<CAP:
     if m: T.append(time.time()-t0); FP.append(float(m.group(1)))
 send("STOP"); ser.close()
 
+# --- bos-telemetri korumasi (F10): FP yoksa min/max/stdev cagrilari patlar ---
+if not FP:
+    print("\n[UYARI] Hic FP telemetrisi alinmadi — IMU/serial baglantisini kontrol et. (NO_DATA)")
+    ts=datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    d=f"artifacts/5/loaded_pendulum_id/{ts}"; os.makedirs(f"{d}/raw",exist_ok=True)
+    json.dump({"test_id":"5.loaded-pendulum-id","timestamp":ts,"commit":commit(),
+        "status":"NO_DATA","key_metrics":{"n_samples":0}},
+        open(f"{d}/meta.json","w"),ensure_ascii=False,indent=2)
+    sys.exit(0)
+
 # --- tepe tespiti (basit yerel-maksimum, isaret-degisimli) ---
 fp0=sum(FP)/len(FP) if FP else 0.0
 y=[v-fp0 for v in FP]
@@ -37,8 +54,6 @@ for i in range(2,len(y)-2):
     if abs(y[i])<2.0: continue
     if y[i]>0 and y[i]>=y[i-1] and y[i]>=y[i+1] and y[i]>y[i-2] and y[i]>y[i+2]:
         peaks.append((T[i], y[i], +1))
-    if y[i]<0 and y[i]<=y[i-1] and y[i]<=y[i+1] and y[i]<y[i-2] and y[i]<y[i+2]:
-        peaks.append((T[i], y[i], -1))
 # ardisik AYNI yondeki tepeler -> periyot & log-decrement
 pos=[p for p in peaks if p[2]>0];
 # komsu tepeleri ayikla (min 0.15s arali)
@@ -72,12 +87,38 @@ print("="*56)
 
 ts=datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 d=f"artifacts/5/loaded_pendulum_id/{ts}"; os.makedirs(f"{d}/raw",exist_ok=True)
-import csv as _c
-w=_c.writer(open(f"{d}/raw/decay.csv","w",newline="")); w.writerow(["t","fp"])
+w=csv.writer(open(f"{d}/raw/decay.csv","w",newline="")); w.writerow(["t","fp"])
 for t,v in zip(T,FP): w.writerow([f"{t:.3f}",f"{v:.2f}"])
+status="OK" if wn else "NO_OSC"
 json.dump({"test_id":"5.loaded-pendulum-id","timestamp":ts,"commit":commit(),
+    "status":status,
     "key_metrics":{"omega_d_radps":round(wn,3) if wn else None,"omega_n_radps":round(wn_undamped,3) if wn_undamped else None,
         "T_osc_s":round(T_osc,3) if T_osc else None,"zeta":round(zeta,3) if zeta is not None else None,
         "n_peaks":len(pos),"equilibrium_deg":round(fp0,1)}},
     open(f"{d}/meta.json","w"),ensure_ascii=False,indent=2)
+with open(f"{d}/summary.md","w") as f:
+    f.write(f"""# 5.loaded-pendulum-id — Yuklu sarkac free-decay ID
+
+- **Test ID:** 5.loaded-pendulum-id
+- **Tarih:** {ts}
+- **Commit:** {commit()}
+- **Hedef:** Yuklu LP sarkacinin dogal frekansi (omega_n) ve sonum orani (zeta) — COAST/pasif free-decay ring-down'dan.
+- **Komut:** `python3 scripts/loaded_pendulum_id.py`
+
+## Sonuc (sayisal)
+| Metrik | Deger |
+|---|---|
+| omega_d (sonumlu) | {f'{wn:.3f} rad/s' if wn else '—'} |
+| omega_n (sonumsuz) | {f'{wn_undamped:.3f} rad/s' if wn_undamped else '—'} |
+| T_osc (periyot) | {f'{T_osc:.3f} s' if T_osc else '—'} |
+| zeta (sonum orani) | {f'{zeta:.3f}' if zeta is not None else '—'} |
+| poz-tepe sayisi | {len(pos)} |
+| denge (equilibrium) | {fp0:+.1f} deg |
+
+## Durum / gerekce
+{status} — {'Salinim tespit edildi, omega_d/omega_n hesaplandi.' if wn else 'Yeterli/temiz salinim tespit edilemedi (omega_d hesaplanamadi); daha buyuk genlikli free-decay gerek.'}
+
+## Artifacts
+- raw/decay.csv
+""")
 print(f"Artifact: {d}/  (analiz/dogrulama icin raw/decay.csv MATLAB'a)")
