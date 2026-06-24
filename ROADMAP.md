@@ -523,13 +523,19 @@ MIMO sistemde:
 > `coul_db=0` NaN, STALLEN yanlış-eksen, bayat k_kin/FF değerleri) düzeltildi; firmware derlendi.
 > **⚠ Plan-drift kaydı (CLAUDE.md §1):** planlanan sıra 3D-baskı fixture + montaj-denge (5.1-5.2) → sonra
 > kontrol idi; gerçek iş **fixture OLMADAN bench-LP** üzerinde numerik plant-ID yaptı. Yüklü davranış doğru
-> rig'te (gerçek gimbal montajı) yeniden-doğrulanacak. **Sıradaki = bench-GATED** B1-B4 (`docs §12.5.5`,
-> "hazırım" onayı zorunlu): asimetrik FF ince-POS A/B (±10°'dan büyük) → off-hanging STAB base-reddi
-> (OFF-vs-ON hızlı-sarsıntı) → gyro-damping (gerekirse, küçük k_ff) → K7 Kalman (IMU payload, donanım).
+> rig'te (gerçek gimbal montajı) yeniden-doğrulanacak.
 >
-> **Merdiven — yüklü K0:** 📐 tasarım + 🔧 firmware (cascade + asimetrik Coulomb-FF + gravite-FF yazılı),
-> **🧪 bench-validasyon BEKLİYOR** (fine_pos/stab_reject sonuçsuz/confound'lu → VALIDATED değil). Yüklü K2
-> (gyro-FF) ⛔ gated (analitik k_ff IRAKSADI; Coulomb-FF valide olduktan SONRA). K7 (Kalman) 📐 sim, donanım önkoşulu.
+> **⚠ Karar (2026-06-24): LP tilt ekseni DENGESİZ/yerçekimi-yüklü KALACAK** (senaryo gereği, karşı-ağırlık
+> YOK) → **B Yolu**: nonlineer 2.mertebe plant ($mgL\sin\theta$ çekirdek terim). Dengeleme (1.mertebe
+> hız-plantına dönüş, Aşama-1 metodu) **reddedildi**. **Sıradaki = MODEL-ÖNCE (B1 FF-tuning ERTELENDİ):**
+> §12.5.1 sistematik ID iyi-başlangıç-ama-EKSİK (tek koşum, gravite↔sürtünme karışık, NRMSE/2.doğrulama
+> yok) → **Y0 rigorous yüklü ID** (gravite/sürtünme/atalet TEMİZ-ayrık + validasyon → `loaded_motor_params.json`
+> + `loaded_fit_report.md`, Aşama-1 rigoru) → **Y1** analitik kontrol (model'den türetilmiş) → **Y2**
+> bench-validasyon (fine-POS + off-hanging STAB, "hazırım" onayı) → **Y3** gyro-FF/K7. Tam: `docs §12.5.5`.
+>
+> **Merdiven — yüklü K0:** 📐 kısmi-ID + 🔧 firmware-draft (cascade + asimetrik Coulomb-FF + gravite-FF yazılı);
+> **RİGOROUS model kapanışı (Y0) + bench-validasyon BEKLİYOR** (fine_pos/stab_reject sonuçsuz/confound'lu →
+> VALIDATED değil). Yüklü K2 (gyro-FF) ⛔ gated (analitik k_ff IRAKSADI; Coulomb-FF valide SONRA). K7 (Kalman) 📐 sim, donanım önkoşulu.
 
 ### Vizyon
 

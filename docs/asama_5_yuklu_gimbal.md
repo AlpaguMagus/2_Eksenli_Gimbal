@@ -118,20 +118,46 @@ Bu, ölü-bölgeyi besleme-ileri ile geçer → kontrolcü ince ayar yapabilir h
 - **Base elle tutulunca drift eder** (asılı denge +14→+26→−1° kaydı) → mutlak-açı testleri bozulur;
   denge-relatif / off-hanging ölçüm gerekir.
 
-## 12.5.5 — Açık konular / sonraki (bench-GATED — "hazırım" onayı zorunlu)
+## 12.5.5 — Yol haritası: yüklü nonlineer plant (B Yolu — MODEL-ÖNCE)
 
-Plant-ID bitti, kontrolcü firmware'de yazılı; sıradaki adımlar **fiziksel motorlu** → CLAUDE.md §4.
+> ⚠ **Karar (2026-06-24, kullanıcı):** LP tilt ekseni **DENGESİZ / yerçekimi-yüklü KALACAK** — senaryo
+> gereği karşı-ağırlık YOK, motor sürekli $mgL\sin\theta$ ile güreşir. **Dengeleme reddedildi** (denge,
+> plantı 1.mertebe hız-plantına döndürüp Aşama-1 metodunu aynen geri getirirdi — ama senaryo dengesizi
+> gerektiriyor). Plant = 2.mertebe nonlineer açı-plantı:
+>
+> $$J\ddot\theta + b\dot\theta + \tau_c\,\mathrm{sign}(\dot\theta) + mgL\sin\theta = K_m\,u$$
+>
+> → gravite plantın **çekirdek terimi** (ihmal edilemez), gravite-FF birincil.
 
-- [ ] **B1 — Asimetrik Coulomb FF (+0.09/−0.05) + gravite FF (0.21) ince-POS bench-test:** A/B (LFF2:0 vs
-      LFF2:1), **±10°'dan BÜYÜK** adımlar (stiction eşiğini gerçekten geç), ham FP+θ_out izi kaydet.
-      (`loaded_fine_pos_test.py` — ⚠ mevcut ±10° adımlar eşiği geçmemiş olabilir → büyüt.)
-- [ ] **B2 — Off-hanging STAB + base bozucu** (kullanıcı base'i eğer) → stabilizasyon bench-validasyon.
-      Guardrail: **OFF vs ON AYNI hızlı sarsıntı** kıyası (θ_out_range tek başına CONFOUND'lu); base-eğim
-      açısı **ölçülmeli**. ⚠ `STABDIR2:1` doğrula (yoksa runaway). (`loaded_stab_reject.py`.)
-- [ ] **B3 — Gyro-damping pratik faydası** (B1 sonrası): Coulomb-FF yeterliyse atlanabilir; gerekirse
-      **küçük k_ff'ten kademeli** (analitik k_ff IRAKSADI — güvenli ~3, model 19 dedi); işaret artık
-      `stab_dir`-bağlı (§12.5.6).
-- [ ] **B4 — K7 Kalman entegrasyonu** (IMU payload'a — donanım önkoşulu).
+> ⚠ **§12.5.1 sistematik ID = iyi BAŞLANGIÇ ama Aşama-1 rigoruna göre EKSİK:** tek koşum, 6 duty,
+> gravite↔sürtünme tek-açıda **karışık**, NRMSE/bağımsız-2.doğrulama yok, $K$/$a$ fit raporu yok. Aşama-5
+> "sistematik modelleme ipini" ad-hoc testlere dalarak kaybetmişti (§12.5.0) — şimdi **B1 FF-tuning'e
+> geçmeden ÖNCE** o ipi rigorous biçimde kapatıyoruz (model-önce; aksi = yine ad-hoc'a dönüş riski).
+
+### Y0 — Yüklü plant RİGOROUS ID (model kapanışı) · **SIRADAKİ**
+Aşama-1 disipliniyle; gravite/sürtünme/atalet **TEMİZ AYRILMIŞ** + validasyonlu:
+
+- [ ] **Gravite haritası $a\sin\theta$:** yarı-statik duty → denge-açısı (tüm güvenli aralık, +/− yön);
+      $\sin\theta$ şeklini doğrula (gerçekten sarkaç mı), $a=mgL/K_m$ çıkar.
+- [ ] **Sürtünme (yön-asimetrik), graviteden AYRIK:** **çok-açıda** +/− kopma duty'si → her açıda gravite
+      ($a\sin\theta$) çıkarılır → kalan = stiction (yön-bağımlı). *Tek-açı ölçümü ikisini karıştırır
+      (mevcut ID'nin açığı).*
+- [ ] **Dinamik $\omega_n,\zeta,\tau$:** sürülen-adım geçici-rejiminden (free-decay $\omega_n\approx4$ ile çapraz-doğrula).
+- [ ] **Validasyon:** nonlineer modeli ölçülen duty profiliyle simüle → NRMSE (held-out adım) + bağımsız 2.koşum.
+- [ ] **Çıktı:** `loaded_motor_params.json` + `loaded_fit_report.md` + docs §12.5.2 güncelle (Aşama-1 gibi rigor).
+
+### Y1 — Analitik kontrolcü (Y0 modelinden TÜRETİLMİŞ, deneme-yanılma yok)
+- [ ] gravite-FF ($a$) · yön-asimetrik sürtünme-FF ($u_{c,+},u_{c,-}$) · cascade re-tune ($\omega_n,\tau$'dan).
+- [ ] Operasyon-noktası kazanç değişimi ($\cos\theta$ ile) → gain-schedule mi robust tek-kazanç mı (kanıtla-sonra-karar).
+
+### Y2 — Bench-validasyon (model-DESTEKLİ; **fiziksel motorlu → "hazırım" onayı zorunlu, CLAUDE.md §4**)
+- [ ] İnce-POS A/B (FF off/on, **±10°'dan büyük**, ham FP+θ_out izi) → FF model-doğru mu (`loaded_fine_pos_test.py`).
+- [ ] Off-hanging STAB + base bozucu → **OFF-vs-ON aynı hızlı sarsıntı**; base-eğim ölçülür; ⚠ `STABDIR2:1`
+      doğrula (yoksa runaway). (`loaded_stab_reject.py`.)
+
+### Y3 — Gyro-FF / K7 (Y2 sonrası)
+- [ ] Gyro-FF pratik faydası: küçük $k_{ff}$'ten kademeli (analitik IRAKSADI, güvenli ~3); işaret `stab_dir`-bağlı (§12.5.6).
+- [ ] K7 Kalman entegrasyonu (IMU payload'a — donanım önkoşulu).
 
 ---
 
