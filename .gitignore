@@ -21,5 +21,6 @@ Yusufun anlatacakları/
 __pycache__/
 *.pyc
 
-# yerel-only çalışma klasörü (dal dışı; repoya dahil edilmez)
+# yerel-only çalışma klasörleri (dal dışı; repoya dahil edilmez)
 Tez/
+sunum/
