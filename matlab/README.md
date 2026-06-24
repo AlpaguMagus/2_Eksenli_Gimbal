@@ -17,15 +17,15 @@ matlab/
 ├── asama_0_altyapi/            ← Aşama 0: IMU Allan variance + complementary filter
 ├── asama_1_model/              ← Aşama 1: tek motor sistem tanımlama
 ├── asama_2_kontrol/            ← Aşama 2: tek motor kontrol (PI, cascade, mirror)
-├── asama_3_mimo_model/         ← Aşama 3: iki motor MIMO modelleme (AKTİF; HP eksen-0 cascade karakterizasyon + yüklü-FF bench dahil) + K2/K3/K4 ön-tasarım
+├── asama_3_mimo_model/         ← Aşama 3: iki motor MIMO modelleme (✅ KAPALI, tag asama-3-kapali, 2026-06-24; HP cascade + yüklü-FF bench + K2/K3/K4 ön-tasarım)
 ├── asama_4_mimo_kontrol/       ← Aşama 4: MIMO kontrolcü — 📐 K6 LQR/LQI tek-eksen ÖN-TASARIM (donanımsız)
-└── asama_5_gimbal/             ← Aşama 5: gerçek gimbal — 📐 K7 Kalman attitude tek-eksen ÖN-TASARIM (donanımsız)
+└── asama_5_gimbal/             ← Aşama 5 (🟡 AÇIK, feature/asama-5-yuklu-gimbal): K7 Kalman sim + Y0 yüklü plant GERÇEK bench-ID (loaded_motor_params.json) + Y1 kontrol (loaded_control_design.m)
 ```
 
 > Her aşama klasörünün kendi `README.md`'si script listesini + `results/` yapısını tutar.
-> `asama_4`/`asama_5` **donanımsız ön-tasarımlarla oluşturuldu** (2026-06-13, merdiven K6/K7 — `docs §12.7`);
-> bench-validasyon + 2-eksen/payload işi ilgili aşama açılınca eklenir (eklemeli sözleşme). Ortak
-> utility (`ortak/`) henüz yok.
+> `asama_4` donanımsız ön-tasarım (K6); `asama_5` AÇILDI — Y0+Y1 eklendi (eklemeli sözleşme);
+> LQG/EKF + 2-eksen/payload STAB validasyonu devam (2026-06-13 merdiven iskeleti K6/K7 — `docs §12.7`).
+> Ortak utility (`ortak/`) henüz yok.
 
 ## Toolbox Bağımlılıkları
 

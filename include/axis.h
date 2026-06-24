@@ -47,6 +47,17 @@ typedef struct {
     float mirror_ref;               /* slew sonrası uygulanan θ_ref (derece) */
     bool  mirror_prev;              /* MIRROR'a yeni giriş edge-detect */
 
+    /* STAB polaritesi (Aşama 5 yüklü) — target = stab_dir·rel (YALNIZ STAB).
+     * Montaj kinematik işaretinden: stab_dir = −sign(k_kin). Firmware-default −1
+     * (target=−rel; yüksüz K0 STAB böyle valide edildi). Yüklü LP k_kin=−0.84
+     * (sistematik ID, loaded_pos_hold 20260624; ESKİ −1.04 base-drift'liydi, terk)
+     * → işaret negatif → stab_dir=+1, STABDIR2:1 ile ayarlanır. Gyro-FF işareti de
+     * stab_dir'e bağlı (main.c ω_ff=−stab_dir·k_ff·gy). ⚠ Yanlış işaret = RUNAWAY.
+     * NOT: off-hanging giriş-tutuşu enc_reset ile sağlanır (STAB girişinde mevcut
+     * konum 0° referans olur); ayrı θ_out-offset alanı gereksizdi (yapısal olarak hep
+     * 0 — PositionP_Reset+enc_reset edge'den önce sıfırlıyordu) → kaldırıldı. */
+    float stab_dir;
+
     /* Gyro feedforward (K2, Aşama 3.8) — YALNIZ STAB; 2-DOF base-bozucu reddi.
      * ω_ff = k_ff·LPF(gy)·DEG2RAD motor-mili hız-setpoint'ine eklenir → yavaş dış
      * pozisyon-döngüsünü baypas eder (reddi-bant ~4×, matlab design_gyro_feedforward).
@@ -60,12 +71,14 @@ typedef struct {
      * Bilinen bozucuyu plant-girişine (DUTY) enjekte eder → PI sürtünmeyi yenmek için
      * integral biriktirmez → stick-slip limit-cycle bastırılır:
      *   u_ff = kff_grav·sin(θ_out) + uc·tanh(ω_ref/coul_db)   (uc=ω_ref≥0?kff_coul:kff_coul_rev — pürüzsüz+yön-bağımlı, §12.13.4-5)
-     * θ_out=çıkış mili açısı (RESET=dip=0). Gyro-FF'ten FARKLI enjeksiyon noktası: bu
-     * bozucu duty-domeninde (gravite/Coulomb duty olarak ölçüldü) → duty'ye, ω_ref'e değil.
-     * Ölçüm: artifacts/3/loaded_id_m2/20260613_loaded_id_run1 (a=0.097, u_c=0.090, u_s=0.107).
-     * Tasarım/sim: matlab/asama_3_mimo_model/design_loaded_feedforward.m (sign sim-ideal,
-     * ölü-bant chatter-safe). [Franklin2010] §7.5, [Olsson1998] §6. GÜVENLİK: default KAPALI. */
-    float kff_grav;                 /* gravite FF kazancı = a=mgL/K (ölçülen 0.097); LFFG: ile ayar */
+     * θ_out=çıkış mili açısı. ⚠ Gravite terimi sin(θ_out) DİP'ten (asılı denge) ölçülen
+     * açı VARSAYAR; enc_reset 0°'ı POS/STAB giriş anına koyar → giriş dip'te değilse
+     * gravite-FF miskalibre (off-hanging STAB'da bench-doğrula). Gyro-FF'ten FARKLI
+     * enjeksiyon: bu bozucu duty-domeninde ölçüldü → duty'ye, ω_ref'e değil.
+     * Ölçüm (YÜKLÜ LP): loaded_sysid_systematic 20260624 → a=0.21, kff_coul 0.09 fwd /
+     * 0.05 rev (yön-asim.); ESKİ 20260613 a=0.097/u_c=0.090 = yüksüz-placeholder, terk.
+     * Tasarım: docs/asama_5 §12.5.1. [Franklin2010] §7.5, [Olsson1998] §6. default KAPALI. */
+    float kff_grav;                 /* gravite FF kazancı = a=mgL/K (yüklü LP 0.21; HP 0.0); LFFG: ile ayar */
     float kff_coul;                 /* Coulomb FF u_c FORWARD (HP rijit §12.13.5: 0.14); LFFC: ile ayar */
     float kff_coul_rev;             /* Coulomb FF u_c REVERSE — sürtünme YÖN-ASİMETRİK (HP: 0.20 vs fwd 0.14, §12.13.5) */
     float coul_db;                  /* Coulomb ölü-bantı = tanh geçiş ε'si (|ω_ref| ölçeği rad/s) — setpoint chatter koruması */

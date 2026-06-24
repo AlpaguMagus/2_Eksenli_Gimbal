@@ -35,12 +35,12 @@ I2C_HandleTypeDef  hi2c1;
 Axis_t g_axis[AXIS_COUNT] = {
     { .motor = &Motor1, .enc_count = Encoder_GetCount,
       .enc_reset = Encoder_Reset,  .enc_speed = Encoder_GetSpeed,
-      .mode = CMD_MODE_DUTY, .k_ff = 20.0f, .gyro_ff_en = false,  /* gyro-FF kazanç = HP redüktör 20:1 (ÖNCE 9.7=LP-placeholder DÜZELTİLDİ §12.14.7); K2 default KAPALI */
+      .mode = CMD_MODE_DUTY, .k_ff = 20.0f, .gyro_ff_en = false, .stab_dir = -1.0f,  /* gyro-FF kazanç = HP redüktör 20:1 (ÖNCE 9.7=LP-placeholder DÜZELTİLDİ §12.14.7); K2 default KAPALI. stab_dir −1 = yüksüz STAB (−rel); HP loaded char = Aşama-5 */
       .kff_grav = 0.0f, .kff_coul = 0.14f, .kff_coul_rev = 0.20f, .coul_db = 0.34f, .load_ff_en = false },  /* HP Coulomb FF: u_c rijit-ölçüldü 0.14 fwd / 0.20 rev (yön-asimetri §12.13.5); pürüzsüz tanh + yön-bağımlı (§12.13.4). gravite 0.0 (HP yüksüz/serbest-mil — gravite yok; HP loaded gravite char = Aşama-5; ÖNCE 0.097=LP-placeholder §12.14.7). default KAPALI */
     { .motor = &Motor2, .enc_count = Encoder2_GetCount,
       .enc_reset = Encoder2_Reset, .enc_speed = Encoder2_GetSpeed,
-      .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false,
-      .kff_grav = 0.097f, .kff_coul = 0.090f, .kff_coul_rev = 0.090f, .coul_db = 0.34f, .load_ff_en = false },  /* LP simetrik (u_c rev=fwd; LP re-do ayrı — eski testler hand-held olabilir, §12.13.4) */
+      .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false, .stab_dir = -1.0f,  /* stab_dir −1 = yüksüz default; YÜKLÜ LP STAB için STABDIR2:1 (k_kin=−0.84 sistematik ID; ESKİ −1.04 base-drift'liydi, terk) gönderilir */
+      .kff_grav = 0.23f, .kff_coul = 0.06f, .kff_coul_rev = 0.03f, .coul_db = 0.34f, .load_ff_en = false },  /* YÜKLÜ LP (Aşama-5 Y0 RİGOROUS ID, docs §12.5.7): gravite a=0.23 SOLID (3-yol çapraz-doğrulama B1+B3, R²=0.96); YÖN-ASİMETRİK stiction kff_coul 0.06 fwd / 0.03 rev = FIRST-CUT (stick-slip geniş band → bench-refine; ESKİ tek-açı 0.09/0.05 graviteyi sürtünmeye karıştırıp FAZLA tahmin etmişti). cascade re-tune = açık iş (yüksüz gainler transfer olmuyor). default KAPALI */
 };
 
 /* --- Prototip --- */
@@ -53,8 +53,10 @@ void MPU6050_Recover(void);   /* I2C bus-clear + re-init (kendini-iyileştirme) 
 
 /* Sürtünme+gravite feedforward (computed-torque, yüklü) — cascade duty'sine eklenir.
  *   u_ff = kff_grav·sin(θ_out) + kff_coul·tanh(ω_ref/coul_db)   (pürüzsüz Coulomb, §12.13.4-A)
- * θ_out = çıkış mili açısı (derece, RESET=dip=0) → gravite torku a·sinθ telafisi;
- * Coulomb ω_ref (=pozisyon hatası) yönünde, ölü-bant setpoint-civarı işaret-chatter'ını keser.
+ * θ_out = çıkış mili açısı (derece). ⚠ Gravite terimi a·sin(θ_out), θ_out'u DİP'ten
+ *   (asılı denge) ölçülmüş VARSAYAR; enc_reset 0°'ı POS/STAB giriş anına koyar → giriş
+ *   dip'te değilse miskalibre (off-hanging STAB'da bench-doğrula). Coulomb ω_ref yönünde,
+ *   ölü-bant setpoint-civarı işaret-chatter'ını keser.
  * Gyro-FF'ten FARKLI: bu bozucu DUTY-domeninde ölçüldü → duty'ye enjekte (ω_ref'e değil).
  * SetDutySigned zaten ±MOTOR_MAX_DUTY clamp eder. design_loaded_feedforward.m; default KAPALI.
  * [Franklin2010] §7.5 (bilinen-bozucu feedforward), [Olsson1998] §6 (sürtünme telafisi). */
@@ -67,7 +69,10 @@ static float LoadFF_Apply(const Axis_t *axp, float theta_out_deg, float omega_re
      * (HP u_c 0.14 fwd / 0.20 rev, §12.13.5) → symmetric FF reverse'i EKSİK telafi ediyordu (bench limit-cycle).
      * tanh: |ω_ref|>>ε → ±uc (tam telafi), ω_ref→0 → ~lineer (sert sign-flip chatter'ı yok). [Olsson1998] §6. */
     float uc = (omega_ref >= 0.0f) ? axp->kff_coul : axp->kff_coul_rev;
-    u_ff += uc * tanhf(omega_ref / axp->coul_db);
+    /* coul_db=0 ("saf sign-FF", LFFDB:0) → ω_ref=0'da 0/0=NaN duty riski. Guard: ε≈0 ise
+     * argümanı büyüt → tanh saturasyonu sign(ω_ref) verir, ω_ref=0'da tanh(0)=0 (NaN yok). */
+    float c_arg = (axp->coul_db > 1e-6f) ? (omega_ref / axp->coul_db) : (omega_ref * 1e6f);
+    u_ff += uc * tanhf(c_arg);
     return u + u_ff;   /* toplam clamp MotorCh_SetDutySigned içinde (±0.50) */
 }
 
@@ -354,7 +359,10 @@ int main(void)
             bool is_mirror = (axp->mode == CMD_MODE_MIRROR);
             bool is_stab   = (axp->mode == CMD_MODE_STAB);
             bool is_track  = is_mirror || is_stab;
-            if (is_track && !axp->mirror_prev) { axp->mirror_pitch0 = fused_pitch; axp->mirror_ref = 0.0f; axp->gy_ff_lpf = 0.0f; }
+            if (is_track && !axp->mirror_prev) {
+                axp->mirror_pitch0 = fused_pitch; axp->gy_ff_lpf = 0.0f;
+                axp->mirror_ref = 0.0f;   /* enc_reset → giriş 0° referans (off-hanging tutuşu buradan); θ_ref 0'dan slew, sıçrama yok */
+            }
             axp->mirror_prev = is_track;
             if (wd_active) { axp->mirror_ref = 0.0f; continue; }   /* watchdog: hedef sıfırla */
 
@@ -375,7 +383,10 @@ int main(void)
                  * (bu kurulumda IMU base'de + mil boş → yasa demosu; tam eylemsiz doğrulama
                  * IMU payload'a taşınınca Aşama 5). */
                 float rel    = fused_pitch - axp->mirror_pitch0;
-                float target = is_stab ? -rel : rel;
+                /* STAB: target = stab_dir·rel (polarite montaj kinematik işaretinden, axis.h;
+                 * yüklü LP STABDIR2:1). enc_reset giriş 0° referansını verir → off-hanging giriş
+                 * pozisyonu zaten tutulur (ayrı θ_out-offset gereksizdi). MIRROR: +rel. */
+                float target = is_stab ? (axp->stab_dir * rel) : rel;
                 if (target >  MIRROR_CLAMP_DEG) target =  MIRROR_CLAMP_DEG;
                 if (target < -MIRROR_CLAMP_DEG) target = -MIRROR_CLAMP_DEG;
                 /* Slew limit (90°/s): ani IMU sıçramasını yumuşat (dt — DWT µs) */
@@ -392,12 +403,15 @@ int main(void)
                 /* Gyro feedforward (K2, Aşama 3.8) — YALNIZ STAB, FF açıksa (KFF2:<≠0>):
                  * 2-DOF — base açısal hızını (gyro) doğrudan hız-setpoint'ine besle →
                  * yavaş dış pozisyon-döngüsünü baypas et (reddi-bant ~4×).
-                 * İşaret(+): STAB'da fused_pitch −gy entegre eder, ref=−rel → d(ref)/dt=+gy
-                 * → motor mili = k_ff·gy·DEG2RAD (cascade yönüyle aynı). LPF: HF gyro gürültü. */
+                 * İşaret: fused_pitch −gy entegre eder → d(rel)/dt=−gy; ref=stab_dir·rel →
+                 * d(ref)/dt=−stab_dir·gy → ω_ff=−stab_dir·k_ff·gy·DEG2RAD (cascade yönüyle aynı).
+                 * Yüksüz stab_dir=−1 → +k_ff·gy (K2 valide); yüklü stab_dir=+1 → −k_ff·gy.
+                 * ⚠ Yüklü gyro-FF kazancı analitik modelde IRAKSADI (k_ff=19 → FP −64°@0.4Hz;
+                 * güvenli ~3). BENCH-GATED: Coulomb-FF valide olunca, küçük k_ff'ten kademeli. */
                 if (is_stab && axp->gyro_ff_en) {
                     float a_lpf = dt / (GYRO_FF_RC + dt);   /* tek-kutup ~12 Hz */
                     axp->gy_ff_lpf += a_lpf * (gy_dps - axp->gy_ff_lpf);
-                    float omega_ff = axp->k_ff * axp->gy_ff_lpf * DEG2RAD;
+                    float omega_ff = -axp->stab_dir * axp->k_ff * axp->gy_ff_lpf * DEG2RAD;
                     /* Anti-overdrive (bench bulgusu 2026-06-12): referans ±clamp'ta DOYGUNSA
                      * ve FF clamp'ı DAHA DA aşacaksa FF'i kes — yoksa FF, ham gyro'yla motoru
                      * ±60'ı aşırarak sürer (gözlenen θ→85°). Merkeze dönüş yönü serbest. */

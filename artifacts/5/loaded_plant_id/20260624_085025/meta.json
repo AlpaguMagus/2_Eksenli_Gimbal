@@ -1,0 +1,13 @@
+{
+  "test_id": "5.loaded-plant-id",
+  "timestamp": "20260624_085025",
+  "commit": "4a7a901",
+  "status": "OK",
+  "key_metrics": {
+    "fp_dip": -12.7,
+    "th_dip": -21.6,
+    "n_samples": 7591,
+    "fp_span_deg": 44.6,
+    "umax": 0.18
+  }
+}

@@ -6,7 +6,7 @@
 > pin **seçim gerekçeleri** ilgili faz belgesinde kalır ([`asama_0_altyapi.md`](asama_0_altyapi.md) §8
 > enc-1/motor-1/IMU; [`asama_3_mimo_model.md`](asama_3_mimo_model.md) §12 motor-2), **şema/veri burada.**
 >
-> **Güncel:** 2026-06-09 — Aşama 3 (2 motor MIMO). Donanım değişince **burası** güncellenir.
+> **Güncel:** 2026-06-23 — donanım topolojisi Aşama 3'te donduruldu (2 motor MIMO, asimetrik HW-039+TB6612); §4.1 decoupling/bulk kapasitör eklendi (bench-doğrulandı). Proje şu an Aşama 5 (yüklü gimbal) AÇIK — yeni pin/motor eklenmedi, donanım gerçeği değişmedi. Donanım değişince **burası** güncellenir.
 
 ---
 
@@ -92,6 +92,8 @@ ucu swap'la veya firmware'de yön çevir. **(3)** **Encoder Vcc = 5V**, **sürü
 ## 4. Güç rayları & bütçe (datasheet-doğrulanmış)
 
 > ⚠ **INTERIM güç notu (2026-06-17):** Aşağıdaki tablo eski "2× TB6612 / tek adaptör" tasarımınadır. Asimetrik gerçek (Motor-1/HP → HW-039, Motor-2/LP → TB6612) ve eksen-başı ayrı besleme **§7.2**'de; şu an tek **Sagemcom CS50001 (Salcomp OEM 12V/5A/60W, `[Sagemcom_PSU]`)** adaptör kullanılıyor (**§12.11 (revize; §12.10 çürütüldü)**). HW-039 ile devam kararı kalıcı (`§12.11.5`).
+>
+> ⚠ **Akım kalemleri eski tasarımdan (güncel değerler §7.2):** Bu tablonun 3.3V/12V akım KALEMLERİ (3.3V'taki "2× TB6612 lojik", 12V'taki stall amperleri) eski **simetrik 2× TB6612** tasarımındandır — HW-039 lojik/stall için **güncellenmedi**. Güncel **asimetrik** değerler §7.2'dedir (HP ekseni duty-cap %50 stall ~2.8 A). HW-039 lojik akımı için spesifik mA, BTS7960/HW-039 datasheet'inden doğrulanmadan buraya yazılmaz (datasheet-önce); kalemlerin tek doğruluk kaynağı §7.2'dir.
 
 | Ray | Kaynak | Tüketiciler | Limit |
 |---|---|---|---|

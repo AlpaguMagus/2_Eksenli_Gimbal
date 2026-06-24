@@ -1,0 +1,33 @@
+{
+  "model": "loaded_gravity_pendulum_with_asymmetric_static_friction",
+  "plant_eq": "J*thddot + b*thdot + tau_c(dir)*sign(thdot) + m*g*L*sin(theta) = K_m*u",
+  "angle_reference": "theta_out (encoder, cikis mili), dip-relatif (gravitasyonel-notr asili denge = theta=0)",
+  "imu_note": "FP (IMU) base/sasi tarafinda = yasa-demosu config; plant-ID theta_out ile, FP ayri STAB-bozucu sinyali",
+
+  "a_gravity_duty": 0.23,
+  "a_status": "SOLID — 3-yol carpraz-dogrulama (B1 rampa 0.230; B3 duty=0.20@64deg -> 0.222; B3 duty=-0.11@-29deg -> 0.224)",
+  "s_plus_static_duty": 0.059,
+  "s_minus_static_duty": 0.027,
+  "friction_asymmetry_splus_sminus": 2.16,
+  "friction_status": "YON SOLID (s+ > s-, ~2x); MAGNITUD TAHMINI (stick-slip genis statik band -> settle band-ici tek-deger degil). Eski tek-aci ID 0.09/0.05 graviteyi surtunmeye karistirip FAZLA tahmin etmisti.",
+  "R2_b1_hysteresis_fit": 0.963,
+
+  "omega_n_radps": 4.0,
+  "omega_n_status": "PRIOR (free-decay 20260624_050332); bu-oturum free-decay RING-DOWN YAPMADI (yuksek stiction yercekimini yenip salinamadi). Surulen rejimde Coulomb overshoot'u sondurur -> driven-tau daha kontrol-relevant.",
+  "zeta": null,
+  "zeta_status": "BELIRSIZ — free-decay Coulomb-biased (efektif ust-sinir); driven-step overshoot YOK (overdamped-driven).",
+
+  "test_id": "20260624_085025",
+  "capture_script": "scripts/loaded_plant_id_capture.py (B1 ucgen-rampa + B3 validasyon)",
+  "fit_script": "matlab/asama_5_gimbal/loaded_plant_id_fit.m",
+  "estimator_validation": "matlab/asama_5_gimbal/loaded_plant_id_design.m (sentetik PASS: a -0.8%, s+ 0%, s- +0.9%, wn +0.3%, NRMSE 5.94%)",
+  "commit": "491684c",
+  "kaynak": ["Ljung1999 §3-4", "Olsson1998 §6", "Khalil2002 §1", "Franklin2010 §3"],
+
+  "status": "FIRST_CUT",
+  "open_items": [
+    "Surtunme MAGNITUD precision: yarı-statik settled multi-aci adimlar (rampa yerine), band-ortasi temiz olcum",
+    "Fresh omega_n/zeta: temiz tek-buyuk-birakis free-decay (veya driven-tau B3'ten)",
+    "IMU payload'a tasi (su an base = yasa-demosu); tam eylemsiz STAB validasyonu o zaman"
+  ]
+}

@@ -32,7 +32,7 @@ Reset Handler (startup_stm32f411xe.s)
         ├─► Gyro hızı          → Ham değer / 131 LSB/(°/s)
         ├─► Complementary      → α·gyro + (1-α)·accel
         ├─► Kontrol (mod)      → DUTY / SP_W / POS / MIRROR
-        └─► CDC_Transmit_FS()  → 40 Hz throttle (her 25 ms)
+        └─► CDC_Transmit_FS()  → TX throttle 5 ms (≤ loop → pratikte her loop, ~125 Hz; main.c:457, §12.13)
 ```
 
 ### 2.2. Saat Konfigürasyonu (Clock Tree)
@@ -63,7 +63,7 @@ void SysTick_Handler(void) {
 }
 ```
 
-`HAL_GetTick()` bu sayaca erişerek milisaniye cinsinden zaman ölçümü sağlar. **Watchdog, TX throttle (40 Hz) ve LED** zamanlaması bu ms sayacına dayanır; complementary filter `dt`'si ise daha hassas **DWT cycle counter**'ı kullanır (§5.4, jitter düzeltmesi).
+`HAL_GetTick()` bu sayaca erişerek milisaniye cinsinden zaman ölçümü sağlar. **Watchdog, TX throttle (5 ms → ≤ loop, pratikte her loop ~125 Hz; main.c:457, §12.13) ve LED** zamanlaması bu ms sayacına dayanır; complementary filter `dt`'si ise daha hassas **DWT cycle counter**'ı kullanır (§5.4, jitter düzeltmesi).
 
 ### 2.4. I2C1 Perifer Konfigürasyonu
 
@@ -331,9 +331,9 @@ last_cyc = cyc;
 ```
 
 **Gerçek zamanlamalar (firmware, `src/main.c`):**
-- **Ana döngü — 32→6 ms (GPIO_PULLUP fix, `asama_3_mimo_model.md` §12.13):** önce ~32 ms ölçüldü ama bu **kopuk-IMU I2C BUSY-timeout artefaktıydı** (IMU bağlı değilken bus float → BUSY-flag stuck → her okuma 25 ms HAL-timeout), inherent loop DEĞİL. `I2C1_Init` `GPIO_PULLUP` → loop **32→6 ms** (RD 26000→94 µs). ⚠ "~7 ms (~140 Hz)" iddiası da **ÇÜRÜTÜLDÜ** (§12.13.1): hiç ölçülmedi, varsayımdı. De-rating $T_s/dt$ 0.16→0.83. Loop-bağımlı türev sayılar (18.7 rad/s, MA gecikmesi) loop periyoduyla kayar.
-- **Telemetri TX 40 Hz (25 ms throttle):** USB CDC bant genişliği için kısıtlanır (her döngüde değil).
-- **Ölçülen örnekleme:** Allan testi (§5.2) telemetri akışını **35.7 Hz** kaydetti — TX throttle'ın (40 Hz) pratik karşılığı (seri/parse kaybı ile). Aşama 1 step-response da ~36 Hz örnekledi.
+- **Ana döngü — GERÇEK IMU-okunurken 8 ms / ~125 Hz (6 ms IMU-NACK durumuydu, §12.14.1; GPIO_PULLUP fix, `asama_3_mimo_model.md` §12.13):** önce ~32 ms ölçüldü ama bu **kopuk-IMU I2C BUSY-timeout artefaktıydı** (IMU bağlı değilken bus float → BUSY-flag stuck → her okuma 25 ms HAL-timeout), inherent loop DEĞİL. `I2C1_Init` `GPIO_PULLUP` → loop **32→6 ms** (RD 26000→94 µs); §12.14.1 IMU aktif-okunurken gerçeğin **~8 ms / ~125 Hz** olduğunu rafine etti (6 ms/167 Hz = IMU-NACK durumu). ⚠ "~7 ms (~140 Hz)" iddiası da **ÇÜRÜTÜLDÜ** (§12.13.1): hiç ölçülmedi, varsayımdı. De-rating zinciri: önce $T_s=5$ ms ile $T_s/dt = 5/8 = 0.625$; §12.14.7'de $T_s$ 8 ms'e çekilince (firmware `Ts=0.008f`) $T_s/dt \approx 1.0$ → integral de-rate **giderildi**. Loop-bağımlı türev sayılar (18.7 rad/s, MA gecikmesi) loop periyoduyla kayar.
+- **Telemetri TX throttle 5 ms (main.c:457):** throttle ≤ loop periyodu → telemetri pratikte **her loop** çıkar (~125 Hz). ⚠ Eski tasarım "40 Hz (25 ms throttle)" idi; throttle sonradan 5 ms'e indirildi (§12.13, commit `c1d666c`: `25U → 5U`).
+- **Ölçülen örnekleme (tarihsel):** Allan testi (§5.2) telemetri akışını **35.7 Hz** kaydetti — bu ölçüm **Aşama-0 döneminde 25 ms throttle altında** alındı (40 Hz hedefin seri/parse kaybıyla pratik karşılığı); throttle sonradan **5 ms'e indirildi** (§12.13, commit `c1d666c`). Aşama 1 step-response da ~36 Hz örnekledi (aynı 25 ms throttle dönemi).
 
 > **Not (tutarlılık):** Eski tasarımda ana döngü `HAL_Delay(50)` ile ~20 Hz hedefliyordu; mevcut firmware DWT-zamanlı döngüye geçti (jitter düzeltmesi, Aşama 2.3). ⚠ **Güncelleme (Aşama 3, §12.13):** kontrol döngüsü bench'te önce ~32 ms ölçüldü ama bu **kopuk-IMU I2C-BUSY-timeout artefaktıydı** → `GPIO_PULLUP` fix → **6 ms**. "~140 Hz" (Aşama 0-2) hiç ölçülmedi, bir varsayımdı (§12.13.1); ne 140 Hz ne 32 ms gerçek inherent loop'tu.
 
@@ -636,9 +636,9 @@ htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
 
   | # | Katman | Durum | Davranış |
   |---|---|---|---|
-  | 1 | **Stall detection** | ✅ Aktif (2A.7; **2026-05-31 count-tabanlı düzeltme**) | `Motor_StallCheck()` her döngü iterasyonunda (loop ~6 ms / ~167 Hz; eski "~140 Hz" ölçülmemiş varsayımdı, §12.13) çağrılır. Tetik: 200 ms pencerede \|Δ encoder count\| < 2 **VE** current_duty > 0.20. *(Eski tetik \|hız\| < 2 rad/s idi — anlık hız ~7 ms-varsayımı loop'ta 1 count = 18.7 rad/s kuantize (gerçek 6 ms'te ~21.8, §12.13) → yavaş ama DÖNEN mil ω=0 okunup yanlış-pozitif veriyordu, 2.T6 mirror takibinde yaşandı. Count deltası 200 ms pencerede 0.67 rad/s çözünürlük verir — 28× ince; `[Pololu_25D]` 48 CPR.)* Rampa sırasında (current ≠ target) bypass. Tetiklenince `Motor_EmergencyStop()` (STBY=L + duty=0 + AIN=0). USB CDC'ye `STALL_DETECTED\r\n`. **Gerçek-motor doğrulama PASS (2026-06-07):** yanlış-pozitif 0 (101° span, ~80°/s dönüşler), 3/3 gerçek-kilit tespiti, oto-devam +1.0–1.25 s — `artifacts/2/stall_fix/20260607_174743/`. |
+  | 1 | **Stall detection** | ✅ Aktif (2A.7; **2026-05-31 count-tabanlı düzeltme**) | `Motor_StallCheck()` her döngü iterasyonunda (loop ~8 ms / ~125 Hz IMU-okunurken, §12.14.1; 6 ms/167 Hz = IMU-NACK durumu; eski "~140 Hz" ölçülmemiş varsayımdı, §12.13) çağrılır. Tetik: 200 ms pencerede \|Δ encoder count\| < 2 **VE** current_duty > 0.20. *(Eski tetik \|hız\| < 2 rad/s idi — anlık hız ~7 ms-varsayımı loop'ta 1 count = 18.7 rad/s kuantize (gerçek 6 ms'te ~21.8, §12.13) → yavaş ama DÖNEN mil ω=0 okunup yanlış-pozitif veriyordu, 2.T6 mirror takibinde yaşandı. Count deltası 200 ms pencerede 0.67 rad/s çözünürlük verir — 28× ince; `[Pololu_25D]` 48 CPR.)* Rampa sırasında (current ≠ target) bypass. Tetiklenince `Motor_EmergencyStop()` (STBY=L + duty=0 + AIN=0). USB CDC'ye `STALL_DETECTED\r\n`. **Gerçek-motor doğrulama PASS (2026-06-07):** yanlış-pozitif 0 (101° span, ~80°/s dönüşler), 3/3 gerçek-kilit tespiti, oto-devam +1.0–1.25 s — `artifacts/2/stall_fix/20260607_174743/`. |
   | 2 | **Duty hard cap** | ✅ Aktif (2A.4) | `MOTOR_MAX_DUTY = 0.50f` motor.c iç sabiti. `Motor_SetDuty` clamp. Stall'da pik akım ~0.8 A, TB6612 **1.0 A** continuous altında (kanonik → §8.5 + `00_donanim_semasi.md` §4; *eski "1.2 A" düzeltildi*). |
-  | 3 | **Soft-start / rampa** | ✅ Aktif (2A.5) | Non-blocking: `Motor_SetDuty` target'ı set, `Motor_Tick()` her iterasyonda (loop ~6 ms, §12.13) 0.01 step yumuşatır. \|Δduty\| ≤ 0.10 anında uygulanır. Bloklayan `Motor_SoftStart()` init için. |
+  | 3 | **Soft-start / rampa** | ✅ Aktif (2A.5) | Non-blocking: `Motor_SetDuty` target'ı set, `Motor_Tick()` her iterasyonda (loop ~8 ms, §12.14.1; 6 ms = IMU-NACK durumu) 0.01 step yumuşatır. \|Δduty\| ≤ 0.10 anında uygulanır. Bloklayan `Motor_SoftStart()` init için. |
   | 4 | **1 sn lockout** | ✅ Aktif (2A.8; **2026-05-31: 5 sn → 1 sn yumuşatma**) | Stall sonrası `Motor_SetDuty`/`Motor_Enable` sessizce reddedilir; otomatik açılır, `Motor_ResetLockout()` erken kapatma (USB komut 2B). *(Yumuşatma gerekçesi: amper bütçesi §8.5 — duty-cap %50'de stall ~0.55–0.8 A < TB6612 sürekli 1.0 A → kesme elektriksel değil dişli koruması; kısa lockout "elle müdahalede sistem çalışmayı bırakmasın" gereksinimini karşılar.)* |
   | 5 | **LED durum kodu** | ✅ Aktif (2A.9) | Normal 500 ms, stall 100 ms (5 Hz) toggle — kullanıcı görsel uyarı. |
   | 6 | **Watchdog timeout** | ⏳ 2B'de aktive | USB CDC'den 1 sn komut yoksa PWM=0. |

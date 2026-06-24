@@ -18,7 +18,7 @@
 
 ## ⚠ LP vs HP — KRİTİK FARK (bu projeye etkisi)
 
-Projenin orijinal/karakterize motoru **LP 12V** (`datasheets/Pololu 9.7:1 ... LP 12V`).
+Projenin orijinal/karakterize motoru **LP 12V** (`datasheets/Pololu 9.7_1 ... LP 12V`).
 HP ≠ LP — farklı sargı, farklı akım/hız:
 
 | | LP 12V (orijinal, K=53.89 ölçülen) | **HP 12V (PL-4840)** | Oran |

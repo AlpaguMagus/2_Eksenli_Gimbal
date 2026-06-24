@@ -3,7 +3,7 @@
 > **Bu doküman canlıdır.** Her milestone tamamlandığında güncellenir.
 >
 > - **Son güncelleme:** 2026-06-24 (**AŞAMA 3 YÜKSÜZ KAPANDI** — yüksüz merdiven K0–K4 bench-valide, tag `asama-3-kapali` + main'e `--no-ff` merge; bir yüklü-stabilizasyon ön-prototipi yapısız/confound'lu çıktı → **geri alındı** (yedek tag `archive-loaded-adhoc-20260624`), Aşama 5'te yapıyla yeniden. ÖNCEKİ: **HP cascade Faz 1-3** + **stick-slip teşhisi** + **loop-rate kök-neden** — `docs §12.12`: RPWM kablo-fix + ~940µF bulk sonrası HP serbest-milde karakterize (Kg=1043 serbest-mil rad/s/duty, τ≈70ms; **rijit re-char §12.13.5 → ~974/897 DOĞRULADI**); analitik cascade (iç PI Kp=0.00167/Ki=0.0548, dış P Kp_pos=2.0, PM 68°/88°) + firmware per-eksen split flash. **Bench: HP stick-slip** → "~32ms loop kök-neden / timer-ISR mimari fix" sanıldı AMA **32ms KOPUK-IMU I2C-BUSY-timeout ARTEFAKTIYDI** (IMU bağlı değildi) → tek-satır `GPIO_PULLUP` (loop 32→6ms, `§12.13`; **timer-ISR GEREKMEDİ**); rijit-mount sürtünme-limit-cycle açtı (yapısal→K7), yön-bağımlı FF de çözmedi; **HP = K0/K1 baseline KAPALI**, sıradaki K1→K4. Önceki: dropout ÇÖZÜLDÜ (~940µF bulk, Sagemcom CS50001 OCP-hiccup kök-neden, `docs §12.11`); HW-039 HIZLI teyidi (τ≈70-100ms))
-> - **Kapanan aşama:** **Aşama 3 (İki Motor MIMO Model) ✅ YÜKSÜZ KAPALI** (tag `asama-3-kapali`, main'e `--no-ff` merge) — **Sıradaki: Aşama 5 (yüklü gimbal stabilizasyon)** — IMU payload'a, plant yeniden-ID, derin K4 RGA + HP-K7. Önceki branch `feature/asama-3-mimo-model`; **3.3 tek-eksen (K0) ✅ bench PASS** (cascade/mirror/stab, LP) + **yüklü sürtünme FF 🧪 bench PASS** (`§12.8`) + **HP cascade Faz 1-3 karakterize** (`§12.12`); donanım ASİMETRİK ve yerinde (HP=Motor1/HW-039/BTS7960/20:1 + LP=Motor2/TB6612/9.7:1, yeni motorlar 2026-06-14/15 GELDİ); **HP loop-rate ÇÖZÜLDÜ** (kopuk-IMU I2C-BUSY-timeout artefaktı → `GPIO_PULLUP`, loop 32→6ms, `§12.13` — timer-ISR DEĞİL); **HP = K0/K1 baseline KAPALI** (residual sürtünme-limit-cycle yapısal — analitik sim option-B'yi=pozisyon-integrali eledi, yön-bağımlı FF de çözmedi; temiz fix = K7/Kalman, Aşama-5); **K0/K1 RİJİT VALİDE §12.14** (bench bring-up: loop gerçek 8ms; LP plant Kg~557/τ40 simetrik+stick-slip yok; K0 pos6/6+mirror5.72°+stab5.08°; K1 2-eksen LP6/6+HP2/6-residual, decentralized çalışıyor); **K4 serbest-mil coupling ✅** off-diag~0 (G21 0.05%/G12 0.0%, §12.14.5 — decentralized SAYIYLA gerekçeli); **asıl K4 RGA + HP-K7 + yüklü stab = Aşama-5**
+> - **Kapanan aşama:** **Aşama 3 (İki Motor MIMO Model) ✅ YÜKSÜZ KAPALI** (tag `asama-3-kapali`, main'e `--no-ff` merge) — **Sıradaki: Aşama 5 (yüklü gimbal stabilizasyon)** — IMU payload'a, plant yeniden-ID, derin K4 RGA + HP-K7. Önceki branch `feature/asama-3-mimo-model`; **3.3 tek-eksen (K0) ✅ bench PASS** (cascade/mirror/stab, LP) + **yüklü sürtünme FF 🧪 bench PASS** (`§12.8`) + **HP cascade Faz 1-3 karakterize** (`§12.12`); donanım ASİMETRİK ve yerinde (HP=Motor1/HW-039/BTS7960/20:1 + LP=Motor2/TB6612/9.7:1, yeni motorlar 2026-06-14/15 GELDİ); **HP loop-rate ÇÖZÜLDÜ** (kopuk-IMU I2C-BUSY-timeout artefaktı → `GPIO_PULLUP`, loop 32→6ms, `§12.13` — timer-ISR DEĞİL); **HP = K0/K1 baseline KAPALI** (residual sürtünme-limit-cycle yapısal — analitik sim option-B'yi=pozisyon-integrali eledi, yön-bağımlı FF de çözmedi; temiz fix = K7/Kalman, Aşama-5); **K0/K1 RİJİT VALİDE §12.14** (bench bring-up: loop gerçek 8ms; LP plant Kg~557/τ40 simetrik+stick-slip yok; K0 pos6/6+mirror5.72°+stab5.08°; K1 2-eksen LP6/6+HP4/6 (§12.14.7 de-rate sonrası, öncesi 2/6)-residual, decentralized çalışıyor); **K4 serbest-mil coupling ✅** off-diag~0 (G21 0.05%/G12 0.0%, §12.14.5 — decentralized SAYIYLA gerekçeli); **asıl K4 RGA + HP-K7 + yüklü stab = Aşama-5**
 > - **Dokümantasyon:** Aşama-bazlı `docs/` ekosistemi (README vitrin + `docs/asama_<N>_*.md` derin içerik)
 > - **Kapsam:** Aşama 0 (donanım entegrasyonu) → Aşama 5 (gerçek 3D-print gimbal MIMO stabilizasyon)
 
@@ -341,7 +341,7 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 | # · olgunluk | Basamak | Ne ekler | Kapı (ne zaman gerekçeli) | "Elde" / sonuç | Faz |
 |---|---|---|---|---|---|
 | **K0** · ✅ validated | Decentralized cascade PID (tek eksen) | poz P → hız PI, per-eksen | — (kanıtlı) | mirror/stab bench PASS (`docs §12.4`) + **LP rijit re-validate §12.14.3** (pos 6/6, mirror 5.72°, stab 5.08°) | 2–3.3 |
-| **K1** · ✅ bench-demonstre | 2-eksen decentralized cascade | 2. ekseni entegre | **GEÇİLDİ §12.14.4** — HP+LP eşzamanlı cascade, her eksen bağımsız izledi | decentralized 2-eksen ÇALIŞIYOR çapraz-girişim yok (LP 6/6 temiz, HP 2/6 sürtünme-residual→K7) | 3.3 |
+| **K1** · ✅ bench-demonstre | 2-eksen decentralized cascade | 2. ekseni entegre | **GEÇİLDİ §12.14.4** — HP+LP eşzamanlı cascade, her eksen bağımsız izledi | decentralized 2-eksen ÇALIŞIYOR çapraz-girişim yok (LP 6/6 temiz, HP 4/6 (§12.14.7 Ts/integral de-rate sonrası; öncesi 2/6, residual→K7)) | 3.3 |
 | **K2** · ✅ bench-validated (rijit) | + **Gyro feedforward** (2-DOF) | bozucuyu doğrudan ileri-besle (gy_dps) | bedava sinyal | sim 4.1× reddi-bant; firmware+gate; **lag faydası ÖLÇÜLDÜ** (165→0 ms, §12.9); **HP k_ff 9.7→20 §12.14.7**; **rijit re-validate ✅ §12.14.8** (LP lag 272→32ms, %88↓; corr 0.94→0.99) `§12.7/§12.9/§12.14.8` | 3.8 |
 | **K3** · ❌ gereksiz (ölçüldü) | + Gain scheduling | çalışma-noktası kazanç tablosu | ~~τ-bağımlılığı~~ ÇÜRÜDÜ | **GEREKSİZ §12.14.7:** HP τ 40-49ms (oran 1.22×) ~sabit → tek-kazanç yeterli | — |
 | **K4** · 📐 çerçeve + 🧪 serbest-mil baseline | Kuplaj karakterizasyonu (MIMO ID + **RGA**) | 2×2 $G(s)$, RGA, condition no. | 2 motor mekanik bağlı (yüklü gimbal, Aşama-5) | **KARAR KAPISI**; serbest-mil off-diag~0 ✅ (§12.14.5: G21 0.05%/G12 0.0%, decentralized gerekçeli); asıl RGA yüklü montaj bekler | 3.5/5 |
@@ -367,17 +367,18 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 > (Aşama 5), dengeli payload + gravite-yardımlı iniş kontrolü (Aşama 5). **HP loop-rate ÇÖZÜLDÜ (2026-06-23):**
 > "~32ms loop / timer-ISR mimari fix" sanılan sorun aslında **kopuk-IMU I2C-BUSY-timeout ARTEFAKTIYDI** → tek
 > satır `GPIO_PULLUP` (loop 32→6ms, §12.13; timer-ISR GEREKMEDİ). HP gross stick-slip çözüldü; rijit-mount
-> **sürtünme-limit-cycle** açtı + plant DOĞRULANDI. **Sıradaki:** HP cascade redesign (option B pozisyon-integrali,
-> analitik) **+ LP rijit re-do** (sıfırdan re-karakterize + re-validate; AÇIK, LP bağlanınca).
+> **sürtünme-limit-cycle** açtı + plant DOĞRULANDI. **option-B (pozisyon-integrali) analitik sim ile ELENDİ** →
+> residual sürtünme-limit-cycle YAPISAL → temiz fix K7/Kalman, Aşama-5; **✅ LP rijit re-do TAMAMLANDI**
+> (§12.14.2 Kg~557/τ40; §12.14.3 K0 pos 6/6, mirror 5.72°, stab 5.08°).
 >
 > Kaynaklar: `[Skogestad2005] §10` (decentralized/RGA), `[Franklin2010] §6.4` (cascade),
 > `[Anderson2007]` (LQR), `[Simon2006]` (Kalman). Tarama detayı: yöntem-bazlı gerekçe + verdict.
 
 ---
 
-## 🟡 Aşama 3 — İki Motor MIMO Modelleme  *(AKTİF — 2026-06-07 açıldı)*
+## ✅ Aşama 3 — İki Motor MIMO Modelleme  *(KAPALI 2026-06-24, tag `asama-3-kapali` — main'e `--no-ff` merge)*
 
-> ✅ **DURUM (2026-06-23) — dropout ÇÖZÜLDÜ + HP cascade karakterize:** Donanım ASİMETRİK ve yerinde:
+> ✅ **DURUM (2026-06-24, §12.14) — dropout ÇÖZÜLDÜ + HP cascade karakterize:** Donanım ASİMETRİK ve yerinde:
 > yük-taşıyan **HP = Motor1/HW-039/BTS7960/20:1** + telefon-standı **LP = Motor2/TB6612/9.7:1** (yeni
 > motorlar 2026-06-14/15 GELDİ). **HW-039 "çok yavaş (τ≈400–450 ms)" hükmü ÇÜRÜTÜLDÜ** (2026-06-22,
 > `docs §12.11`) — 450 ms **firmware-ramp** confound'uydu (analitik+literatür+kod+temiz bench yakınsadı);
@@ -394,9 +395,9 @@ Aşama 1'de çıkarılan modelle (K=53.89 rad/s/V, τ=60.5 ms, V_dead≈0):
 > ARTEFAKTIYDI** (IMU bağlı değildi → bus float → BUSY stuck → 25ms HAL-timeout/okuma); **tek satır `GPIO_PULLUP`
 > → loop 32→6ms** (§12.13). HP **gross stick-slip ÇÖZÜLDÜ**; rijit-mount (mengene) re-test **sürtünme-limit-cycle**
 > açtı (el sönümlüyormuş) + re-karakterizasyon **plant DOĞRULADI** (Kg~974/τ72ms) + sürtünme yön-asimetrisi
-> (u_c 0.14/0.20, §12.13.4-5). **Sıradaki = HP cascade redesign** (option B pozisyon-integrali, analitik MATLAB —
-> limit-cycle YAPISAL, FF-tuning değil) **+ 🔜 LP RİJİT RE-DO (AÇIK):** LP'yi de sıfırdan re-karakterize + cascade
-> re-validate (eski Test 2.5/MIRROR/STAB hand-held olabilir; LP+mengene gelince). ⚠ Aşağıdaki "2× TB6612 / tek 3A adaptör" güç planı
+> (u_c 0.14/0.20, §12.13.4-5). **option-B (pozisyon-integrali) analitik sim ile ELENDİ** → residual sürtünme-limit-cycle
+> YAPISAL (FF-tuning değil) → temiz fix K7/Kalman, Aşama-5. **✅ LP rijit re-do TAMAMLANDI** (§12.14.2 Kg~557/τ40;
+> §12.14.3 K0 pos 6/6, mirror 5.72°, stab 5.08°). ⚠ Aşağıdaki "2× TB6612 / tek 3A adaptör" güç planı
 > (3.x) **bayat** (gerçek = asimetrik HP=BTS7960 + LP=TB6612 + Sagemcom CS50001 + dropout kapasitör çözümü) —
 > güç planı bölümünde aşağıda düzeltildi.
 
@@ -512,7 +513,30 @@ MIMO sistemde:
 
 ---
 
-## 🎁 Aşama 5 — Gerçek 3D-Print Gimbal Entegrasyonu  *(planlanan)*
+## 🎁 Aşama 5 — Gerçek 3D-Print Gimbal Entegrasyonu  *(🟡 AÇIK 2026-06-24, branch `feature/asama-5-yuklu-gimbal`)*
+
+> ✅ **DURUM (2026-06-24) — yüklü plant-ID tamam, kontrolcü firmware'de, bench-validasyon GATED.** Yüklü LP
+> (telefon-tilt yükü, IMU stand'da) **sistematik duty-step ID** yapıldı (`docs/asama_5 §12.5`): **yön-asimetrik
+> STICTION** kök-neden (+0.10/−0.05 kopma), **k_kin=−0.84** (eski −1.04 base-drift'liydi → `stab_dir=+1`),
+> sarkaç **ω_n≈4 rad/s** (free-decay), **kff_grav=0.21**; aktif pozisyon-tutma bench-PASS (`loaded_pos_hold`).
+> Firmware default'ları yazıldı (LP: gravite 0.21, Coulomb 0.09 fwd/0.05 rev; `STABDIR`/`LFF*` komutları).
+> **Kod-review temizliği (`§12.5.6`):** ad-hoc dönem kalıntıları (inert `stab_theta0`, gyro-FF işaret-kuplajı,
+> `coul_db=0` NaN, STALLEN yanlış-eksen, bayat k_kin/FF değerleri) düzeltildi; firmware derlendi.
+> **⚠ Plan-drift kaydı (CLAUDE.md §1):** planlanan sıra 3D-baskı fixture + montaj-denge (5.1-5.2) → sonra
+> kontrol idi; gerçek iş **fixture OLMADAN bench-LP** üzerinde numerik plant-ID yaptı. Yüklü davranış doğru
+> rig'te (gerçek gimbal montajı) yeniden-doğrulanacak.
+>
+> **⚠ Plant yapısı (2026-06-24): LP tilt ekseni YERÇEKİMİ-YÜKLÜ** ($mgL\sin\theta$ torku; θ=0 referansı =
+> gravitasyonel-nötr başlangıç/dip — "denge"den kasıt başlangıç-nötrlüğü, karşı-ağırlık DEĞİL) → **B Yolu**:
+> nonlineer 2.mertebe açı-plantı, gravite çekirdek terim. **Sıradaki = MODEL-ÖNCE (B1 FF-tuning ERTELENDİ):**
+> §12.5.1 sistematik ID iyi-başlangıç-ama-EKSİK (tek koşum, gravite↔sürtünme karışık, NRMSE/2.doğrulama
+> yok) → **Y0 rigorous yüklü ID** (gravite/sürtünme/atalet TEMİZ-ayrık + validasyon → `loaded_motor_params.json`
+> + `loaded_fit_report.md`, Aşama-1 rigoru) → **Y1** analitik kontrol (model'den türetilmiş) → **Y2**
+> bench-validasyon (fine-POS + off-hanging STAB, "hazırım" onayı) → **Y3** gyro-FF/K7. Tam: `docs §12.5.5`.
+>
+> **Merdiven — yüklü K0:** 📐 kısmi-ID + 🔧 firmware-draft (cascade + asimetrik Coulomb-FF + gravite-FF yazılı);
+> **RİGOROUS model kapanışı (Y0) + bench-validasyon BEKLİYOR** (fine_pos/stab_reject sonuçsuz/confound'lu →
+> VALIDATED değil). Yüklü K2 (gyro-FF) ⛔ gated (analitik k_ff IRAKSADI; Coulomb-FF valide SONRA). K7 (Kalman) 📐 sim, donanım önkoşulu.
 
 ### Vizyon
 
@@ -549,8 +573,8 @@ duty ≈ 280 rad/s no-load), bu yüzden kazançlar çok düşük tutulmak zorund
 - Muhtemelen daha yüksek kazançlar mümkün olacak (yük plant'i kontrol edilebilir kılar)
 
 Bu, "serbest milde çalışan kazanç gimbalda da çalışır" varsayımının **yanlış**
-olduğu anlamına gelir. Aşama 5.2 (mekanik montaj) sonrası **5.x — yük ile yeniden
-sistem tanımlama + kazanç ayarı** alt-adımı eklenmeli.
+olduğu anlamına gelir. Yük ile yeniden sistem tanımlama + kazanç ayarı **Y0 olarak
+açıldı/başladı** (`docs/asama_5_yuklu_gimbal.md §12.5.5` + `§12.5.7`).
 
 ### Senaryo Değişimi
 
@@ -559,12 +583,16 @@ sistem tanımlama + kazanç ayarı** alt-adımı eklenmeli.
 
 ### Alt-Aşamalar (iskelet)
 
-- **5.1 — Şasi tasarımı + 3D print**
-- **5.2 — Mekanik montaj + statik denge**
-- **5.3 — Senaryo A için kontrol kuralı uyarlama** (setpoint = −fused_pitch)
-- **5.4 — Yatay/dikey eksen tuning**
-- **5.5 — Performans testi** (kameranın sabit kalması, RMS hata)
-- **5.6 — Demo video + akademik kapanış raporu**
+> **⚠ GÜNCEL iş-akışı = Y0→Y1→Y2→Y3** (yüklü ID → analitik kontrol → bench-validasyon → gyro-FF/K7) — bkz.
+> yukarıdaki Aşama 5 banner + `docs/asama_5_yuklu_gimbal.md §12.5.5`. Aşağıdaki 5.1-5.6 **eski iskelet**
+> (donanım gelmeden önceki şasi→montaj→demo planı; Y0-Y3 ile birebir eşleşmez — yapısal akış Y0-Y3'tür):
+
+- **5.1 — Şasi tasarımı + 3D print** *(eski iskelet)*
+- **5.2 — Mekanik montaj + statik denge** *(eski iskelet)*
+- **5.3 — Senaryo A için kontrol kuralı uyarlama** (setpoint = −fused_pitch) *(eski iskelet)*
+- **5.4 — Yatay/dikey eksen tuning** *(eski iskelet)*
+- **5.5 — Performans testi** (kameranın sabit kalması, RMS hata) *(eski iskelet)*
+- **5.6 — Demo video + akademik kapanış raporu** *(eski iskelet)*
 
 ---
 

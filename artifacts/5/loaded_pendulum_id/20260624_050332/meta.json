@@ -1,0 +1,14 @@
+{
+  "test_id": "5.loaded-pendulum-id",
+  "timestamp": "20260624_050332",
+  "commit": "31e02c8",
+  "key_metrics": {
+    "omega_d_radps": 4.376,
+    "omega_n_radps": 4.0,
+    "T_osc_s": 1.436,
+    "zeta": 0.1,
+    "n_peaks": 12,
+    "equilibrium_deg": 2.1,
+    "note": "omega_n~4 rad/s (0.65Hz) SAGLAM; zeta~0.1 hafif-sonumlu (yaklasik, cok-itis artefakti). Otomatik zeta=-0.008 GECERSIZ (multi-push)."
+  }
+}

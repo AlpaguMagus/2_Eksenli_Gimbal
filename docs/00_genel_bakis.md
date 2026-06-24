@@ -2,7 +2,7 @@
 
 > **Bu belge kimin için?** Projeye yeni başlayan biri (üniversite 1. sınıf seviyesi) için **ortak teori temeli**. Tüm aşama belgeleri (`asama_0`…`asama_5`) buradaki kavramlara atıf verir; burada bir kez anlatılan transfer fonksiyonu, blok diyagram, kararlılık, Bode gibi kavramlar aşama belgelerinde tekrar edilmez.
 >
-> **Ekosistem:** Sistem mimarisi + donanım → [`asama_0_altyapi.md`](asama_0_altyapi.md). Model → [`asama_1_model.md`](asama_1_model.md). Kontrol → [`asama_2_kontrol.md`](asama_2_kontrol.md). MIMO model → [`asama_3_mimo_model.md`](asama_3_mimo_model.md). Proje vitrini + mimari şema → [`../README.md`](../README.md). Plan → [`../ROADMAP.md`](../ROADMAP.md). Kaynaklar → [`../KAYNAKCA.md`](../KAYNAKCA.md).
+> **Ekosistem:** Sistem mimarisi + donanım → [`asama_0_altyapi.md`](asama_0_altyapi.md). Model → [`asama_1_model.md`](asama_1_model.md). Kontrol → [`asama_2_kontrol.md`](asama_2_kontrol.md). MIMO model → [`asama_3_mimo_model.md`](asama_3_mimo_model.md). Yüklü gimbal + stabilizasyon → [`asama_5_yuklu_gimbal.md`](asama_5_yuklu_gimbal.md). Proje vitrini + mimari şema → [`../README.md`](../README.md). Plan → [`../ROADMAP.md`](../ROADMAP.md). Kaynaklar → [`../KAYNAKCA.md`](../KAYNAKCA.md).
 
 ---
 
@@ -15,9 +15,9 @@ Bu proje **5 aşamalı kontrol mühendisliği yol haritası** üzerinden iki eks
 | **0 ✅** | Donanım entegrasyonu, koruma katmanları, USB CDC, IMU füzyonu | gömülü sistem, complementary filter | — | [`asama_0_altyapi.md`](asama_0_altyapi.md) |
 | **1 ✅** | Tek motor sistem tanımlama (K, τ, dead-band) | §2.1–§2.3 (transfer fn, 1. derece) | `matlab/asama_1_model/` | [`asama_1_model.md`](asama_1_model.md) |
 | **2 ✅** | Tek motor PI → cascade → IMU mirror | §2.2–§2.8 (kapalı çevrim, PID, Bode, tip sistem, Tustin) | `matlab/asama_2_kontrol/` | [`asama_2_kontrol.md`](asama_2_kontrol.md) |
-| **3 🟡** | İki motor MIMO model + decoupling | MIMO, RGA, condition number | `matlab/asama_3_mimo_model/` | [`asama_3_mimo_model.md`](asama_3_mimo_model.md) |
+| **3 ✅** | İki motor MIMO model + decoupling | MIMO, RGA, condition number | `matlab/asama_3_mimo_model/` | [`asama_3_mimo_model.md`](asama_3_mimo_model.md) |
 | **4 ⬜** | İki motor decoupling + LQR/LQI (optimal MIMO) | optimal kontrol (MIMO) | `matlab/asama_4_mimo_kontrol/` | (gelecek) |
-| **5 ⬜** | Gerçek 3D-print gimbal — stabilizasyon + LQG/Kalman durum kestirimi | gerçek-dünya entegrasyonu, durum kestirimi | `matlab/asama_5_gimbal/` | (gelecek) |
+| **5 🟡** | Gerçek 3D-print gimbal — stabilizasyon + LQG/Kalman durum kestirimi | gerçek-dünya entegrasyonu, durum kestirimi | `matlab/asama_5_gimbal/` | [`asama_5_yuklu_gimbal.md`](asama_5_yuklu_gimbal.md) |
 
 **Felsefe:** Her teknik karar **kaynaklı** ([`../KAYNAKCA.md`](../KAYNAKCA.md) etiketli). Tasarım MATLAB'da yapılır, doğrulama gerçek donanımda; Embedded Coder kullanılmaz — MATLAB çıktıları (kazançlar, eşikler) firmware'e **manuel** transfer edilir, kaynak yorumu eşliğinde.
 
@@ -105,7 +105,7 @@ $$G(s) = \frac{\omega_n^2}{s^2 + 2\zeta\omega_n s + \omega_n^2}$$
 
 $$M_p = 100\,e^{-\pi\zeta/\sqrt{1-\zeta^2}}$$
 
-Aşama 2.1'de hız PI tasarlanırken $\zeta=1.0$ seçildi (aşımsız hedef), bu denklemle gerekçelendirildi.
+Aşama 2.1'de hız PI tasarlanırken kâğıt-üzeri (conservative) $\zeta=1.0$ seçilmişti (aşımsız hedef), bu denklemle gerekçelendirildi — ancak bu tasarım gerçek motorda bang-bang verdi ve firmware'de kullanılmadı; çalışan iç döngü analitik yeniden tasarlandı ($\zeta=0.58$, $\omega_n=33$ rad/s — bkz §2.6 ve [`asama_2_kontrol.md`](asama_2_kontrol.md) §11.11.3).
 
 > 📊 **Üreten betik:** `matlab/00_genel_teori/create_theory_diagrams.m`
 
@@ -177,4 +177,4 @@ Tasarım ve analiz MATLAB'da yapılır; her aşama belgesi kullandığı fonksiy
 
 ---
 
-> **Sonraki okuma:** Donanımın nasıl kurulduğu → [`asama_0_altyapi.md`](asama_0_altyapi.md). Motorun modeli nasıl çıkarıldı → [`asama_1_model.md`](asama_1_model.md). Kontrolcüler → [`asama_2_kontrol.md`](asama_2_kontrol.md).
+> **Sonraki okuma:** Donanımın nasıl kurulduğu → [`asama_0_altyapi.md`](asama_0_altyapi.md). Motorun modeli nasıl çıkarıldı → [`asama_1_model.md`](asama_1_model.md). Kontrolcüler → [`asama_2_kontrol.md`](asama_2_kontrol.md). Yüklü gimbal + stabilizasyon → [`asama_5_yuklu_gimbal.md`](asama_5_yuklu_gimbal.md).

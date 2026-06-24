@@ -1,0 +1,68 @@
+{
+  "test_id": "20260624_001415",
+  "title": "Aşama 3.3 eksen-1 cascade step",
+  "timestamp": "2026-06-24T00:14:23",
+  "commit": "b7eec66",
+  "status": "LIMIT_CYCLE",
+  "motor": 1,
+  "architecture": "cascade_pos_P_speed_PI",
+  "kp_pos": 2.0,
+  "inner": {
+    "Kp": 0.002,
+    "Ki": 0.1
+  },
+  "targets": [
+    30.0,
+    -30.0,
+    0.0
+  ],
+  "note": "serbest mil; instance-based 2-eksen firmware (g_axis)",
+  "results": [
+    {
+      "target": 30.0,
+      "n": 395,
+      "valid": true,
+      "theta_start": 0.0,
+      "theta_ss": 63.36,
+      "ss_err_deg": 33.36,
+      "ss_err_pct": 111.2,
+      "overshoot_deg": 52.66,
+      "overshoot_pct": 175.5,
+      "settling_s": null,
+      "theta_std_ss": 14.56,
+      "limit_cycle": true
+    },
+    {
+      "target": -30.0,
+      "n": 395,
+      "valid": true,
+      "theta_start": 79.6,
+      "theta_ss": -65.35,
+      "ss_err_deg": 35.35,
+      "ss_err_pct": 32.3,
+      "overshoot_deg": 40.3,
+      "overshoot_pct": 36.8,
+      "settling_s": null,
+      "theta_std_ss": 6.98,
+      "limit_cycle": true
+    },
+    {
+      "target": 0.0,
+      "n": 402,
+      "valid": true,
+      "theta_start": -67.2,
+      "theta_ss": 0.0,
+      "ss_err_deg": 0.0,
+      "ss_err_pct": 0.0,
+      "overshoot_deg": 3.09,
+      "overshoot_pct": 4.6,
+      "settling_s": 0.779,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false
+    }
+  ],
+  "artifacts": [
+    "data.csv.gz",
+    "cascade_plot.png"
+  ]
+}

@@ -31,7 +31,7 @@ Birinci derece motor transfer fonksiyonu (sürücü kazancı dahil edilmeden, sa
 
 $$G(s) = \frac{\Omega(s)}{V_{eff}(s)} = \frac{K}{\tau s + 1}$$
 
-Burada $K$ DC kazanç (girdiğimiz gerilime karşılık oturan hız), $\tau$ ise zaman sabitidir (sistemin ne kadar hızlı oturduğu). Tek kutbu $s=-1/\tau$ sol yarı düzlemdedir → açık çevrimde kararlı (§10.7, Şekil 10.6 kutup haritası).
+Burada $K$ DC kazanç (girdiğimiz gerilime karşılık oturan hız), $\tau$ ise zaman sabitidir (sistemin ne kadar hızlı oturduğu). Tek kutbu $s=-1/\tau$ sol yarı düzlemdedir → açık çevrimde kararlı (§10.5, Şekil 10.0b kutup haritası).
 
 ### 10.2. Neden — Niçin Önce Modelleme?
 
@@ -93,7 +93,7 @@ $$\text{NRMSE} = 100\times\frac{\sqrt{\frac{1}{N}\sum_k\big(\omega_{\text{meas}}
 
 | İş | Konum | Açıklama |
 |---|---|---|
-| Firmware T_US timestamp | `src/main.c:50-56, 158` | DWT.CYCCNT init + TX formatı |
+| Firmware T_US timestamp | `src/main.c:95-101` (DWT init), `458-466` (T_US TX formatı) | DWT.CYCCNT init + TX formatı |
 | Veri toplama scripti | `scripts/step_response.py` | 18 step, 250 ms heartbeat |
 | Ham veri | `artifacts/1/step_response/20260518_011926/raw/data.csv.gz` | 4497 örnek |
 | Veri yükleyici | `matlab/asama_1_model/load_step_data.m` | T_US wrap düzeltmeli |

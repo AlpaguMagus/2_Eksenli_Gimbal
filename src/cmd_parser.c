@@ -54,14 +54,15 @@ static void cmd_set_mode(Axis_t *ax, CmdMode_t new_mode)
     case CMD_MODE_STAB:
         /* → MIRROR/STAB (Aşama 2.7 / 3.3): POS cascade ile aynı reset; ek olarak main
          * loop geçiş edge'inde pitch0 (göreli referans) kaydeder. enc_reset →
-         * motor 0° = geçiş anı; θ_ref başlangıçta 0 → ani sıçrama yok.
+         * motor 0° = geçiş anı (off-hanging giriş-tutuşu buradan); θ_ref 0 → sıçrama yok.
          * Dış döngü hedefi (θ_ref) main loop'ta fused_pitch'ten slew'li üretilir
-         * (MIRROR: +göreli pitch / STAB: −göreli pitch — yalnız işaret farkı). */
+         * (MIRROR: +rel / STAB: stab_dir·rel — polarite montaj işaretinden, axis.h). */
         MotorCh_Stop(ax->motor);
         SpeedPI_Reset(&ax->spi);
         SpeedFilter_Reset(&ax->filt);
         PositionP_Reset(&ax->ppos);
         ax->enc_reset();
+        ax->mirror_prev = false;   /* MIRROR↔STAB geçişinde de edge'i ZORLA → pitch0/mirror_ref tazele (bayat ref → lurch yok) */
         SpeedPI_SetSlewRate(&ax->spi, 0.0f);
         PositionP_SetGain(&ax->ppos, 6.0f);   /* takip kazancı — ANALİTİK ([Franklin2010] §4.2,
                                                * design_mirror_tracking.m): tip-1 sistem, Kv=Kp_pos.
@@ -197,11 +198,28 @@ static void parse_line(const char *line)
         return;
     }
 
-    /* ── LFFDB / LFFG / LFFC / LFF (+2) — yüklü sürtünme+gravite feedforward (computed-torque) ──
-     * Cascade modları (POS/MIRROR/STAB). u_ff=kff_grav·sin(θ)+(|ω_ref|>db?kff_coul·sign:0) → duty.
-     * Ölçülen default: kff_grav=0.097, kff_coul=0.090, db=0.34 (design_loaded_feedforward.m).
-     *   LFF:1 → FF AÇIK (LFF:0 kapalı; GÜVENLİK default kapalı) · LFFG:<a> grav · LFFC:<u_c> Coulomb
-     *   LFFDB:<rad/s> Coulomb ölü-bantı (db=0 → saf sign-FF; LFFC:0 → grav-only).
+    /* ── STABDIR / STABDIR2 — STAB polaritesi ±1 (Aşama 5 yüklü; target = stab_dir·rel) ──
+     * Montaj kinematik işaretinden: stab_dir = −sign(k_kin). Yüksüz −1, yüklü LP +1
+     * (k_kin=−0.84 sistematik ID; ESKİ −1.04 base-drift'liydi, terk). ⚠ Yanlış işaret
+     * = pozitif feedback = RUNAWAY. STABDIR2:1 → +1, STABDIR2:-1 → −1; 0 → DEĞİŞTİRME
+     * (no-op — kazara "kapat" niyetli STABDIR2:0 yanlışlıkla +1 runaway-işaretine düşmesin). */
+    if ((arg = match_axis_cmd(line, "STABDIR", &ax)) != 0) {
+        float v = strtof(arg, NULL);
+        if (v != 0.0f) ax->stab_dir = (v > 0.0f) ? 1.0f : -1.0f;  /* 0 = no-op (güvenli) */
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
+    /* ── LFFDB / LFFG / LFFC / LFFCR / LFF (+2) — yüklü sürtünme+gravite feedforward (computed-torque) ──
+     * Cascade modları (POS/MIRROR/STAB). u_ff=kff_grav·sin(θ)+uc·tanh(ω_ref/db) → duty
+     * (uc=ω_ref≥0?kff_coul:kff_coul_rev — yön-asimetrik). YÜKLÜ LP default (sistematik
+     * duty-step ID, docs/asama_5 §12.5.1): kff_grav=0.23 (Y0 fit, R²=0.963),
+     * kff_coul=0.06 fwd / 0.03 rev (FIRST-CUT; eski tek-açı 0.09/0.05 graviteyi
+     * sürtünmeye karıştırıp FAZLA tahminliydi — §12.5.7 fit_report), db=0.34.
+     * (ESKİ 0.097/0.090 = yüksüz-placeholder, terk.)
+     *   LFF:1 → FF AÇIK (LFF:0 kapalı; GÜVENLİK default kapalı) · LFFG:<a> grav
+     *   LFFC:<u_c> Coulomb fwd · LFFCR:<u_c> Coulomb rev · LFFDB:<rad/s> ölü-bant ε
+     *   LFFDB:0 → saf sign-FF (LoadFF_Apply ε=0'ı guard'lar; ω_ref=0'da NaN değil) · LFFC:0 → grav-only.
      * NOT: LFF*'lar ':' şartı nedeniyle KFF/KP ile çakışmaz; uzun-kök önce sıralı. */
     if ((arg = match_axis_cmd(line, "LFFDB", &ax)) != 0) {
         ax->coul_db = strtof(arg, NULL);
@@ -210,6 +228,12 @@ static void parse_line(const char *line)
     }
     if ((arg = match_axis_cmd(line, "LFFG", &ax)) != 0) {
         ax->kff_grav = strtof(arg, NULL);
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+    /* LFFCR — Coulomb FF REVERSE (ω_ref<0); yön-asimetrik sürtünme (uzun-kök, LFFC'den önce) */
+    if ((arg = match_axis_cmd(line, "LFFCR", &ax)) != 0) {
+        ax->kff_coul_rev = strtof(arg, NULL);
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }
