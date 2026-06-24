@@ -1,0 +1,26 @@
+{
+  "test_id": "5.loaded-gyro-sign",
+  "timestamp": "20260624_052821",
+  "commit": "4f3ced8",
+  "results": [
+    {
+      "cfg": "k_ff=0 (baseline)",
+      "k_ff": 0.0,
+      "post_push_osc": 0,
+      "settling_s": 0.37
+    },
+    {
+      "cfg": "k_ff=+8",
+      "k_ff": 8.0,
+      "post_push_osc": 0,
+      "settling_s": 2.3
+    },
+    {
+      "cfg": "k_ff=-8",
+      "k_ff": -8.0,
+      "post_push_osc": 0,
+      "settling_s": 3.56
+    }
+  ],
+  "conclusion": "gyro damping isareti = POZITIF (k_ff>0). Tepe-normalize decay: k_ff=+8 itisi duze dondurur (%100->%5); k_ff=-8 anti-damping (re-ivergence %22->%62); k_ff=0 dusuk getiri (%85'te kalir). Otomatik 'k_ff=0 best' YANLIS (itis-boyutu confound). El-dogrulandi: raw/sign.csv normalize."
+}
