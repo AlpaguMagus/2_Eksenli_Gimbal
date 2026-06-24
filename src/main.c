@@ -35,11 +35,11 @@ I2C_HandleTypeDef  hi2c1;
 Axis_t g_axis[AXIS_COUNT] = {
     { .motor = &Motor1, .enc_count = Encoder_GetCount,
       .enc_reset = Encoder_Reset,  .enc_speed = Encoder_GetSpeed,
-      .mode = CMD_MODE_DUTY, .k_ff = 20.0f, .gyro_ff_en = false,  /* gyro-FF kazanç = HP redüktör 20:1 (ÖNCE 9.7=LP-placeholder DÜZELTİLDİ §12.14.7); K2 default KAPALI */
+      .mode = CMD_MODE_DUTY, .k_ff = 20.0f, .gyro_ff_en = false, .stab_dir = -1.0f,  /* gyro-FF kazanç = HP redüktör 20:1 (ÖNCE 9.7=LP-placeholder DÜZELTİLDİ §12.14.7); K2 default KAPALI. stab_dir −1 = yüksüz STAB (−rel); HP loaded char = Aşama-5 */
       .kff_grav = 0.0f, .kff_coul = 0.14f, .kff_coul_rev = 0.20f, .coul_db = 0.34f, .load_ff_en = false },  /* HP Coulomb FF: u_c rijit-ölçüldü 0.14 fwd / 0.20 rev (yön-asimetri §12.13.5); pürüzsüz tanh + yön-bağımlı (§12.13.4). gravite 0.0 (HP yüksüz/serbest-mil — gravite yok; HP loaded gravite char = Aşama-5; ÖNCE 0.097=LP-placeholder §12.14.7). default KAPALI */
     { .motor = &Motor2, .enc_count = Encoder2_GetCount,
       .enc_reset = Encoder2_Reset, .enc_speed = Encoder2_GetSpeed,
-      .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false,
+      .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false, .stab_dir = -1.0f,  /* stab_dir −1 = yüksüz default; YÜKLÜ LP STAB için STABDIR2:1 (k_kin=−1.04, Adım-1) gönderilir */
       .kff_grav = 0.097f, .kff_coul = 0.090f, .kff_coul_rev = 0.090f, .coul_db = 0.34f, .load_ff_en = false },  /* LP simetrik (u_c rev=fwd; LP re-do ayrı — eski testler hand-held olabilir, §12.13.4) */
 };
 
@@ -375,7 +375,9 @@ int main(void)
                  * (bu kurulumda IMU base'de + mil boş → yasa demosu; tam eylemsiz doğrulama
                  * IMU payload'a taşınınca Aşama 5). */
                 float rel    = fused_pitch - axp->mirror_pitch0;
-                float target = is_stab ? -rel : rel;
+                /* STAB: target = stab_dir·rel (polarite montaj kinematik işaretinden, axis.h;
+                 * yüksüz default −1 = eski −rel davranışı; yüklü LP STABDIR2:1). MIRROR: +rel. */
+                float target = is_stab ? (axp->stab_dir * rel) : rel;
                 if (target >  MIRROR_CLAMP_DEG) target =  MIRROR_CLAMP_DEG;
                 if (target < -MIRROR_CLAMP_DEG) target = -MIRROR_CLAMP_DEG;
                 /* Slew limit (90°/s): ani IMU sıçramasını yumuşat (dt — DWT µs) */

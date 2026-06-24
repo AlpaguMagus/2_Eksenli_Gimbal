@@ -197,6 +197,17 @@ static void parse_line(const char *line)
         return;
     }
 
+    /* ── STABDIR / STABDIR2 — STAB polaritesi ±1 (Aşama 5 yüklü; target = stab_dir·rel) ──
+     * Montaj kinematik işaretinden: stab_dir = −sign(k_kin). Yüksüz −1, yüklü LP +1
+     * (k_kin=−1.04, Adım-1 ID). ⚠ Yanlış işaret = pozitif feedback = RUNAWAY.
+     * STABDIR2:1 → +1, STABDIR2:-1 → −1 (işaret normalize edilir). */
+    if ((arg = match_axis_cmd(line, "STABDIR", &ax)) != 0) {
+        float v = strtof(arg, NULL);
+        ax->stab_dir = (v >= 0.0f) ? 1.0f : -1.0f;
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
+
     /* ── LFFDB / LFFG / LFFC / LFF (+2) — yüklü sürtünme+gravite feedforward (computed-torque) ──
      * Cascade modları (POS/MIRROR/STAB). u_ff=kff_grav·sin(θ)+(|ω_ref|>db?kff_coul·sign:0) → duty.
      * Ölçülen default: kff_grav=0.097, kff_coul=0.090, db=0.34 (design_loaded_feedforward.m).

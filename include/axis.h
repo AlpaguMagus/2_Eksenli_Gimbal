@@ -47,6 +47,13 @@ typedef struct {
     float mirror_ref;               /* slew sonrası uygulanan θ_ref (derece) */
     bool  mirror_prev;              /* MIRROR'a yeni giriş edge-detect */
 
+    /* STAB polaritesi (Aşama 5 yüklü) — target = stab_dir·rel (YALNIZ STAB).
+     * Montaj kinematik işaretinden: stab_dir = −sign(k_kin). Firmware-default −1
+     * (target=−rel; yüksüz K0 STAB böyle valide edildi). Yüklü LP k_kin=−1.04
+     * (Adım-1 ID, archive-loaded-adhoc tag) → stab_dir=+1; STABDIR:/2: ile ayar.
+     * ⚠ Yanlış işaret = pozitif feedback = RUNAWAY. */
+    float stab_dir;
+
     /* Gyro feedforward (K2, Aşama 3.8) — YALNIZ STAB; 2-DOF base-bozucu reddi.
      * ω_ff = k_ff·LPF(gy)·DEG2RAD motor-mili hız-setpoint'ine eklenir → yavaş dış
      * pozisyon-döngüsünü baypas eder (reddi-bant ~4×, matlab design_gyro_feedforward).
