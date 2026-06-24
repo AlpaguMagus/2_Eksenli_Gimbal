@@ -14,9 +14,9 @@ Cikti: artifacts/5/loaded_plant_id/<ts>/raw/plantid.csv -> MATLAB fit (loaded_pl
 import serial, time, re, os, csv, json, subprocess, datetime, atexit, sys, math
 PORT, BAUD = "/dev/ttyACM0", 115200
 LP_DPC = 360.0/466.0
-UMAX = 0.26                    # tepe duty (theta~50°, kopma 0.10 + a*sin50 0.16)
+UMAX = 0.18                    # KONSERVATIF tepe duty (dip ofseti + asimetrik s; theta~±38°, kablo-guvenli)
 RAMP_UP, RAMP_FULL, RAMP_DN = 9.0, 18.0, 9.0      # ucgen segment sureleri (s)
-FP_LIM, TH_LIM = 72.0, 80.0   # guvenlik (IMU pitch / encoder mil acisi)
+FP_LIM, TH_ABS = 72.0, 82.0   # guvenlik: FP dip-relatif (sarkac) | th_out MUTLAK (±90 kablo limiti)
 VAL_STEPS = [0.15, -0.11, 0.20, 0.0]; VAL_HOLD = 3.0
 
 def commit():
@@ -65,9 +65,9 @@ def log(phase, duty, t0):
     w.writerow([phase, f"{time.time()-t0:.3f}", f"{duty:.4f}", f"{fp:.2f}", f"{th:.2f}",
                 f"{fp-fp_dip:.2f}", f"{th-th_dip:.2f}"])
     rows.append((phase, time.time()-t0, duty, fp, th))
-    if (abs(fp - fp_dip) > FP_LIM or abs(th - th_dip) > TH_LIM) and not aborted:
-        send("DUTY2:0"); aborted = True   # dip-relatif (DUTY enc_reset yapmaz → mutlak ofsetli olabilir)
-        print(f"  !! GUVENLIK: |FP-dip|={abs(fp-fp_dip):.0f} |th-dip|={abs(th-th_dip):.0f} -> DUTY2:0 ABORT")
+    if (abs(fp - fp_dip) > FP_LIM or abs(th) > TH_ABS) and not aborted:
+        send("DUTY2:0"); aborted = True   # th MUTLAK = kablo ±90 koruması (dip ofsetli → relatif negatif tarafta yetersiz)
+        print(f"  !! GUVENLIK: |FP-dip|={abs(fp-fp_dip):.0f} |th_out|={abs(th):.0f} -> DUTY2:0 ABORT")
 
 # ---- B1: yavas ucgen duty-rampa (kvazi-statik histerezis) ----
 print(f">>> B1: ucgen duty-rampa 0->+{UMAX}->-{UMAX}->0 (~{RAMP_UP+RAMP_FULL+RAMP_DN:.0f} sn). Motor kendi gidecek, IZLE.")
