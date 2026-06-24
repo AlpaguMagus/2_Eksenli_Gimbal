@@ -197,4 +197,52 @@ yok / metrik confound'lu. B1/B2 (§12.5.5) ile doğrulanacak.
 ### Silinen ad-hoc scriptler (dosya-geçmişi — `archive-asama5-scattered-20260624`)
 `9741468` cleanup'ı dağınık MATLAB'ın yanı sıra şu confound'lu test scriptlerini de sildi:
 `loaded_stab_offhang.py` (be2adfe'nin `stab_theta0` doğrulama testi — kod kalmıştı, alan şimdi kaldırıldı),
-`loaded_gyro_sign` / `stab_ab` tipi A/B scriptleri. Güncel araçlar yukarıdaki 5 `loaded_*.py`.
+`loaded_gyro_sign` / `stab_ab` tipi A/B scriptleri. Güncel araçlar: `loaded_plant_id_capture.py`
+(Y0 — aşağıda) + `loaded_pendulum_id` / `loaded_pos_hold_check` / `loaded_sysid_systematic` /
+`loaded_fine_pos_test` / `loaded_stab_reject`.
+
+---
+
+## 12.5.7 — Y0: yüklü plant ID protokolü + estimator doğrulama (analitik-önce)
+
+**Ne:** §12.5.5 "Y0 rigorous ID"in **analitik-önce tasarımı** — ölçüm protokolü + parametre-ayrıştırma
+matematiği türetildi ve estimator **sentetik veride** (bilinen parametre → ölç-benzet → fit → geri-kurtar)
+doğrulandı. Bench verisine güvenmeden **ÖNCE** aracın çalıştığı kanıtlandı.
+
+**Nerede:** `matlab/asama_5_gimbal/loaded_plant_id_design.m` (tasarım+doğrulama, MATLAB) ·
+`scripts/loaded_plant_id_capture.py` (B1 üçgen-rampa + B3 validasyon bench-yakalama) ·
+`scripts/loaded_pendulum_id.py` (B2 free-decay).
+
+**Ayrıştırma matematiği (mevcut tek-açı ID'nin KAÇIRDIĞI — iki AYRI rejim):**
+- **B1 — gravite + statik sürtünme (sürülen, çok-açılı kopma).** Statik denge bandı
+  $u\in[a\sin\theta-s_-,\,a\sin\theta+s_+]$. Çok açıda yukarı/aşağı kopma ölç:
+  $\text{mid}(\theta)=a\sin\theta+\tfrac{s_+-s_-}{2}$, $\text{halfgap}=\tfrac{s_++s_-}{2}$. **Lineer fit**
+  $\text{mid}$ vs $\sin\theta$ → eğim $=a$, kesişim $=\tfrac{s_+-s_-}{2}$ → **$a,s_+,s_-$ temiz ayrılır.**
+  (Tek açıda ölçüm $a\sin\theta$ ile sürtünmeyi karıştırır.)
+- **B2 — dinamik $\omega_n,\zeta$ (pasif free-decay).** Yüklüde **sürülen-step OSİLE ETMEZ** (Coulomb
+  overshoot'u söndürür — §12.5.1 "overshoot YOK" bulgusu) → $\omega_n,\zeta$ ring-down'dan; $\omega_n$
+  frekanstan (sürtünme büyüklüğünden bağımsız).
+- **Validasyon:** tam nonlineer model held-out duty profilde simüle → **NRMSE** (Aşama-1 disiplini).
+
+**Sentetik doğrulama (estimator PASS — gerçek parametre → geri-kurtarma):**
+
+| Parametre | Gerçek (sentetik) | Tahmin | Hata |
+|---|---|---|---|
+| $a$ (gravite) | 0.210 | 0.208 | **−0.8%** (R²=0.9998) |
+| $s_+$ (statik sürt. +) | 0.100 | 0.100 | **−0.0%** |
+| $s_-$ (statik sürt. −) | 0.050 | 0.050 | **+0.9%** |
+| $\omega_n$ | 4.00 | 4.01 | **+0.3%** |
+| NRMSE (held-out) | — | 5.94% | **< %15** ✓ |
+
+![Y0 estimator sentetik doğrulama](../matlab/asama_5_gimbal/results/loaded_plant_id/estimator_synthetic_verify.png)
+
+> 📊 **Üreten betik:** `matlab/asama_5_gimbal/loaded_plant_id_design.m`
+
+> ⚠ **Açık konu — ζ Coulomb-bias'ı:** free-decay log-decrement'i Coulomb coast-sürtünmesiyle **şişer**
+> (sentetik ζ 0.12 → tahmin 0.278) → ζ "efektif üst-sınır", saf-viskoz değil. Kontrol için muhafazakâr
+> (daha çok sönüm = güvenli). Saf viskoz için: ring-down zarfı Coulomb'da LİNEER / viskozda ÜSTEL → ayrı fit
+> (gelecek rafine). $\omega_n$ (frekans) ve $a,s_\pm$ güvenilir.
+
+**Sonraki (bench-GATED, "hazırım"):** `loaded_plant_id_capture.py` (B1+B3) + `loaded_pendulum_id.py` (B2)
+koş → ham veri → aynı estimator ile **gerçek** $a,s_+,s_-,\omega_n,\zeta$ + `loaded_motor_params.json` +
+`loaded_fit_report.md` (Aşama-1 rigoru) → Y1 analitik kontrol.

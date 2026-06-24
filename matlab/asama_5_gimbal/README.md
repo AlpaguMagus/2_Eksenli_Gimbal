@@ -22,10 +22,25 @@ Kθ=0.0071 → **α≈0.993 denkliği** (firmware complementary α=0.98 ile mert
 > durum yapar → gyro'ya güvenip (smooth) bias'ı kaldırır. **LQG = bu Kalman ⊕ Aşama-4 LQR** (K7).
 > q_b (bias process noise) Allan alt-sınırından büyütüldü (gözlenen termal drift takibi — tasarım seçimi).
 
+### Y0 yüklü plant rigorous-ID (✅ tasarım + estimator-doğrulama — donanımsız)
+
+| Script | Amaç | Çıktı | Durum |
+|---|---|---|---|
+| `loaded_plant_id_design.m` | Yüklü nonlineer plant (yerçekimi-yüklü sarkaç + yön-asimetrik sürtünme) ID **protokolü + ayrıştırma matematiği**; gravite↔sürtünme↔atalet TEMİZ ayrıştırma; **sentetik veride estimator doğrulama** (bilinen param → fit → geri-kurtar) | `results/loaded_plant_id/` (PNG) | ✅ estimator PASS |
+
+**Yöntem (B Yolu — `docs/asama_5 §12.5.5/§12.5.7`):** plant $J\ddot\theta+b\dot\theta+\tau_c\,\mathrm{sign}(\dot\theta)+mgL\sin\theta=K_m u$ (θ = dip'ten).
+**B1** çok-açılı kopma → midpoint vs $\sin\theta$ LİNEER fit → **a (gravite), s+, s− (yön-asimetrik statik sürtünme) TEMİZ AYRILIR** (tek-açı ID karıştırıyordu). **B2** $\omega_n,\zeta$ pasif **free-decay** ring-down (yüklü sürülen-step Coulomb yüzünden osile ETMEZ). **Validasyon** NRMSE (held-out).
+
+**Sentetik doğrulama (estimator PASS, bench'ten ÖNCE):** a −0.8%, s+ %0, s− +0.9% (R²=0.9998), $\omega_n$ +0.3%, NRMSE 5.94% (<15%). ⚠ ζ Coulomb-coast ile şişer (log-decrement → efektif üst-sınır, saf-viskoz değil).
+
+> 📊 **Üreten betik:** `matlab/asama_5_gimbal/loaded_plant_id_design.m`
+> **Bench veri:** `scripts/loaded_plant_id_capture.py` (B1 üçgen-rampa + B3) + `scripts/loaded_pendulum_id.py` (B2 free-decay).
+
 ### Planlı (Aşama 5)
 
 | İş | Durum |
 |---|---|
+| **Y0 bench-capture → gerçek plant fit** (loaded_plant_id_design.m fit-modu, params.json/fit_report.md) | ⬜ (bench, "hazırım") |
 | LQG entegrasyon (Kalman ⊕ LQR), bozucu-reddi sim | ⬜ |
 | EKF (tam quaternion attitude, ±90° singülarite) | ⬜ ([Madgwick2010] alternatif) |
 | Gerçek gimbal: IMU payload'a → tam eylemsiz STAB + gyro-FF doğrulama | ⬜ (donanım) |
@@ -34,8 +49,12 @@ Kθ=0.0071 → **α≈0.993 denkliği** (firmware complementary α=0.98 ile mert
 ```
 matlab/asama_5_gimbal/
 ├── README.md
-├── design_kalman_attitude.m
-└── results/5_1_kalman/   ← attitude PNG + params JSON
+├── design_kalman_attitude.m        ← K7 attitude Kalman (sim)
+├── loaded_plant_id_design.m        ← Y0 yüklü plant ID protokol + estimator doğrulama
+└── results/
+    ├── 5_1_kalman/                  ← attitude PNG + params JSON
+    └── loaded_plant_id/             ← estimator sentetik-doğrulama PNG
 ```
 
-Kaynak: [Simon2006] Ch.5,7 (Kalman + bias-augmented), [Higgins1975] (complementary↔Kalman), [IEEE952] Allan.
+Kaynak: [Simon2006] Ch.5,7 (Kalman), [Higgins1975] (complementary↔Kalman), [IEEE952] Allan,
+[Ljung1999] §3-4-16 (ID+validasyon), [Olsson1998] §6 (sürtünme ayrıştırma), [Khalil2002] §1 (sarkaç).
