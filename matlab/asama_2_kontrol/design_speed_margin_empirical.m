@@ -5,7 +5,7 @@ function design_speed_margin_empirical()
 % KRİTİK BAĞLAM: Aşama 2.1 conservative kazancı (Kp=0.1163) plant'ı V_eff→ω
 % (K=53.89) varsayarak tasarlandı. Ama firmware PI çıkışı *duty*; gerçek plant
 % duty→ω = K·Vs/(τs+1), K·Vs=654.8 — yani 12.15× daha yüksek kazanç. Conservative
-% kazanç firmware plant'ında devasa kazanç → bang-bang (sim-to-real gap, §11.12).
+% kazanç firmware plant'ında devasa kazanç → bang-bang (sim-to-real gap, §11.11).
 % Bu betik İKİSİNİ DE gerçek firmware plant'ında (duty→ω) değerlendirir:
 %   - ampirik Kp=0.002, Ki=0.1  → çalışan sistemin marjı (2.T1 asıl hedefi)
 %   - conservative Kp=0.1163     → neden bang-bang verdiğinin marj-düzeyi kanıtı

@@ -1,0 +1,14 @@
+{
+  "test_id": "hp_tb6612_diag_20260617_172548",
+  "timestamp": "2026-06-17T17:25:48",
+  "commit": "72bcd43",
+  "status": "REVIEW",
+  "key_metrics": {
+    "hp_fwd_dEC": -1,
+    "hp_rev_dEC": -2408,
+    "lp_dEC2": -71040,
+    "lp_dt_s": 1.1839,
+    "lp_counts_per_s": -60005.1
+  },
+  "artifacts": ["raw/data.csv"]
+}

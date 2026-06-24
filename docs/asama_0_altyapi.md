@@ -25,7 +25,7 @@ Reset Handler (startup_stm32f411xe.s)
   ├─► HAL_Delay(2000)          → Host USB enumerasyonu bekleme
   ├─► MPU6050_Init()           → Uyku modundan çıkarma
   │
-  └─► while(1) — Ana Döngü (bloklamayan, ~7 ms / ~140 Hz)
+  └─► while(1) — Ana Döngü (32 ms → FIX 6 ms; 32ms=kopuk-IMU artefakt, GPIO_PULLUP §12.13; '7ms/140Hz' VARSAYIMDI)
         ├─► MPU6050_Read()     → 14 byte burst I2C okuma
         ├─► dt hesabı          → DWT cycle counter (µs, 96 MHz) [ARM_DWT]
         ├─► İvmeölçer açısı    → atan2 hesabı
@@ -93,6 +93,11 @@ MPU6050, tek bir çip üzerinde **3 eksen ivmeölçer** ve **3 eksen jiroskop** 
 | Hassasiyet | 16384 LSB/g | 131 LSB/(°/s) |
 | Çözünürlük | 16-bit (signed) | 16-bit (signed) |
 | Gürültü | ~400 µg/√Hz | ~0.005 °/s/√Hz |
+
+> **Gürültü kaynağı (datasheet TYP, @10 Hz):** ivmeölçer güç-spektral yoğunluğu 400 µg/√Hz
+> (AFS_SEL=0, ODR=1 kHz — `[MPU6050_DS]` sf 13); jiroskop hız-gürültü spektral yoğunluğu
+> 0.005 °/s/√Hz (FS_SEL=0 — `[MPU6050_DS]` sf 12). Allan varyans analizinde (§5) ölçülen
+> ARW bu spektral yoğunluklarla tutarlıdır.
 
 ### 3.2. Başlatma (Wake-up)
 
@@ -176,7 +181,7 @@ Açısal hız, sayısal entegrasyon ile açıya dönüştürülür:
 
 $$\theta(t) = \theta(t-1) + \omega\cdot\Delta t$$
 
-Burada $\Delta t$, iki ölçüm arası geçen süredir (firmwaredeki `dt`, `HAL_GetTick()` farkından hesaplanır). Bu entegrasyonun zayıflığı: $\omega$'daki küçük bias zamanla birikir → **drift** (§4.3, complementary filter bunu düzeltir).
+Burada $\Delta t$, iki ölçüm arası geçen süredir (firmwaredeki `dt`; Aşama 2.3'ten beri **DWT cycle counter** ile µs hassasiyette hesaplanır — `HAL_GetTick()` ms-jitter'i değil; §5.4). Bu entegrasyonun zayıflığı: $\omega$'daki küçük bias zamanla birikir → **drift** (§4.3, complementary filter bunu düzeltir).
 
 **Jiroskobun güçlü ve zayıf yönleri:**
 
@@ -311,11 +316,11 @@ fused_pitch = α * (fused_pitch - gy_dps * dt) + ...   // negatif: GY ekseni ter
 fused_roll  = α * (fused_roll  + gx_dps * dt) + ...   // pozitif: GX ekseni doğru
 ```
 
-İşaret seçimi (`+` veya `-`), sensörün breadboard üzerindeki montaj yönüne bağlıdır. MPU6050'nin sağ-el kuralı konvansiyonu ile fiziksel pitch/roll tanımınız farklı olabilir. **Bu, deneme-yanılma ile kalibre edilmesi gereken bir parametredir** — algorithmic bir hata değil, fiziksel referans çerçevesi eşleştirmesidir.
+İşaret seçimi (`+` veya `-`), sensörün breadboard üzerindeki montaj yönüne bağlıdır. MPU6050'nin sağ-el kuralı konvansiyonu ile fiziksel pitch/roll tanımınız farklı olabilir. **Bu, montaj yönüne göre bir kez gözlemle belirlenen bir işaret parametresidir** — algorithmic bir hata değil, fiziksel referans çerçevesi eşleştirmesidir. (Dikkat: bu, projenin "analitik-önce, deneme-yanılma yasak" disiplininin kapsamına girmez — o disiplin **tasarım kararlarını** kapsar [kazanç, eşik, kutup]; burada söz konusu olan ±1 işaretli bir koordinat-ekseni eşleştirmesidir, türetilecek bir tasarım değeri değil.)
 
 ### 5.4. Δt (Zaman Adımı) Hesabı
 
-Ana döngü **bloklamayan** (`HAL_Delay`'siz) bir süper-loop olarak çalışır; `dt`, milisaniye çözünürlüklü `HAL_GetTick()` yerine **DWT cycle counter** (96 MHz) ile mikrosaniye hassasiyetinde ölçülür — çünkü ms çözünürlük ~7 ms'lik döngüde ±%14 jitter veriyordu (`[ARM_DWT]`):
+Ana döngü, `dt`'yi milisaniye çözünürlüklü `HAL_GetTick()` yerine **DWT cycle counter** (96 MHz) ile mikrosaniye hassasiyetinde ölçer — ms çözünürlük jitter veriyordu (`[ARM_DWT]`). ⚠ **Döngü ÖLÇÜLEN ~32 ms** (profil: 26 ms IMU okuma + 5 ms `HAL_Delay`, asama_3 §12.13.2); döngünün "bloklamayan/`HAL_Delay`'siz ~7 ms süper-loop" tarifi **YANLIŞTI** (loop `HAL_Delay(5)` içerir; '7 ms' hiç ölçülmedi — git-arkeolojisi §12.13.1, **REGRESYON DEĞİL**). **(NOT: bu ~32 ms sonra KOPUK-IMU I2C-BUSY-timeout ARTEFAKTI çıktı → `GPIO_PULLUP` fix → loop 6 ms; §12.13.)** DWT'nin µs-hassasiyet gerekçesi her durumda geçerli:
 
 ```c
 uint32_t cyc = DWT->CYCCNT;
@@ -326,11 +331,11 @@ last_cyc = cyc;
 ```
 
 **Gerçek zamanlamalar (firmware, `src/main.c`):**
-- **Ana döngü ~7 ms (~140 Hz):** sensör oku → filtre → kontrol → her iterasyonda; DWT ile ölçülür, `dt` fallback 5 ms.
+- **Ana döngü — 32→6 ms (GPIO_PULLUP fix, `asama_3_mimo_model.md` §12.13):** önce ~32 ms ölçüldü ama bu **kopuk-IMU I2C BUSY-timeout artefaktıydı** (IMU bağlı değilken bus float → BUSY-flag stuck → her okuma 25 ms HAL-timeout), inherent loop DEĞİL. `I2C1_Init` `GPIO_PULLUP` → loop **32→6 ms** (RD 26000→94 µs). ⚠ "~7 ms (~140 Hz)" iddiası da **ÇÜRÜTÜLDÜ** (§12.13.1): hiç ölçülmedi, varsayımdı. De-rating $T_s/dt$ 0.16→0.83. Loop-bağımlı türev sayılar (18.7 rad/s, MA gecikmesi) loop periyoduyla kayar.
 - **Telemetri TX 40 Hz (25 ms throttle):** USB CDC bant genişliği için kısıtlanır (her döngüde değil).
 - **Ölçülen örnekleme:** Allan testi (§5.2) telemetri akışını **35.7 Hz** kaydetti — TX throttle'ın (40 Hz) pratik karşılığı (seri/parse kaybı ile). Aşama 1 step-response da ~36 Hz örnekledi.
 
-> **Not (tutarlılık):** Eski tasarımda ana döngü `HAL_Delay(50)` ile ~20 Hz hedefliyordu; mevcut firmware DWT-zamanlı bloklamayan döngüye geçti (jitter düzeltmesi, Aşama 2.3). Belgedeki "~20 Hz" eski değerler bu DWT zamanlamasıyla (kontrol ~140 Hz, telemetri ~40 Hz) güncellenmiştir.
+> **Not (tutarlılık):** Eski tasarımda ana döngü `HAL_Delay(50)` ile ~20 Hz hedefliyordu; mevcut firmware DWT-zamanlı döngüye geçti (jitter düzeltmesi, Aşama 2.3). ⚠ **Güncelleme (Aşama 3, §12.13):** kontrol döngüsü bench'te önce ~32 ms ölçüldü ama bu **kopuk-IMU I2C-BUSY-timeout artefaktıydı** → `GPIO_PULLUP` fix → **6 ms**. "~140 Hz" (Aşama 0-2) hiç ölçülmedi, bir varsayımdı (§12.13.1); ne 140 Hz ne 32 ms gerçek inherent loop'tu.
 
 ---
 
@@ -495,27 +500,23 @@ Her 30 saniyede bir `screenshots/` klasörüne PNG kaydedilir (maksimum 50 dosya
 
 ## 8. Motor Sürücü ve Encoder Entegrasyonu
 
-> **Aşama:** Plan onaylı, donanım entegrasyonu `feature/motor-encoder-tb6612` branch'inde.  
+> **Aşama:** ✅ Aşama 0'da entegre edildi ve doğrulandı (Test 2A.T1); tek-motor donanımı kapalı.
+> Güncel/tam pin haritası ve şema → [`00_donanim_semasi.md`](00_donanim_semasi.md).
 > **Hedef:** Tek motor + encoder + IMU stabilizasyon demosu.
 
-### 8.1. Pin Atama Tablosu (donanım entegrasyonu)
+### 8.1. Pin Seçimi — Aşama 0 gerekçeleri (tek motor)
 
-Tüm pin seçimleri STM32F411 datasheet alternate function tablosuyla (`[STM32F411_DS]`) doğrulanmıştır. WeAct BlackPill V2.0 schematic'i (`[WeAct_BP]`) incelenerek SPI flash footprint çakışmaları (PA4-PA7) elimine edilmiştir.
+> 📐 **Tam şema / pin haritası / kablolama → [`00_donanim_semasi.md`](00_donanim_semasi.md)** (tek
+> yaşayan donanım kaynağı). Bu bölüm yalnız **Aşama 0'da neden bu pinlerin seçildiğini** anlatır
+> (gerekçe fazda, veri donanım belgesinde — tek doğruluk kaynağı). Tüm seçimler `[STM32F411_DS]`
+> AF tablosu + `[WeAct_BP]` schematic (SPI-flash footprint PA4-PA7 elendi) ile doğrulanmıştır.
 
-| İşlev | Pin | Çevre birimi | Dayanak |
-|---|---|---|---|
-| I2C1 SCL (MPU6050) | PB6 | I2C1 | mevcut |
-| I2C1 SDA (MPU6050) | PB7 | I2C1 | mevcut |
-| USB DM | PA11 | OTG_FS | mevcut |
-| USB DP | PA12 | OTG_FS | mevcut |
-| LED | PC13 | GPIO | mevcut |
-| SWD IO / CLK | PA13 / PA14 | SWJ-DP | mevcut |
-| **Encoder A** | **PA15** | TIM2_CH1 | [RM0383] §23.3: SW-DP modunda JTDI serbest |
-| **Encoder B** | **PB3** | TIM2_CH2 | [RM0383] §23.3: SW-DP modunda JTDO serbest |
-| **Motor PWM** | **PB0** | TIM3_CH3 | SPI flash footprint dışı (PA6/PA7'den kaçınıldı) |
-| **AIN1 (yön)** | **PB12** | GPIO | TIM1_BKIN alternatifi kullanılmıyor |
-| **AIN2 (yön)** | **PB13** | GPIO | TIM1_CH1N alternatifi kullanılmıyor |
-| **STBY (enable)** | **PB14** | GPIO | TIM1_CH2N alternatifi kullanılmıyor |
+**Aşama 0'da entegre edilen (tek motor):** I2C1 MPU6050 → PB6/PB7; Encoder-1 → **PA15/PB3**
+(TIM2; `[RM0383]` §23.3 SW-DP modunda JTDI/JTDO serbest); Motor-1 PWM → **PB0** (TIM3_CH3,
+SPI-flash footprint dışı); AIN1/AIN2/STBY → **PB12/PB13/PB14** (GPIO; TIM1_BKIN/CH1N/CH2N
+alternatifleri kullanılmıyor); USB → PA11/PA12; SWD → PA13/PA14; LED → PC13.
+
+> ⚠ **Tarihsel not:** Bu Motor-1 pinleri (PB0 PWM / PB12 / PB13 / PB14) ve TB6612FNG sürücü **Aşama 0 tek-motor dönemine aittir**; Motor-1 Aşama 3'te HW-039/BTS7960'a **PB8/PB9/PB14** olarak taşındı — güncel pin/sürücü: [`00_donanim_semasi.md`](00_donanim_semasi.md) §2 + [`asama_3_mimo_model.md`](asama_3_mimo_model.md) §12.3/§12.10.
 
 **Kullanılmayan pinler (gerekçe):**
 - **PA0** — KEY butonuna bağlı (BlackPill schematic).
@@ -546,7 +547,7 @@ TB6612FNG datasheet [TB6612_DS] (sayfa 3, 5, 7) inceleme sonuçları:
 | Vcc (lojik) | 2.7 V – 5.5 V | 3.3 V (BlackPill 3V3) | sf 3 |
 | VM (motor) | 4.5 V – 13.5 V | 12 V (lab PSU) | sf 3 |
 | VIH (control) | min Vcc×0.7 = 2.31 V @ 3.3V | STM32 GPIO 3.3V | uyumlu, sf 5 |
-| Iout (sürekli) | 1.2 A | Stall 1.6 A (kısa süreli) | margin yeterli, lab PSU 1.5 A limit |
+| Iout (sürekli) | **1.0 A** (operating, VM≥5V; `[TB6612_DS]` sf 3 — *eski "1.2 A" §8.5'te düzeltildi*) | Stall ~1.1 A (`[Pololu_25D]` 12V; *eski "1.6 A" düzeltildi*) | kanonik değer → §8.5 + `00_donanim_semasi.md` §4 |
 | Iout (peak) | 3.2 A | — | 10 ms tek darbe limit |
 | **fPWM max** | **100 kHz** | **20 kHz** | sf 3 |
 | Vsat | 0.5 V @ 1 A | — | sistem tanımlamada hesaba katılır |
@@ -635,9 +636,9 @@ htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
 
   | # | Katman | Durum | Davranış |
   |---|---|---|---|
-  | 1 | **Stall detection** | ✅ Aktif (2A.7; **2026-05-31 count-tabanlı düzeltme**) | `Motor_StallCheck()` her döngü iterasyonunda (~140 Hz) çağrılır. Tetik: 200 ms pencerede \|Δ encoder count\| < 2 **VE** current_duty > 0.20. *(Eski tetik \|hız\| < 2 rad/s idi — anlık hız ~7 ms loop'ta 1 count = 18.7 rad/s kuantize → yavaş ama DÖNEN mil ω=0 okunup yanlış-pozitif veriyordu, 2.T6 mirror takibinde yaşandı. Count deltası 200 ms pencerede 0.67 rad/s çözünürlük verir — 28× ince; `[Pololu_25D]` 48 CPR.)* Rampa sırasında (current ≠ target) bypass. Tetiklenince `Motor_EmergencyStop()` (STBY=L + duty=0 + AIN=0). USB CDC'ye `STALL_DETECTED\r\n`. **Gerçek-motor doğrulama PASS (2026-06-07):** yanlış-pozitif 0 (101° span, ~80°/s dönüşler), 3/3 gerçek-kilit tespiti, oto-devam +1.0–1.25 s — `artifacts/2/stall_fix/20260607_174743/`. |
-  | 2 | **Duty hard cap** | ✅ Aktif (2A.4) | `MOTOR_MAX_DUTY = 0.50f` motor.c iç sabiti. `Motor_SetDuty` clamp. Stall'da pik akım ~0.8 A, TB6612 1.2 A continuous altında. |
-  | 3 | **Soft-start / rampa** | ✅ Aktif (2A.5) | Non-blocking: `Motor_SetDuty` target'ı set, `Motor_Tick()` her iterasyonda (~140 Hz) 0.01 step yumuşatır. \|Δduty\| ≤ 0.10 anında uygulanır. Bloklayan `Motor_SoftStart()` init için. |
+  | 1 | **Stall detection** | ✅ Aktif (2A.7; **2026-05-31 count-tabanlı düzeltme**) | `Motor_StallCheck()` her döngü iterasyonunda (loop ~6 ms / ~167 Hz; eski "~140 Hz" ölçülmemiş varsayımdı, §12.13) çağrılır. Tetik: 200 ms pencerede \|Δ encoder count\| < 2 **VE** current_duty > 0.20. *(Eski tetik \|hız\| < 2 rad/s idi — anlık hız ~7 ms-varsayımı loop'ta 1 count = 18.7 rad/s kuantize (gerçek 6 ms'te ~21.8, §12.13) → yavaş ama DÖNEN mil ω=0 okunup yanlış-pozitif veriyordu, 2.T6 mirror takibinde yaşandı. Count deltası 200 ms pencerede 0.67 rad/s çözünürlük verir — 28× ince; `[Pololu_25D]` 48 CPR.)* Rampa sırasında (current ≠ target) bypass. Tetiklenince `Motor_EmergencyStop()` (STBY=L + duty=0 + AIN=0). USB CDC'ye `STALL_DETECTED\r\n`. **Gerçek-motor doğrulama PASS (2026-06-07):** yanlış-pozitif 0 (101° span, ~80°/s dönüşler), 3/3 gerçek-kilit tespiti, oto-devam +1.0–1.25 s — `artifacts/2/stall_fix/20260607_174743/`. |
+  | 2 | **Duty hard cap** | ✅ Aktif (2A.4) | `MOTOR_MAX_DUTY = 0.50f` motor.c iç sabiti. `Motor_SetDuty` clamp. Stall'da pik akım ~0.8 A, TB6612 **1.0 A** continuous altında (kanonik → §8.5 + `00_donanim_semasi.md` §4; *eski "1.2 A" düzeltildi*). |
+  | 3 | **Soft-start / rampa** | ✅ Aktif (2A.5) | Non-blocking: `Motor_SetDuty` target'ı set, `Motor_Tick()` her iterasyonda (loop ~6 ms, §12.13) 0.01 step yumuşatır. \|Δduty\| ≤ 0.10 anında uygulanır. Bloklayan `Motor_SoftStart()` init için. |
   | 4 | **1 sn lockout** | ✅ Aktif (2A.8; **2026-05-31: 5 sn → 1 sn yumuşatma**) | Stall sonrası `Motor_SetDuty`/`Motor_Enable` sessizce reddedilir; otomatik açılır, `Motor_ResetLockout()` erken kapatma (USB komut 2B). *(Yumuşatma gerekçesi: amper bütçesi §8.5 — duty-cap %50'de stall ~0.55–0.8 A < TB6612 sürekli 1.0 A → kesme elektriksel değil dişli koruması; kısa lockout "elle müdahalede sistem çalışmayı bırakmasın" gereksinimini karşılar.)* |
   | 5 | **LED durum kodu** | ✅ Aktif (2A.9) | Normal 500 ms, stall 100 ms (5 Hz) toggle — kullanıcı görsel uyarı. |
   | 6 | **Watchdog timeout** | ⏳ 2B'de aktive | USB CDC'den 1 sn komut yoksa PWM=0. |
@@ -668,6 +669,8 @@ Aşama 2A donanım kurulumunun kalıcı referansı. Pin-pin bağlantı listesi v
 | AD0 | siyah | **GND** | I2C adresi 0x68 |
 
 **TB6612FNG ↔ BlackPill (PWM + GPIO):**
+
+> ⚠ **Tarihsel not:** Bu tablo Aşama 0 tek-motor dönemine aittir; Motor-1 Aşama 3'te HW-039/BTS7960 PB8/PB9/PB14'e taşındı — güncel: [`00_donanim_semasi.md`](00_donanim_semasi.md) §2 + [`asama_3_mimo_model.md`](asama_3_mimo_model.md) §12.3/§12.10.
 
 | TB6612 pin | Kablo | BlackPill pin | Açıklama |
 |---|---|---|---|

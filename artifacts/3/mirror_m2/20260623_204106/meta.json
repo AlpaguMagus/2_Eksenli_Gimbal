@@ -1,0 +1,24 @@
+{
+  "test_id": "20260623_204106",
+  "title": "Aşama 3.3 eksen-2 IMU mirror",
+  "timestamp": "2026-06-23T20:41:38",
+  "commit": "fca5ec1",
+  "status": "PASS",
+  "motor": 2,
+  "mode": "mirror",
+  "metrics": {
+    "status": "PASS",
+    "n": 3752,
+    "fp_range": 72.5,
+    "fp_min": -29.7,
+    "fp_max": 42.8,
+    "rms": 5.72,
+    "max_err": 16.4,
+    "moving_rms": 6.76
+  },
+  "note": "serbest mil; instance-based 2-eksen firmware (g_axis); mirror/STAB takip kazancı Kp_pos=6 — MODE girişinde firmware otomatik uygular (cmd_parser.c:66, Kv=6 analitik; KPP gönderilmez). POS step default 2.0 ayrı — docs §12.9.3",
+  "artifacts": [
+    "data.csv.gz",
+    "mirror_plot.png"
+  ]
+}

@@ -1,0 +1,117 @@
+{
+  "test_id": "3.HP-cascade-bench",
+  "timestamp": "2026-06-23T12:53:11",
+  "commit": "80f0606",
+  "status": "DROPOUT",
+  "kp_pos": 2.0,
+  "inner": {
+    "Kp": 0.00167,
+    "Ki": 0.0548
+  },
+  "plant": {
+    "Kg": 1043,
+    "tau_ms": 70,
+    "gear": 20,
+    "cpr": 960
+  },
+  "targets": [
+    30,
+    90,
+    45,
+    0,
+    -45,
+    0
+  ],
+  "results": [
+    {
+      "target": 30,
+      "n": 120,
+      "valid": true,
+      "theta_start": 0.0,
+      "theta_ss": 33.0,
+      "ss_err_deg": 3.0,
+      "ss_err_pct": 10.0,
+      "overshoot_deg": 3.75,
+      "overshoot_pct": 12.5,
+      "settling_s": null,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false,
+      "frozen": false
+    },
+    {
+      "target": 90,
+      "n": 119,
+      "valid": true,
+      "theta_start": 33.0,
+      "theta_ss": 99.0,
+      "ss_err_deg": 9.0,
+      "ss_err_pct": 15.8,
+      "overshoot_deg": 10.12,
+      "overshoot_pct": 17.8,
+      "settling_s": null,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false,
+      "frozen": true
+    },
+    {
+      "target": 45,
+      "n": 119,
+      "valid": true,
+      "theta_start": 99.0,
+      "theta_ss": 60.0,
+      "ss_err_deg": 15.0,
+      "ss_err_pct": 27.8,
+      "overshoot_deg": 0.0,
+      "overshoot_pct": 0.0,
+      "settling_s": null,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false,
+      "frozen": true
+    },
+    {
+      "target": 0,
+      "n": 119,
+      "valid": true,
+      "theta_start": 60.0,
+      "theta_ss": -13.03,
+      "ss_err_deg": 13.03,
+      "ss_err_pct": 21.7,
+      "overshoot_deg": 13.12,
+      "overshoot_pct": 21.9,
+      "settling_s": null,
+      "theta_std_ss": 0.31,
+      "limit_cycle": false,
+      "frozen": true
+    },
+    {
+      "target": -45,
+      "n": 119,
+      "valid": true,
+      "theta_start": -12.0,
+      "theta_ss": -37.77,
+      "ss_err_deg": 7.23,
+      "ss_err_pct": 21.9,
+      "overshoot_deg": 5.62,
+      "overshoot_pct": 17.0,
+      "settling_s": null,
+      "theta_std_ss": 17.66,
+      "limit_cycle": true,
+      "frozen": false
+    },
+    {
+      "target": 0,
+      "n": 119,
+      "valid": true,
+      "theta_start": -50.6,
+      "theta_ss": 15.38,
+      "ss_err_deg": 15.38,
+      "ss_err_pct": 30.4,
+      "overshoot_deg": 16.12,
+      "overshoot_pct": 31.9,
+      "settling_s": null,
+      "theta_std_ss": 0.0,
+      "limit_cycle": false,
+      "frozen": true
+    }
+  ]
+}

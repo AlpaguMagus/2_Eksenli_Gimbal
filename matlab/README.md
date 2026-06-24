@@ -13,20 +13,19 @@ Her aşamanın kendi alt klasörü vardır:
 ```
 matlab/
 ├── README.md                   ← Bu dosya
+├── 00_genel_teori/             ← Aşamalar-arası teori primer'i görselleri (00_genel_bakis)
+├── asama_0_altyapi/            ← Aşama 0: IMU Allan variance + complementary filter
 ├── asama_1_model/              ← Aşama 1: tek motor sistem tanımlama
-│   ├── README.md
-│   ├── load_step_data.m        ← artifacts/'tan CSV oku
-│   ├── fit_first_order.m       ← 1. derece + dead-band fit
-│   ├── validate_model.m        ← model vs ölçüm karşılaştırma
-│   └── results/                ← üretilen PNG, .json (git'te)
-├── asama_2_kontrol/            ← Aşama 2: tek motor kontrol (PI, cascade)
-├── asama_3_mimo_model/         ← Aşama 3: iki motor MIMO modelleme
-├── asama_4_mimo_kontrol/       ← Aşama 4: MIMO kontrolcü (decoupling, LQR)
-├── asama_5_gimbal/             ← Aşama 5: gerçek 3D-print gimbal entegrasyon
-└── ortak/                      ← Aşamalar arası ortak utility
-    ├── plot_utils.m
-    └── data_loader.m
+├── asama_2_kontrol/            ← Aşama 2: tek motor kontrol (PI, cascade, mirror)
+├── asama_3_mimo_model/         ← Aşama 3: iki motor MIMO modelleme (AKTİF; HP eksen-0 cascade karakterizasyon + yüklü-FF bench dahil) + K2/K3/K4 ön-tasarım
+├── asama_4_mimo_kontrol/       ← Aşama 4: MIMO kontrolcü — 📐 K6 LQR/LQI tek-eksen ÖN-TASARIM (donanımsız)
+└── asama_5_gimbal/             ← Aşama 5: gerçek gimbal — 📐 K7 Kalman attitude tek-eksen ÖN-TASARIM (donanımsız)
 ```
+
+> Her aşama klasörünün kendi `README.md`'si script listesini + `results/` yapısını tutar.
+> `asama_4`/`asama_5` **donanımsız ön-tasarımlarla oluşturuldu** (2026-06-13, merdiven K6/K7 — `docs §12.7`);
+> bench-validasyon + 2-eksen/payload işi ilgili aşama açılınca eklenir (eklemeli sözleşme). Ortak
+> utility (`ortak/`) henüz yok.
 
 ## Toolbox Bağımlılıkları
 
@@ -118,8 +117,12 @@ clear; close all; clc;
 Firmware'e değer transfer edilirken kaynak C yorumuna kopyalanır:
 
 ```c
-/* PI hız kazançları — matlab/asama_2_kontrol/cascade_pi.m §2'den:
- *   τ_cl = τ_ol / 5     [Franklin2010 §6.4]
- *   Kp = 0.42, Ki = 12.3
+/* Hız PI kazançları — matlab/asama_2_kontrol/design_speed_pi_corrected.m'den (analitik:
+ *   doyum-kısıtı Kp≈duty_max/ω_max + doğru-plant pole placement ω_n=2/τ, docs §11.11.3):
+ *   Kp = 0.002f, Ki = 0.1f, T_t = K_p/K_i = 0.02f
  * Anti-windup back-calculation [AstromMurray2008 §10.4] */
+.Kp = 0.002f, .Ki = 0.1f, .T_t = 0.02f;
 ```
+
+> Yukarısı **gerçek firmware bloğuyla hizalıdır** (`src/main.c` SPEED_PI_CFG); şablon değil,
+> çalışan değerlerdir.

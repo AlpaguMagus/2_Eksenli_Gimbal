@@ -1,0 +1,60 @@
+{
+  "test_id": "3.HP-cascade-bench",
+  "timestamp": "2026-06-23T16:07:13",
+  "commit": "00e8c57",
+  "status": "NO_REACH",
+  "kp_pos": 2.0,
+  "inner": {
+    "Kp": 0.00167,
+    "Ki": 0.0548
+  },
+  "plant": {
+    "Kg": 1043,
+    "tau_ms": 70,
+    "gear": 20,
+    "cpr": 960
+  },
+  "coulomb_ff": {
+    "enabled": false,
+    "kff_coul": 0.14,
+    "coul_db": 0.35
+  },
+  "targets": [
+    30.0,
+    0.0
+  ],
+  "results": [
+    {
+      "target": 30.0,
+      "n": 470,
+      "valid": true,
+      "theta_start": 0.0,
+      "theta_ss": 26.82,
+      "ss_err_deg": 3.18,
+      "ss_err_pct": 10.6,
+      "overshoot_deg": 0.0,
+      "overshoot_pct": 0.0,
+      "settling_s": null,
+      "theta_std_ss": 0.19,
+      "limit_cycle": false,
+      "stuck": false,
+      "dropout": false
+    },
+    {
+      "target": 0.0,
+      "n": 485,
+      "valid": true,
+      "theta_start": 26.6,
+      "theta_ss": 2.5,
+      "ss_err_deg": 2.5,
+      "ss_err_pct": 9.4,
+      "overshoot_deg": 0.0,
+      "overshoot_pct": 0.0,
+      "settling_s": null,
+      "theta_std_ss": 0.19,
+      "limit_cycle": false,
+      "stuck": false,
+      "dropout": false
+    }
+  ]
+}

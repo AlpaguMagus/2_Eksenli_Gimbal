@@ -1,0 +1,11 @@
+{
+  "K_first_tau_ms": 1048,
+  "K_first_Kg": -643.1,
+  "K_first_fit": 5.1,
+  "K_delay_tau_ms": 530.6,
+  "K_delay_ms": 576,
+  "K_delay_fit": 14.6,
+  "K_second_taudom_ms": 3.19398667E+7,
+  "K_second_fit": 51.6,
+  "K_V_first": -52.93
+}

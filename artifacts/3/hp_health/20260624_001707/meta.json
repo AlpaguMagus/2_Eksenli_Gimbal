@@ -1,0 +1,20 @@
+{
+  "test_id": "3.HP-health",
+  "timestamp": "20260624_001707",
+  "commit": "b7eec66",
+  "key_metrics": {
+    "omega": {
+      "0.2": 154.0,
+      "0.3": 279.0,
+      "0.4": 344.0
+    },
+    "baseline": {
+      "0.2": 171.0,
+      "0.3": 284.0,
+      "0.4": 389.0
+    },
+    "breakaway": 0.23,
+    "tau_ms": 42.3,
+    "verdict": "✅ DİNAMİK SAĞLIKLI — Kg/breakaway/τ baseline'da; koku muhtemelen geçici (motor sağlam)"
+  }
+}

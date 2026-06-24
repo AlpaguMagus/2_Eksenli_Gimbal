@@ -1,0 +1,37 @@
+{
+  "test_id": "3.K3-tau-duty",
+  "timestamp": "20260623_214740",
+  "commit": "c869206",
+  "status": "DONE",
+  "key_metrics": {
+    "points": [
+      {
+        "base": 0.15,
+        "bw": 71.4,
+        "nw": 170.6,
+        "tau_ms": 40.4
+      },
+      {
+        "base": 0.25,
+        "bw": 228.4,
+        "nw": 284.3,
+        "tau_ms": 47.8
+      },
+      {
+        "base": 0.35,
+        "bw": 335.1,
+        "nw": 389.2,
+        "tau_ms": 48.7
+      },
+      {
+        "base": 0.45,
+        "bw": 439.6,
+        "nw": 490.7,
+        "tau_ms": 40.0
+      }
+    ],
+    "tau_spread_ms": 8.7,
+    "tau_ratio": 1.22,
+    "verdict": "tek-kazanç YETERLİ (τ ~sabit) → K3 gereksiz"
+  }
+}

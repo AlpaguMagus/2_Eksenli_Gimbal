@@ -20,3 +20,6 @@ Yusufun anlatacakları/
 # Python
 __pycache__/
 *.pyc
+
+# yerel-only çalışma klasörü (dal dışı; repoya dahil edilmez)
+Tez/

@@ -1,0 +1,17 @@
+{
+  "test_id": "3.HP-track-sin",
+  "timestamp": "2026-06-23T13:21:16",
+  "commit": "767fb66",
+  "status": "STICK_SLIP",
+  "amp_deg": 40.0,
+  "freq_hz": 0.2,
+  "kpp": 2.0,
+  "ff": false,
+  "key_metrics": {
+    "rms_err_deg": 49.45,
+    "max_err_deg": 111.1,
+    "stuck_frac": 0.952,
+    "lurch_spikes": 14,
+    "peak_vel_degps": 50.3
+  }
+}

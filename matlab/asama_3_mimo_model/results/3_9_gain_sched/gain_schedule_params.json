@@ -1,0 +1,47 @@
+{
+  "Kg": 654.7635,
+  "wn_target": 33,
+  "Kp_fixed": 0.002,
+  "Ki_fixed_baseline": 0.1,
+  "tau_fit_a_ms": 20.486034435638143,
+  "tau_fit_b_ms_per_duty": 241.29816889860621,
+  "lut_duty": [
+    0.1,
+    0.15000000000000002,
+    0.2,
+    0.25,
+    0.30000000000000004,
+    0.35,
+    0.4,
+    0.45,
+    0.5
+  ],
+  "lut_tau_ms": [
+    44.6,
+    56.7,
+    68.7,
+    80.8,
+    92.9,
+    104.9,
+    117,
+    129.1,
+    141.1
+  ],
+  "lut_Ki": [
+    0.0742,
+    0.0943,
+    0.1143,
+    0.1344,
+    0.1545,
+    0.1745,
+    0.1946,
+    0.2147,
+    0.2347
+  ],
+  "note": "Kp sabit (doyum); Ki scheduled ωn=33 sabit. Tam ζ sabitliği Kp>0.002 ister (doyum tavizi).",
+  "kaynak": [
+    "Franklin2010 §6,§11.3",
+    "AstromMurray2008 §11",
+    "Asama-1 fit_report.md"
+  ]
+}

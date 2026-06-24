@@ -2,7 +2,7 @@
 
 > **Bu belge kimin için?** Projeye yeni başlayan biri (üniversite 1. sınıf seviyesi) için **ortak teori temeli**. Tüm aşama belgeleri (`asama_0`…`asama_5`) buradaki kavramlara atıf verir; burada bir kez anlatılan transfer fonksiyonu, blok diyagram, kararlılık, Bode gibi kavramlar aşama belgelerinde tekrar edilmez.
 >
-> **Ekosistem:** Sistem mimarisi + donanım → [`asama_0_altyapi.md`](asama_0_altyapi.md). Model → [`asama_1_model.md`](asama_1_model.md). Kontrol → [`asama_2_kontrol.md`](asama_2_kontrol.md). Proje vitrini + mimari şema → [`../README.md`](../README.md). Plan → [`../ROADMAP.md`](../ROADMAP.md). Kaynaklar → [`../KAYNAKCA.md`](../KAYNAKCA.md).
+> **Ekosistem:** Sistem mimarisi + donanım → [`asama_0_altyapi.md`](asama_0_altyapi.md). Model → [`asama_1_model.md`](asama_1_model.md). Kontrol → [`asama_2_kontrol.md`](asama_2_kontrol.md). MIMO model → [`asama_3_mimo_model.md`](asama_3_mimo_model.md). Proje vitrini + mimari şema → [`../README.md`](../README.md). Plan → [`../ROADMAP.md`](../ROADMAP.md). Kaynaklar → [`../KAYNAKCA.md`](../KAYNAKCA.md).
 
 ---
 
@@ -15,9 +15,9 @@ Bu proje **5 aşamalı kontrol mühendisliği yol haritası** üzerinden iki eks
 | **0 ✅** | Donanım entegrasyonu, koruma katmanları, USB CDC, IMU füzyonu | gömülü sistem, complementary filter | — | [`asama_0_altyapi.md`](asama_0_altyapi.md) |
 | **1 ✅** | Tek motor sistem tanımlama (K, τ, dead-band) | §2.1–§2.3 (transfer fn, 1. derece) | `matlab/asama_1_model/` | [`asama_1_model.md`](asama_1_model.md) |
 | **2 ✅** | Tek motor PI → cascade → IMU mirror | §2.2–§2.8 (kapalı çevrim, PID, Bode, tip sistem, Tustin) | `matlab/asama_2_kontrol/` | [`asama_2_kontrol.md`](asama_2_kontrol.md) |
-| **3 ⬜** | İki motor MIMO model + decoupling | MIMO, RGA, condition number | `matlab/asama_3_mimo_model/` | (gelecek) |
-| **4 ⬜** | İki motor LQR/LQG + Kalman | optimal kontrol, durum kestirimi | `matlab/asama_4_mimo_kontrol/` | (gelecek) |
-| **5 ⬜** | Gerçek 3D-print gimbal — stabilizasyon | gerçek-dünya entegrasyonu | `matlab/asama_5_gimbal/` | (gelecek) |
+| **3 🟡** | İki motor MIMO model + decoupling | MIMO, RGA, condition number | `matlab/asama_3_mimo_model/` | [`asama_3_mimo_model.md`](asama_3_mimo_model.md) |
+| **4 ⬜** | İki motor decoupling + LQR/LQI (optimal MIMO) | optimal kontrol (MIMO) | `matlab/asama_4_mimo_kontrol/` | (gelecek) |
+| **5 ⬜** | Gerçek 3D-print gimbal — stabilizasyon + LQG/Kalman durum kestirimi | gerçek-dünya entegrasyonu, durum kestirimi | `matlab/asama_5_gimbal/` | (gelecek) |
 
 **Felsefe:** Her teknik karar **kaynaklı** ([`../KAYNAKCA.md`](../KAYNAKCA.md) etiketli). Tasarım MATLAB'da yapılır, doğrulama gerçek donanımda; Embedded Coder kullanılmaz — MATLAB çıktıları (kazançlar, eşikler) firmware'e **manuel** transfer edilir, kaynak yorumu eşliğinde.
 
@@ -85,7 +85,7 @@ $$\omega(t) = K\,(1 - e^{-t/\tau})$$
 
 ![Birinci derece sistem step yanıtı](../matlab/00_genel_teori/results/02_first_order_step.png)
 
-**Şekil 2 —** Birinci derece step yanıtı. İki kritik kavram: **(1) Zaman sabiti** $\tau$ — çıkışın son değerinin %63.2'sine ulaştığı an; sistem ne kadar "hızlı" olduğunu söyler. **(2) Oturma** — pratikte $5\tau$ sonra çıkış son değerin ~%99'una varır. $K$ (DC kazanç) ise son değeri belirler ($t\to\infty$ iken $\omega \to K$). Bu iki parametre Aşama 1'de motordan ölçüldü: $K=53.89$ rad/s/V, $\tau=60.5$ ms.
+**Şekil 2b —** Birinci derece step yanıtı (yukarıdaki Şekil 2a açık-çevrim yapısının zaman-domeni cevabı). İki kritik kavram: **(1) Zaman sabiti** $\tau$ — çıkışın son değerinin %63.2'sine ulaştığı an; sistem ne kadar "hızlı" olduğunu söyler. **(2) Oturma** — pratikte $5\tau$ sonra çıkış son değerin ~%99'una varır. $K$ (DC kazanç) ise son değeri belirler ($t\to\infty$ iken $\omega \to K$). Bu iki parametre Aşama 1'de motordan ölçüldü: $K=53.89$ rad/s/V, $\tau=60.5$ ms.
 
 > 📊 **Üreten betik:** `matlab/00_genel_teori/create_theory_diagrams.m`
 
@@ -101,7 +101,7 @@ $$G(s) = \frac{\omega_n^2}{s^2 + 2\zeta\omega_n s + \omega_n^2}$$
 
 ![İkinci derece sistem — sönüm oranının etkisi](../matlab/00_genel_teori/results/03_second_order_zeta.png)
 
-**Şekil 3 —** Sönüm oranı $\zeta$'nın etkisi. $\zeta<1$ (az sönümlü): hızlı ama **aşım (overshoot)** var — çıkış hedefi aşıp salınır. $\zeta=1$ (kritik sönüm): aşımsız, en hızlı salınımsız yanıt. $\zeta=0.707$: kontrol mühendisliğinde "ideal" denge (hızlı + makul aşım). Yüzde aşım $M_p$ (overshoot, %) sadece $\zeta$'ya bağlıdır:
+**Şekil 3 —** Sönüm oranı $\zeta$'nın etkisi. $\zeta<1$ (az sönümlü): hızlı ama **aşım (overshoot)** var — çıkış hedefi aşıp salınır. $\zeta=1$ (kritik sönüm): aşımsız, en hızlı salınımsız yanıt. $\zeta=0.707$: kontrol mühendisliğinde "ideal" denge (hızlı + makul aşım — yüzde aşım yaklaşık %4.3, faz payı bu $\zeta$'da maksimuma yakın). Yüzde aşım $M_p$ (overshoot, %) sadece $\zeta$'ya bağlıdır (`[Franklin2010] §3.4` — ikinci-derece geçici yanıt):
 
 $$M_p = 100\,e^{-\pi\zeta/\sqrt{1-\zeta^2}}$$
 
@@ -129,9 +129,9 @@ Bir sistemin farklı frekanslardaki sinüs girişlere tepkisi **Bode diyagramın
 
 ![Bode diyagramı — kazanç ve faz payı](../matlab/00_genel_teori/results/04_bode_concept.png)
 
-**Şekil 5 —** Açık-çevrim Bode (3-kutuplu örnek sistem, faz $-180°$'yi geçer). **Kazanç geçiş frekansı** $\omega_c$ (kırmızı): kazancın 0 dB'yi kestiği nokta. **Faz payı (PM)** (kırmızı ok): $\omega_c$'de fazın $-180°$'ye uzaklığı — büyükse sönümlü/güvenli (genelde PM>45°; örnekte 47°). **Kazanç payı (GM)** (mor ok): faz $-180°$'yi geçtiği frekansta kazancın 0 dB'ye uzaklığı (örnekte 12 dB; genelde GM>6 dB istenir). Her ikisi de pozitifse sistem kararlıdır. Bu marjlar Aşama 2.1'de 5 kontrolcüyü karşılaştırırken sağlamlık kriteriydi (kâğıt-üzeri seçilen conservative'in PM'i 80.8° idi; ama bu tasarım gerçek motorda kullanılmadı — firmware'deki çalışan (analitik düzeltilmiş) döngünün PM'i ≈60°, bkz `asama_2_kontrol.md` §11.12.8).
+**Şekil 5 —** Açık-çevrim Bode (3-kutuplu örnek sistem, faz $-180°$'yi geçer). **Kazanç geçiş frekansı** $\omega_c$ (kırmızı): kazancın 0 dB'yi kestiği nokta. **Faz payı (PM)** (kırmızı ok): $\omega_c$'de fazın $-180°$'ye uzaklığı — büyükse sönümlü/güvenli (tipik tasarım hedefi PM≥45°; örnekte 47°). **Kazanç payı (GM)** (mor ok): faz $-180°$'yi geçtiği frekansta kazancın 0 dB'ye uzaklığı (örnekte 12 dB; tipik hedef GM≥6 dB). Bu marj eşikleri klasik tasarım pratiğidir (`[Franklin2010] §6.1`, `[Ogata2010] §7`). Her ikisi de pozitifse sistem kararlıdır. Bu marjlar Aşama 2.1'de 5 kontrolcüyü karşılaştırırken sağlamlık kriteriydi (kâğıt-üzeri seçilen conservative'in PM'i 80.8° idi; ama bu tasarım gerçek motorda kullanılmadı — firmware'deki çalışan (analitik düzeltilmiş) döngünün PM'i ≈60°, bkz `asama_2_kontrol.md` §11.11.8).
 
-**Bant genişliği (bandwidth):** $\omega_c$ kabaca kapalı-çevrimin **bant genişliğini** belirler — sistemin etkin biçimde *takip edebildiği* en yüksek frekans. Bunun üstündeki giriş bileşenleri zayıflatılır. Pratik kural: örnekleme frekansı bant genişliğinin çok üstünde seçilir (Aşama 2'de iç hız döngüsü $T_s=5$ ms = 200 Hz nominal — gerçek ana döngü ~140 Hz, yine kontrol bandının onlarca katı). Aşama 2'deki cascade'in $\sim0.3$ Hz bant genişliği bu kavramla yorumlanır.
+**Bant genişliği (bandwidth):** $\omega_c$ kabaca kapalı-çevrimin **bant genişliğini** belirler — sistemin etkin biçimde *takip edebildiği* en yüksek frekans. Bunun üstündeki giriş bileşenleri zayıflatılır. Pratik kural: örnekleme frekansı bant genişliğinin çok üstünde seçilir (Aşama 2'de iç hız döngüsü $T_s=5$ ms = 200 Hz nominal — gerçek ana döngü IMU `GPIO_PULLUP` fix sonrası ~6 ms/~167 Hz; eski "~140 Hz" ölçülmemiş varsayımdı, §12.13). Aşama 2'deki cascade'in $\sim0.3$ Hz bant genişliği bu kavramla yorumlanır.
 
 > 📊 **Üreten betik:** `matlab/00_genel_teori/create_theory_diagrams.m`
 
@@ -157,7 +157,7 @@ Yukarıdaki teori **sürekli zamandadır** ($s$-domeni). Ama firmware bir mikrod
 
 $$s \approx \frac{2}{T_s}\cdot\frac{z-1}{z+1}$$
 
-Burada $z$ ayrık-zaman operatörüdür: bir sinyali bir örnek **geciktirmek** $z^{-1}$ ile gösterilir. İdeal (tam) ilişki $z = e^{sT_s}$'dir; Tustin bunun cebirsel olarak kullanışlı, kararlılığı koruyan bir **yaklaşımıdır** (üstel ifadeyi rasyonele çevirir). Bu dönüşüm, sürekli PI integralini firmware'de toplanabilir bir fark denklemine çevirir (Aşama 2.2). Örnekleme frekansı yeterince yüksek olmalı — projede iç hız döngüsü $T_s=5$ ms (200 Hz nominal; gerçek döngü ~140 Hz), kontrol bant genişliğinin çok üstünde.
+Burada $z$ ayrık-zaman operatörüdür: bir sinyali bir örnek **geciktirmek** $z^{-1}$ ile gösterilir. İdeal (tam) ilişki $z = e^{sT_s}$'dir; Tustin bunun cebirsel olarak kullanışlı, kararlılığı koruyan bir **yaklaşımıdır** (üstel ifadeyi rasyonele çevirir). Bu dönüşüm, sürekli PI integralini firmware'de toplanabilir bir fark denklemine çevirir (Aşama 2.2). Örnekleme frekansı yeterince yüksek olmalı — projede iç hız döngüsü $T_s=5$ ms (200 Hz nominal; gerçek döngü ~6 ms/~167 Hz, IMU pull-up fix sonrası §12.13), kontrol bant genişliğinin çok üstünde.
 
 ---
 

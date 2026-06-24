@@ -1,0 +1,3 @@
+{"test_id":"3.2a-enc2","timestamp":"2026-06-09T04:05:58+03:00","commit":"f8cc6fd","status":"PASS",
+"key_metrics":{"ec2_range":4843,"ec1_crosstalk":0,"wrap_artifact":false},
+"note":"IMU I2C BUSY rebuild sonrası — ayrı konu","artifacts":["raw/enc2_hand_turn.log"]}

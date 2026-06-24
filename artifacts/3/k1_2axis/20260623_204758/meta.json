@@ -1,0 +1,62 @@
+{
+  "test_id": "3.K1-2axis",
+  "timestamp": "20260623_204758",
+  "commit": "f751feb",
+  "status": "PARTIAL",
+  "key_metrics": {
+    "hp_reached": "2/6",
+    "lp_reached": "6/6",
+    "hp_max_std": 8.34,
+    "lp_max_std": 0.69,
+    "segments": [
+      {
+        "hp_tgt": 30,
+        "lp_tgt": -30,
+        "hp_err": 5.82,
+        "lp_err": 0.23,
+        "hp_std": 0.19,
+        "lp_std": 0.39
+      },
+      {
+        "hp_tgt": 90,
+        "lp_tgt": 45,
+        "hp_err": 10.29,
+        "lp_err": 0.19,
+        "hp_std": 4.23,
+        "lp_std": 0.0
+      },
+      {
+        "hp_tgt": 0,
+        "lp_tgt": 0,
+        "hp_err": 0.0,
+        "lp_err": 0.26,
+        "hp_std": 0.0,
+        "lp_std": 0.36
+      },
+      {
+        "hp_tgt": -45,
+        "lp_tgt": 60,
+        "hp_err": 6.25,
+        "lp_err": 0.21,
+        "hp_std": 0.18,
+        "lp_std": 0.69
+      },
+      {
+        "hp_tgt": 60,
+        "lp_tgt": -60,
+        "hp_err": 5.7,
+        "lp_err": 0.6,
+        "hp_std": 8.34,
+        "lp_std": 0.24
+      },
+      {
+        "hp_tgt": 0,
+        "lp_tgt": 0,
+        "hp_err": 2.41,
+        "lp_err": 0.77,
+        "hp_std": 0.19,
+        "lp_std": 0.0
+      }
+    ]
+  }
+}

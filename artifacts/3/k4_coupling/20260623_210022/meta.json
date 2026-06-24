@@ -1,0 +1,18 @@
+{
+  "test_id": "3.K4-coupling",
+  "timestamp": "20260623_210022",
+  "commit": "af7048a",
+  "status": "PASS",
+  "key_metrics": {
+    "G21": {
+      "driven_hp_range": 1584.0,
+      "held_lp_dev": 0.77,
+      "coupling_pct": 0.05
+    },
+    "G12": {
+      "driven_lp_range": 1839.4,
+      "held_hp_dev": 0.0,
+      "coupling_pct": 0.0
+    }
+  }
+}

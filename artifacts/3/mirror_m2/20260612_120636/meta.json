@@ -1,0 +1,23 @@
+{
+  "test_id": "20260612_120636",
+  "title": "Aşama 3.3 eksen-2 IMU mirror",
+  "timestamp": "2026-06-12T12:07:08",
+  "commit": "94a36e3",
+  "status": "PASS",
+  "motor": 2,
+  "metrics": {
+    "status": "PASS",
+    "n": 1036,
+    "fp_range": 158.6,
+    "fp_min": -72.0,
+    "fp_max": 86.6,
+    "rms": 5.53,
+    "max_err": 15.7,
+    "moving_rms": 5.68
+  },
+  "note": "serbest mil; instance-based 2-eksen firmware (g_axis); Kp_pos=6 takip",
+  "artifacts": [
+    "data.csv",
+    "mirror_plot.png"
+  ]
+}

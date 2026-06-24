@@ -26,7 +26,7 @@ set(groot,'defaultFigureColor','w','defaultAxesColor','w', ...
 
 % ── İç döngü (çalışan kazanç) ─────────────────────────────────────
 K   = 53.89;   tau = 0.0605;       % Aşama 1 motor modeli
-Kp_i = 0.002;  Ki_i = 0.1;         % Aşama 2.3 çalışan hız PI (analitik, §11.12.3)
+Kp_i = 0.002;  Ki_i = 0.1;         % Aşama 2.3 çalışan hız PI (analitik, §11.11.3)
 
 G       = tf(K, [tau 1]);          % plant: V_eff → ω
 C_inner = pid(Kp_i, Ki_i);         % hız PI

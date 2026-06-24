@@ -1,0 +1,24 @@
+{
+  "test_id": "k2_OFF",
+  "title": "Aşama 3.3 eksen-2 IMU stab",
+  "timestamp": "2026-06-23T23:50:01",
+  "commit": "561da70",
+  "status": "PASS",
+  "motor": 2,
+  "mode": "stab",
+  "metrics": {
+    "status": "PASS",
+    "n": 3206,
+    "fp_range": 81.4,
+    "fp_min": -37.5,
+    "fp_max": 43.9,
+    "rms": 5.92,
+    "max_err": 16.6,
+    "moving_rms": 6.46
+  },
+  "note": "serbest mil; instance-based 2-eksen firmware (g_axis); mirror/STAB takip kazancı Kp_pos=6 — MODE girişinde firmware otomatik uygular (cmd_parser.c:66, Kv=6 analitik; KPP gönderilmez). POS step default 2.0 ayrı — docs §12.9.3",
+  "artifacts": [
+    "data.csv.gz",
+    "mirror_plot.png"
+  ]
+}

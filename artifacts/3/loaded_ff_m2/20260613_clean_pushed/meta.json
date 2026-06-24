@@ -1,0 +1,36 @@
+{
+  "test_id": "20260613_clean_pushed",
+  "timestamp": "2026-06-13T21:38:00.896974",
+  "commit": "5613586",
+  "status": "PASS",
+  "method": "MODE2:POS step \u00d7 FF structure, tail theta_std",
+  "setpoints_deg": [
+    20.0,
+    35.0
+  ],
+  "dwell_s": 6.0,
+  "theta_std": {
+    "off_20": 1.414,
+    "off_35": 0.0,
+    "grav_20": 1.343,
+    "grav_35": 0.0,
+    "db_20": 0.0,
+    "db_35": 0.0,
+    "sign_20": 0.24,
+    "sign_35": 0.225
+  },
+  "ss_err": {
+    "off_20": 0.269,
+    "off_35": 0.54,
+    "grav_20": 1.827,
+    "grav_35": 0.54,
+    "db_20": 0.69,
+    "db_35": 0.54,
+    "sign_20": 0.038,
+    "sign_35": 0.468
+  },
+  "artifacts": [
+    "raw/data.csv",
+    "loaded_ff_plot.png"
+  ]
+}

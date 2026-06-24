@@ -1,0 +1,95 @@
+{
+  "test_id": "3.HP-charac-Faz1",
+  "timestamp": "20260623_165658",
+  "commit": "9d3c62a",
+  "status": "PASS",
+  "duty_cap": 0.5,
+  "key_metrics": {
+    "Kg_duty_fwd": 7439.1,
+    "Kg_duty_rev": 6849.0,
+    "tau63_fwd_ms": 71.9,
+    "tau63_rev_ms": 71.5,
+    "V_dead_fwd": null,
+    "V_dead_rev": null,
+    "K_motor_radps_V": 81.1
+  },
+  "k_curve": {
+    "fwd": [
+      {
+        "duty": 0.1,
+        "omega_cnt": null,
+        "Kg_duty": null,
+        "freeze": false
+      },
+      {
+        "duty": 0.15,
+        "omega_cnt": null,
+        "Kg_duty": null,
+        "freeze": false
+      },
+      {
+        "duty": 0.2,
+        "omega_cnt": null,
+        "Kg_duty": null,
+        "freeze": false
+      },
+      {
+        "duty": 0.3,
+        "omega_cnt": 2196.0,
+        "Kg_duty": 7321.2,
+        "freeze": false
+      },
+      {
+        "duty": 0.4,
+        "omega_cnt": 2986.0,
+        "Kg_duty": 7465.6,
+        "freeze": false
+      },
+      {
+        "duty": 0.5,
+        "omega_cnt": 3765.0,
+        "Kg_duty": 7530.5,
+        "freeze": false
+      }
+    ],
+    "rev": [
+      {
+        "duty": -0.1,
+        "omega_cnt": null,
+        "Kg_duty": null,
+        "freeze": false
+      },
+      {
+        "duty": -0.15,
+        "omega_cnt": null,
+        "Kg_duty": null,
+        "freeze": false
+      },
+      {
+        "duty": -0.2,
+        "omega_cnt": null,
+        "Kg_duty": null,
+        "freeze": false
+      },
+      {
+        "duty": -0.3,
+        "omega_cnt": -1991.0,
+        "Kg_duty": 6635.6,
+        "freeze": false
+      },
+      {
+        "duty": -0.4,
+        "omega_cnt": -2770.0,
+        "Kg_duty": 6923.8,
+        "freeze": false
+      },
+      {
+        "duty": -0.5,
+        "omega_cnt": -3494.0,
+        "Kg_duty": 6987.6,
+        "freeze": false
+      }
+    ]
+  },
+  "flags": []
+}

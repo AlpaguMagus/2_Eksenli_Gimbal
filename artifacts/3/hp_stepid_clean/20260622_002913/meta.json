@@ -1,0 +1,13 @@
+{
+  "test_id": "3.HP-clean-DUTYR",
+  "timestamp": "20260622_002913",
+  "commit": "bb3ff52",
+  "status": "PASS",
+  "key_metrics": {
+    "base_omega_cps": 2733.0,
+    "new_omega_cps": 3751.0,
+    "tau63_ms": 95.9,
+    "base_duty": 0.4,
+    "step_duty": 0.5
+  }
+}

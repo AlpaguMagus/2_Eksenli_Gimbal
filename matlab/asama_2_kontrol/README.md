@@ -32,10 +32,10 @@ matlab/asama_2_kontrol/
 ├── create_speed_loop_simulink.m         ← hız döngüsü Simulink (programatik)
 ├── run_pipeline_2_1.m                   ← 2.1 orchestrator
 │   ── Aşama 2.3 analitik düzeltme + sim-to-real + margin ──
-├── design_speed_pi_corrected.m          ← ★ çalışan kazancın ANALİTİK temeli (doyum-kısıtı + doğru-plant, §11.12.3)
+├── design_speed_pi_corrected.m          ← ★ çalışan kazancın ANALİTİK temeli (doyum-kısıtı + doğru-plant, §11.11.3)
 ├── verify_realistic_sim.m               ← gerçekçi hız sim (analitik kazancı doğrular)
 ├── design_speed_margin_empirical.m      ← çalışan vs conservative kararlılık marjı (sim-to-real kök-neden)
-├── verify_speed_margin_discrete.m       ← ayrık-zaman (ZOH+MA) PM — C1/C2 kaveatı (§11.12.8)
+├── verify_speed_margin_discrete.m       ← ayrık-zaman (ZOH+MA) PM — C1/C2 kaveatı (§11.11.8)
 │   ── Aşama 2.T3 anti-windup ──
 ├── verify_antiwindup.m                  ← sim anti-windup recovery (back-calc 235/715 ms)
 ├── plot_antiwindup_real.m               ← gerçek-motor anti-windup görseli (CSV→PNG)
@@ -73,10 +73,10 @@ matlab/asama_2_kontrol/
 MATLAB çıktıları firmware'e **manuel** aktarılır (Embedded Coder yok). Gerçek değerler:
 
 ```c
-/* Hız PI — ANALİTİK (doyum-kısıtı + doğru-plant pole placement, docs §11.12.3).
+/* Hız PI — ANALİTİK (doyum-kısıtı + doğru-plant pole placement, docs §11.11.3).
  * Dürüst kronoloji: 2.3'te donanım taramasıyla bulundu, analitik çerçeve sonradan
  * formalize etti (deney üretmedi, doğruladı). 2.1 conservative Kp=0.1163 iki analitik
- * hatadan (yanlış plant 12× + doyum yok sayıldı) bang-bang verdi → sim-to-real gap, docs §11.12.
+ * hatadan (yanlış plant 12× + doyum yok sayıldı) bang-bang verdi → sim-to-real gap, docs §11.11.
  * Kaynak: [Franklin2010] §6.4 (pole placement), [AstromMurray2008] §10.2 (Tustin), §10.4 (back-calc) */
 .Kp = 0.002f,  .Ki = 0.1f,  .Ts = 0.005f,  .T_t = 0.02f;
 

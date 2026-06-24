@@ -1,0 +1,19 @@
+{
+  "k_ff": 9.7,
+  "gear_ratio": 9.7,
+  "bw_fb_hz": 0.887,
+  "bw_ff_hz": 3.975,
+  "bw_both_hz": 3.626,
+  "bw_gain_factor": 4.09,
+  "inner_wn_radps": 33,
+  "outer_dominant_radps": 6.2,
+  "syn_2hz_rms_fb_deg": 6.867,
+  "syn_2hz_rms_both_deg": 1.77,
+  "kaynak": [
+    "Franklin2010 §7.3",
+    "Hilkert2008"
+  ],
+  "real_rms_fb_deg": 7.016,
+  "real_rms_both_deg": 2.533,
+  "real_dominant_freq_hz": 0.033
+}
