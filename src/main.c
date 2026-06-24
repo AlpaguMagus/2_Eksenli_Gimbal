@@ -40,7 +40,7 @@ Axis_t g_axis[AXIS_COUNT] = {
     { .motor = &Motor2, .enc_count = Encoder2_GetCount,
       .enc_reset = Encoder2_Reset, .enc_speed = Encoder2_GetSpeed,
       .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false, .stab_dir = -1.0f,  /* stab_dir −1 = yüksüz default; YÜKLÜ LP STAB için STABDIR2:1 (k_kin=−0.84 sistematik ID; ESKİ −1.04 base-drift'liydi, terk) gönderilir */
-      .kff_grav = 0.21f, .kff_coul = 0.09f, .kff_coul_rev = 0.05f, .coul_db = 0.34f, .load_ff_en = false },  /* YÜKLÜ LP (Aşama-5 sistematik duty-step ID, docs/asama_5 §12.5.1): gravite a=0.21; YÖN-ASİMETRİK stiction → kff_coul 0.09 fwd / 0.05 rev (+ yön ölü-bölge ~0.10, − ~0.05). ÖNCE 0.097/0.090 sim. = yüksüz-placeholder. default KAPALI */
+      .kff_grav = 0.23f, .kff_coul = 0.06f, .kff_coul_rev = 0.03f, .coul_db = 0.34f, .load_ff_en = false },  /* YÜKLÜ LP (Aşama-5 Y0 RİGOROUS ID, docs §12.5.7): gravite a=0.23 SOLID (3-yol çapraz-doğrulama B1+B3, R²=0.96); YÖN-ASİMETRİK stiction kff_coul 0.06 fwd / 0.03 rev = FIRST-CUT (stick-slip geniş band → bench-refine; ESKİ tek-açı 0.09/0.05 graviteyi sürtünmeye karıştırıp FAZLA tahmin etmişti). cascade re-tune = açık iş (yüksüz gainler transfer olmuyor). default KAPALI */
 };
 
 /* --- Prototip --- */
