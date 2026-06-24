@@ -1,0 +1,13 @@
+{
+  "test_id": "5.loaded-pendulum-id",
+  "timestamp": "20260624_050206",
+  "commit": "31e02c8",
+  "key_metrics": {
+    "omega_d_radps": null,
+    "omega_n_radps": null,
+    "T_osc_s": null,
+    "zeta": null,
+    "n_peaks": 1,
+    "equilibrium_deg": 9.4
+  }
+}

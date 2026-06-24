@@ -9,7 +9,7 @@ Pasif test (motor calismaz) -> guvenli. Cikti: artifacts/5/loaded_pendulum_id/<t
 """
 import serial, time, re, os, csv, json, subprocess, datetime, math
 PORT, BAUD = "/dev/ttyACM0", 115200
-CAP = 14.0   # yakalama sn (sen 2-3 kez kaldir-birak)
+CAP = 16.0   # yakalama sn
 def commit():
     try: return subprocess.check_output(["git","rev-parse","--short","HEAD"]).decode().strip()
     except Exception: return "nogit"
