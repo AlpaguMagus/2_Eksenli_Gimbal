@@ -1,0 +1,22 @@
+{
+  "test_id": "3.LP-stepid",
+  "timestamp": "20260624_000753",
+  "commit": "b7eec66",
+  "status": "PASS",
+  "key_metrics": {
+    "FWD": {
+      "Kg": 580.434,
+      "duty0": 0.029,
+      "tau_ms": 41.633,
+      "base_w": 158.554,
+      "new_w": 273.166
+    },
+    "REV": {
+      "Kg": 546.009,
+      "duty0": 0.019,
+      "tau_ms": 41.931,
+      "base_w": 156.737,
+      "new_w": 269.626
+    }
+  }
+}

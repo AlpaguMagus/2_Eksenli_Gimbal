@@ -36,6 +36,17 @@ bir eylem istediğinde (motoru/tabanı eğ-sars, stand'ı kaldır, flash, motorl
 **5. Sokratik (global CLAUDE.md "Etkileşim ilkesi").** Trivial olmayan kararda alternatif + trade-off sun,
 kullanıcı bilinçli karar versin; sessiz uyumluluk değil.
 
+**6. 🔬 VERİ-ÖNCE (IMU+encoder) — test koşmadan ÖNCE eldeki veriyi DERİN analiz et.** Bu projede tek
+sensör **IMU (FP) + encoder (θ_out)**. Üst üste confound'lu test koşmak yerine eldeki ham veriyi sonuna
+kadar çöz: **kinematik harita** (FP↔θ_out fit → k_kin, asılı denge), **dinamik** (free-decay ω_n/ζ),
+**kontrolcü gerçekten kompanze ediyor mu** (FP saparken θ_out karşı-hareket etti mi — etmiyorsa kontrol
+YOK), **base-drift** (asılı denge testler arası kaydı mı → mutlak-açı testlerini bozar). Sonucu **ham
+FP+θ_out izinden** oku — türetilmiş metrik (p2p, "%X'e döndü") gravite/drift confound'unu maskeler.
+Yeni test ancak veri *"şu ayırt-edici ölçüm eksik"* dediğinde. **(Geçmiş ders 2026-06-24: saatlerce
+confound'lu STAB testi koşuldu, hepsi sonuçsuz; TEK veri-analizi k_kin=−0.84 (arşiv −1.04 yanlıştı),
+base-drift +14→+26°, ve STAB testlerinin "denge-only/bozucu-yok" olduğunu anında gösterdi — kullanıcı
+"IMU'ya bakmıyorsun" diye haklı eleştirdi.)** Bkz. `.../memory/veri-once-imu-encoder-analiz.md`.
+
 ## Dokümantasyon Ekosistemi (proje tablosu)
 
 Aşağıdaki belgeler **her zaman güncel tutulur** (genel ilke: global CLAUDE.md "Dokümantasyon genel ilkeleri"):

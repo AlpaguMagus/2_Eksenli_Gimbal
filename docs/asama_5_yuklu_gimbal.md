@@ -79,8 +79,8 @@ $$G(s) = \frac{FP}{u} = \frac{K_m/J}{s^2 + 2\zeta\omega_n s + \omega_n^2}, \quad
 **+ YÖN-ASİMETRİK Coulomb stiction (nonlineer):** kopma duty'si + yön ~0.09–0.10, − yön ~0.04–0.05.
 Sürtünme, sürülen rejimde rezonansı söndürür (osilasyon riski düşük).
 
-> 📊 **Üreten betik:** `matlab/asama_5_gimbal/loaded_controller_redesign.m` (plant + PD tasarım),
-> `scripts/loaded_sysid_systematic.py` (duty-step ID).
+> 📊 **Üreten betik:** `scripts/loaded_sysid_systematic.py` (duty-step ID). Plant türetimi
+> ($K_m/J = \omega_n^2/k_{ff,grav}$) bu belgede; sayısal değerler ham veriden.
 
 ---
 
@@ -89,17 +89,17 @@ Sürtünme, sürülen rejimde rezonansı söndürür (osilasyon riski düşük).
 **Sorun:** Şimdiye dek **yüksüz kazançlarla** (cascade $K_{p,pos}=2$, hız PI Aşama-2) yüklü gimbal
 kontrol edildi (ROADMAP KRİTİK NOT: yük altında yeniden ayar gerekir — yarım yapılmıştı).
 
-**Çözüm iki katman:**
+**BİRİNCİL çözüm — sürtünme/ölü-bölge telafisi (asimetrik Coulomb FF):**
+Firmware mevcut: `kff_coul` fwd / `kff_coul_rev` rev (`LFFC:` komutu). Veriden: **+ yön ~0.09, − yön ~0.05.**
+Bu, ölü-bölgeyi besleme-ileri ile geçer → kontrolcü ince ayar yapabilir hale gelir. + gravite FF
+($k_{ff,grav}=0.21$). Mevcut cascade ($K_{p,pos}=2$) + bu FF ile bench-test edilecek.
 
-1. **Sürtünme/ölü-bölge → asimetrik Coulomb FF** (firmware mevcut: `kff_coul` fwd / `kff_coul_rev` rev,
-   `LFFC:` komutu). Veriden: + yön ~0.09, − yön ~0.05. Bu, ölü-bölgeyi besleme-ileri ile geçer →
-   kontrolcü ince ayar yapabilir hale gelir. + gravite FF ($k_{ff,grav}=0.21$).
-2. **Sarkaç dinamiği → PD (poz + hız/gyro)** kapalı-döngü kutuplarını $\zeta{=}0.1\to0.7$'ye taşır.
-   Pole-placement ($\omega_{cl}=8$, $\zeta_{cl}=0.7$): $K_p=0.63$ duty/rad, $K_d=0.136$ duty/(rad/s).
-   Gyro ($k_{ff}$, işaret +) = $K_d$ terimi (hız sönümü).
-
-> ⚠ **Açık konu:** sürtünme baskın rejimde PD-rezonans damping'in pratik faydası, asimetrik Coulomb FF
-> ayarından SONRA bench'te ölçülecek (sürtünme zaten söndürüyorsa gyro-damping marjinal olabilir).
+> ⚠ **Rezonans-damping (gyro/notch) GEREKSİZ görünüyor — superseded.** Önceki dağınık iş, yüklü plant'ı
+> "hafif-sönümlü rezonans" sanıp gyro/notch damping tasarladı (`loaded_pendulum_damping_design.m`,
+> `loaded_controller_redesign.m` — **2026-06-24 SİLİNDİ**, yedek `archive-asama5-scattered`). Sistematik
+> ID gösterdi ki **sürülen rejimde sürtünme rezonansı zaten söndürüyor** (overshoot yok) → asıl sorun
+> rezonans DEĞİL, **stiction ölü-bölgesi**. Önceki "0.8 Hz osilasyon = rezonans" yorumu büyük ihtimal
+> **stick-slip limit-cycle** idi. Gyro-damping ancak Coulomb-FF sonrası bir ihtiyaç çıkarsa değerlendirilir.
 
 ---
 
