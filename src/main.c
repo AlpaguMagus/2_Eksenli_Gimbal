@@ -40,7 +40,7 @@ Axis_t g_axis[AXIS_COUNT] = {
     { .motor = &Motor2, .enc_count = Encoder2_GetCount,
       .enc_reset = Encoder2_Reset, .enc_speed = Encoder2_GetSpeed,
       .mode = CMD_MODE_DUTY, .k_ff = 9.7f, .gyro_ff_en = false, .stab_dir = -1.0f,  /* stab_dir −1 = yüksüz default; YÜKLÜ LP STAB için STABDIR2:1 (k_kin=−1.04, Adım-1) gönderilir */
-      .kff_grav = 0.097f, .kff_coul = 0.090f, .kff_coul_rev = 0.090f, .coul_db = 0.34f, .load_ff_en = false },  /* LP simetrik (u_c rev=fwd; LP re-do ayrı — eski testler hand-held olabilir, §12.13.4) */
+      .kff_grav = 0.21f, .kff_coul = 0.09f, .kff_coul_rev = 0.05f, .coul_db = 0.34f, .load_ff_en = false },  /* YÜKLÜ LP (Aşama-5 sistematik duty-step ID, docs/asama_5 §12.5.1): gravite a=0.21; YÖN-ASİMETRİK stiction → kff_coul 0.09 fwd / 0.05 rev (+ yön ölü-bölge ~0.10, − ~0.05). ÖNCE 0.097/0.090 sim. = yüksüz-placeholder. default KAPALI */
 };
 
 /* --- Prototip --- */

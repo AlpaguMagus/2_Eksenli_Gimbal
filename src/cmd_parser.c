@@ -224,6 +224,12 @@ static void parse_line(const char *line)
         last_cmd_tick_ms = HAL_GetTick();
         return;
     }
+    /* LFFCR — Coulomb FF REVERSE (ω_ref<0); yön-asimetrik sürtünme (uzun-kök, LFFC'den önce) */
+    if ((arg = match_axis_cmd(line, "LFFCR", &ax)) != 0) {
+        ax->kff_coul_rev = strtof(arg, NULL);
+        last_cmd_tick_ms = HAL_GetTick();
+        return;
+    }
     if ((arg = match_axis_cmd(line, "LFFC", &ax)) != 0) {
         ax->kff_coul = strtof(arg, NULL);
         last_cmd_tick_ms = HAL_GetTick();
