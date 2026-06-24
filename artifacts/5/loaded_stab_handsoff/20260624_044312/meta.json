@@ -1,0 +1,44 @@
+{
+  "test_id": "5.loaded-stab-handsoff",
+  "timestamp": "20260624_044312",
+  "commit": "f1ef9ad",
+  "stable_configs": [],
+  "results": [
+    {
+      "label": "P+1, gravite-FF, gyro YOK",
+      "sdir": 1,
+      "grav": true,
+      "kff": 0,
+      "std": 0.4,
+      "p2p": 1.6,
+      "drift": -0.3,
+      "freq": 0.5,
+      "umean": 0.046,
+      "stable": false
+    },
+    {
+      "label": "P-1, gravite-FF, gyro YOK",
+      "sdir": -1,
+      "grav": true,
+      "kff": 0,
+      "std": 0.4,
+      "p2p": 1.6,
+      "drift": 0.1,
+      "freq": 0.58,
+      "umean": 0.064,
+      "stable": false
+    },
+    {
+      "label": "P+1, gravite-FF YOK, gyro YOK",
+      "sdir": 1,
+      "grav": false,
+      "kff": 0,
+      "std": 0.3,
+      "p2p": 1.6,
+      "drift": 0.0,
+      "freq": 0.58,
+      "umean": 0.026,
+      "stable": false
+    }
+  ]
+}
