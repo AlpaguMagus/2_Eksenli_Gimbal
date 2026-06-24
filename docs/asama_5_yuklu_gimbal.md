@@ -120,10 +120,9 @@ Bu, ölü-bölgeyi besleme-ileri ile geçer → kontrolcü ince ayar yapabilir h
 
 ## 12.5.5 — Yol haritası: yüklü nonlineer plant (B Yolu — MODEL-ÖNCE)
 
-> ⚠ **Karar (2026-06-24, kullanıcı):** LP tilt ekseni **DENGESİZ / yerçekimi-yüklü KALACAK** — senaryo
-> gereği karşı-ağırlık YOK, motor sürekli $mgL\sin\theta$ ile güreşir. **Dengeleme reddedildi** (denge,
-> plantı 1.mertebe hız-plantına döndürüp Aşama-1 metodunu aynen geri getirirdi — ama senaryo dengesizi
-> gerektiriyor). Plant = 2.mertebe nonlineer açı-plantı:
+> ⚠ **Plant yapısı (2026-06-24, kullanıcı netleştirdi):** LP tilt ekseni **YERÇEKİMİ-YÜKLÜ** — eksende
+> $mgL\sin\theta$ torku etkir; **θ=0 referansı = gravitasyonel-nötr başlangıç** (asılı denge / dip).
+> "Denge" = başlangıç-pozisyonu nötrlüğü (karşı-ağırlık/CG-dengeleme DEĞİL). Plant = 2.mertebe nonlineer açı-plantı:
 >
 > $$J\ddot\theta + b\dot\theta + \tau_c\,\mathrm{sign}(\dot\theta) + mgL\sin\theta = K_m\,u$$
 >

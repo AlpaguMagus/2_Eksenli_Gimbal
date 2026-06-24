@@ -525,9 +525,9 @@ MIMO sistemde:
 > kontrol idi; gerçek iş **fixture OLMADAN bench-LP** üzerinde numerik plant-ID yaptı. Yüklü davranış doğru
 > rig'te (gerçek gimbal montajı) yeniden-doğrulanacak.
 >
-> **⚠ Karar (2026-06-24): LP tilt ekseni DENGESİZ/yerçekimi-yüklü KALACAK** (senaryo gereği, karşı-ağırlık
-> YOK) → **B Yolu**: nonlineer 2.mertebe plant ($mgL\sin\theta$ çekirdek terim). Dengeleme (1.mertebe
-> hız-plantına dönüş, Aşama-1 metodu) **reddedildi**. **Sıradaki = MODEL-ÖNCE (B1 FF-tuning ERTELENDİ):**
+> **⚠ Plant yapısı (2026-06-24): LP tilt ekseni YERÇEKİMİ-YÜKLÜ** ($mgL\sin\theta$ torku; θ=0 referansı =
+> gravitasyonel-nötr başlangıç/dip — "denge"den kasıt başlangıç-nötrlüğü, karşı-ağırlık DEĞİL) → **B Yolu**:
+> nonlineer 2.mertebe açı-plantı, gravite çekirdek terim. **Sıradaki = MODEL-ÖNCE (B1 FF-tuning ERTELENDİ):**
 > §12.5.1 sistematik ID iyi-başlangıç-ama-EKSİK (tek koşum, gravite↔sürtünme karışık, NRMSE/2.doğrulama
 > yok) → **Y0 rigorous yüklü ID** (gravite/sürtünme/atalet TEMİZ-ayrık + validasyon → `loaded_motor_params.json`
 > + `loaded_fit_report.md`, Aşama-1 rigoru) → **Y1** analitik kontrol (model'den türetilmiş) → **Y2**
