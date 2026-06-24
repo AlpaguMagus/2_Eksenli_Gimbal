@@ -2,9 +2,9 @@
 
 > **Amaç:** İkinci motor + encoder eklenip **çapraz kuplaj** karakterize edilir:
 > 2×2 transfer matrisi $G(s)$, RGA + condition number analizi (`[Skogestad2005] §3, §10`),
-> decoupling potansiyeli. Derin anlatı → `../../docs/asama_3_mimo_model.md` (iskelet).
+> decoupling potansiyeli. Derin anlatı → `../../docs/asama_3_mimo_model.md` (kapanış içeriği §12.x).
 >
-> **Güncel odak (2026-06-23):** HP eksen-0 cascade karakterize edildi ($\tau\approx70$ ms — eski "yavaş τ≈420 ms" hükmü §12.11'de firmware-ramp confound olarak çürütüldü), analitik tasarım flash'landı; bench **stick-slip** gösterdi → kök-neden **~32 ms IMU-bağlı loop** (eski Aşama 0-2 ~7 ms → ölçülen ~32 ms, docs §12.12.5). Kanıtlanmış fix loop-rate ayrımı (timer-ISR ~1 kHz) — **sonraki oturuma ertelendi** (mimari, onay ister). Detay: `../../docs/asama_3_mimo_model.md` §12.12.
+> **Aşama 3 ✅ YÜKSÜZ KAPALI (2026-06-24, tag asama-3-kapali):** HP eksen-0 cascade karakterize edildi ($\tau\approx70$ ms — eski "yavaş τ≈420 ms" hükmü §12.11'de firmware-ramp confound olarak çürütüldü), analitik tasarım flash'landı; bench **stick-slip** gösterdi. Sanılan ~32 ms loop kök-neden aslında **KOPUK-IMU I2C-BUSY artefaktıydı** → tek-satır GPIO_PULLUP, loop 32→6/8 ms (timer-ISR GEREKMEDİ, §12.13/§12.14). HP K0/K1 baseline KAPALI, residual limit-cycle → K7/Aşama-5. Detay: `../../docs/asama_3_mimo_model.md` §12.13/§12.14.
 
 ---
 
@@ -55,7 +55,8 @@
 
 | Script | Amaç | Çıktı | Durum |
 |---|---|---|---|
-| `hp_cascade_design.m` | HP cascade analitik tasarım: iç hız PI $K_p=0.00167$/$K_i=0.0548$ (PM 68°) + dış pozisyon P $K_{p,pos}=2.0$ (PM 88°), `pidtune` doğrulamalı; Faz-1 temiz karakterizasyon ($\tau\approx70$ ms) üzerine; bench stick-slip teşhisi | `results/hp_cascade/` (5 PNG) | 🧪 bench (stick-slip; loop-rate fix erteli — kök-neden ~32 ms loop, docs §12.12.5) |
+| `hp_cascade_design.m` | HP cascade analitik tasarım: iç hız PI $K_p=0.00167$/$K_i=0.0548$ (serbest-mil $K_g\approx1042$'den; firmware'de rijit $K_g=974$/$\tau=72$ ms ile $K_i=0.0570$'e re-derive edildi, docs §12.14.7 — bkz `hp_cascade_redesign.m`) (PM 68°) + dış pozisyon P $K_{p,pos}=2.0$ (PM 88°), `pidtune` doğrulamalı; Faz-1 temiz karakterizasyon ($\tau\approx70$ ms) üzerine; bench stick-slip teşhisi | `results/hp_cascade/` (5 PNG) | 🧪 bench (stick-slip; loop-rate fix erteli — kök-neden ~32 ms loop, docs §12.12.5) |
+| `hp_cascade_redesign.m` | Rijit-mount limit-cycle kök-neden + fix-option scan: **NONLİNEER** Karnopp stick-slip + kuantizasyon simülasyonu, yön-asimetrik feedforward; rijit re-char ($K_g$/$\tau$) üzerine fix-seçenek taraması (docs §12.13.4-5) | `results/hp_cascade_redesign/` (hp_redesign_optionB.png + hp_redesign_scan.png — 2 PNG) | 📐 sim |
 
 > **Sonuç:** Faz-1 forward-yön temiz (RPWM kablo-fix), K/τ simetrik, dead-band statik 0.21≫kinetik 0.14. Faz-2 analitik cascade `pidtune` doğrulandı. Faz-3 firmware per-eksen split flash OK. **Bench:** HP hedefi 3-15° aşıp yapışıyor; Coulomb FF çözmedi (bipolar sign-FF limit-cycle). Kök neden **~32 ms IMU-bağlı loop** (eski Aşama 0-2 ~7 ms → ölçülen ~32 ms, docs §12.12.5) — kazanç-uzayı tükendi; kanıtlanmış fix loop-rate ayrımı (sonraki oturum). Derin anlatı: [`../../docs/asama_3_mimo_model.md`](../../docs/asama_3_mimo_model.md) §12.12.
 
@@ -82,12 +83,14 @@ matlab/asama_3_mimo_model/
 ├── design_loaded_feedforward.m      (yüklü sürtünme/gravite FF — §12.8)
 ├── hp_identify.m                    (HP plant ID — 🟡 erken teşhis, superseded §12.12)
 ├── hp_cascade_design.m              (HP cascade analitik tasarım — §12.12)
+├── hp_cascade_redesign.m            (rijit re-char + limit-cycle kök-neden, nonlineer Karnopp sim — 📐 sim, §12.13.4-5)
 └── results/
     ├── 3_3_eksen_mimari/   ← eksen_mimari.png
     ├── 3_3_bench/          ← cascade/mirror/stab + model_validation PNG + JSON
     ├── 3_8_gyro_ff/ · 3_9_gain_sched/ · 3_5_rga/
     ├── 3_hp_id/           ← hp_step_id.png + hp_id.json (🟡 erken teşhis, superseded)
     ├── hp_cascade/        ← hp_inner_speed_pi · hp_inner_tau_robustness · hp_outer_position_p · hp_bench_noFF_stickslip · hp_bench_FF_limitcycle (5 PNG)
+    ├── hp_cascade_redesign/ ← hp_redesign_optionB.png + hp_redesign_scan.png (rijit re-char + fix-option scan — 📐 sim, §12.13.4-5)
     └── loaded_ff/         ← compare_50deg + thetastd_map PNG
 ```
 

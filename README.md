@@ -89,7 +89,7 @@ Her belge tek bir soruyu, tek bir okuyucu kitlesine cevaplar:
                     └───────────────────────┘
 ```
 
-**Bare-metal süper-loop:** RTOS yok. Ana döngü `sensör oku → filtrele → kontrol → USB I/O → tekrarla` (ölçülen ~6 ms / ~160 Hz; DWT — IMU `GPIO_PULLUP` fix sonrası, §12.13). ⚠ Önceki "~7 ms/140 Hz" değeri ölçülmemiş varsayımdı (çürütüldü, §12.13.1). Düşük gecikme, deterministik zamanlama. Mimari detay → [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md).
+**Bare-metal süper-loop:** RTOS yok. Ana döngü `sensör oku → filtrele → kontrol → USB I/O → tekrarla` (ölçülen ~8 ms / ~125 Hz; DWT — IMU okunurken gerçek değer; §12.13'teki ~6 ms IMU-NACK durumuydu, başarılı I2C okuma +2 ms ekler → 8 ms gerçek, §12.14.1). ⚠ Önceki "~7 ms/140 Hz" değeri ölçülmemiş varsayımdı (çürütüldü, §12.13.1). Düşük gecikme, deterministik zamanlama. Mimari detay → [`docs/00_genel_bakis.md`](docs/00_genel_bakis.md).
 
 ---
 

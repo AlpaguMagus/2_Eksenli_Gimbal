@@ -213,8 +213,10 @@ static void parse_line(const char *line)
     /* ── LFFDB / LFFG / LFFC / LFFCR / LFF (+2) — yüklü sürtünme+gravite feedforward (computed-torque) ──
      * Cascade modları (POS/MIRROR/STAB). u_ff=kff_grav·sin(θ)+uc·tanh(ω_ref/db) → duty
      * (uc=ω_ref≥0?kff_coul:kff_coul_rev — yön-asimetrik). YÜKLÜ LP default (sistematik
-     * duty-step ID, docs/asama_5 §12.5.1): kff_grav=0.21, kff_coul=0.09 fwd / 0.05 rev,
-     * db=0.34. (ESKİ 0.097/0.090 = yüksüz-placeholder, terk.)
+     * duty-step ID, docs/asama_5 §12.5.1): kff_grav=0.23 (Y0 fit, R²=0.963),
+     * kff_coul=0.06 fwd / 0.03 rev (FIRST-CUT; eski tek-açı 0.09/0.05 graviteyi
+     * sürtünmeye karıştırıp FAZLA tahminliydi — §12.5.7 fit_report), db=0.34.
+     * (ESKİ 0.097/0.090 = yüksüz-placeholder, terk.)
      *   LFF:1 → FF AÇIK (LFF:0 kapalı; GÜVENLİK default kapalı) · LFFG:<a> grav
      *   LFFC:<u_c> Coulomb fwd · LFFCR:<u_c> Coulomb rev · LFFDB:<rad/s> ölü-bant ε
      *   LFFDB:0 → saf sign-FF (LoadFF_Apply ε=0'ı guard'lar; ω_ref=0'da NaN değil) · LFFC:0 → grav-only.

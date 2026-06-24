@@ -4,7 +4,7 @@
 > Her giriş **etiketli** (`[Yazar+Yıl]`), commit mesajlarında, kod yorumlarında
 > ve ROADMAP'te bu etiketle referans verilir.
 >
-> **Son güncelleme:** 2026-06-23 (HP dropout-fix bench-doğrulandı + Sagemcom/BTS7960 kök-neden + HP cascade kaynakları)
+> **Son güncelleme:** 2026-06-24 (Aşama-5 yüklü plant ID — atıf+yol düzeltmeleri)
 >
 > Bu dosya canlıdır — her yeni teknik karar için ek girişler eklenir.
 > BibTeX/LaTeX yok (gerekirse sonra dönüşüm).
@@ -78,9 +78,15 @@
 
 ## Gimbal / Kamera Stabilizasyonu
 
-- *(Aşama 3-5'te eklenecek — gimbal-spesifik akademik makaleler)*
+- **[Hilkert2008]** J.M. Hilkert, *"Inertially Stabilized Platform Technology — Concepts and Principles"*, IEEE Control Systems Magazine, vol. 28, no. 1, pp. 26-46, Feb. 2008. DOI: <https://doi.org/10.1109/MCS.2007.910256>
+  - Eylemsel olarak stabilize platform (ISP) kavramları ve prensipleri; gyro tabanlı taban-hareket reddi
+  - §12.7.1 K2 gyro-FF dayanağı (taban açısal hızını ileri-besleme ile kompanze etme)
 
 ## Sensör Füzyonu
+
+- **[Higgins1975]** W.T. Higgins, *"A Comparison of Complementary and Kalman Filtering"*, IEEE Trans. Aerospace and Electronic Systems, vol. AES-11, no. 3, pp. 321-325, 1975. DOI: <https://doi.org/10.1109/TAES.1975.308081>
+  - Complementary filter ile Kalman filtresinin eşdeğerliği/karşılaştırması — sabit-katsayılı complementary filter'ın özel-durum Kalman olarak yorumu
+  - §12.7.5 K7 dayanağı (complementary↔Kalman geçişi — mevcut Aşama 0 lineer complementary filter'ı Kalman çerçevesine bağlar)
 
 - **[Mahony2008]** R. Mahony, T. Hamel, J.-M. Pflimlin, *"Nonlinear Complementary Filters on the Special Orthogonal Group"*, IEEE Trans. Automatic Control, vol. 53, no. 5, pp. 1203-1217, 2008. DOI: <https://doi.org/10.1109/TAC.2008.923738>
   - Madgwick ve quaternion füzyon için temel
@@ -132,7 +138,7 @@
 - **[Pololu_25D]** Pololu Corp., *"25D mm Metal Gearmotors with 48 CPR Encoders"*.
   - <https://www.pololu.com/category/116>
   - Robotsepeti Türkçe sayfa: <https://www.robotsepeti.com/971-metal-gearmotor-25dx63l-mm-lp-12v-with-48-cpr-encoder>
-  - Yerel: `datasheets/Pololu 9.7:1 Metal Redüktörlü Motor 25Dx63L mm LP 12V, 48 CPR Enkoderli/Datasheet/Page 1.png` + `Page 2.png`
+  - Yerel: `datasheets/Pololu 9.7_1 Metal Redüktörlü Motor 25Dx63L mm LP 12V, 48 CPR Enkoderli/Datasheet/Page 1.png` + `Page 2.png` (klasör adı NTFS uyumu için `9.7_1`; ürün adı 9.7:1)
   - **LP 12V 9.68:1 elektriksel değerler (Page 1, amper bütçesi dayanağı):** stall 1100 mA @12V / 550 mA @6V; yüksüz 100 mA @12V; 560 rpm @12V; redüktör 9.68:1 (ürün adı 9.7:1 yuvarlama)
   - **48 CPR konvansiyon kararı:** Robotsepeti sayfası — *"Kuadratür enkoder her iki kanalda kenarlar için sayım yapması durumunda 48 CPR'lık bir çözünürlük sağlar"* → 48 zaten 4× decoded sayım (Aşama 0 Test 2A.T1'de doğrulandı)
 

@@ -100,7 +100,7 @@ Böylece istenen kapalı-çevrim davranışını ($\zeta, \omega_n$) seçip kaza
 | **Sonuçlar** | `matlab/asama_2_kontrol/results/2_1_speed_pi/` |
 | Firmware hız PI | `src/speed_pi.c`, `include/speed_pi.h` |
 | Firmware komut parser | `src/cmd_parser.c` (MODE:DUTY, MODE:SP_W) |
-| Firmware integrasyon | `src/main.c:80-95` (SpeedPI_Init), `src/main.c:130-145` (SP_W loop) |
+| Firmware integrasyon | `src/main.c` — `SpeedPI_Init` init döngüsünde (~211), `CMD_MODE_SP_W` döngü bloğunda hız PI (~377) (Aşama 3 iki-eksen refactor'ünden sonraki satırlar; eski 80-95/130-145 atfı geçersiz) |
 
 ### 11.5. Ne Sonuç Çıktı — Aşama 2.1 Sayısal
 
@@ -173,11 +173,13 @@ Saturation yokken $e_{aw}=0$ → düzeltme sıfır. Saturation girince integrato
 
 #### Mode-tabanlı komut seti (Aşama 2.2.C — kullanıcı onaylı A: açık MODE)
 
+> **Not:** Aşama 3 iki-eksen refactor'ünde `Motor_*` → `MotorCh_*` (kanal-bazlı, instance) yeniden adlandırıldı; aşağıdaki Aşama-2 dönemi adları tarihseldir.
+
 | Komut | Mod | Davranış |
 |---|---|---|
-| `MODE:DUTY\n` | — | DUTY moda geç (varsayılan); Motor_Stop + SpeedPI_Reset |
-| `MODE:SP_W\n` | — | SP_W moda geç; Motor_Stop + SpeedPI_Reset |
-| `DUTY:<float>\n` | DUTY | Motor_SetDir + Motor_SetDuty |
+| `MODE:DUTY\n` | — | DUTY moda geç (varsayılan); MotorCh_Stop + SpeedPI_Reset |
+| `MODE:SP_W\n` | — | SP_W moda geç; MotorCh_Stop + SpeedPI_Reset |
+| `DUTY:<float>\n` | DUTY | MotorCh_SetDir + MotorCh_SetDuty |
 | `SP_W:<float>\n` | SP_W | SpeedPI_SetSetpoint |
 | `STOP / RESET / PING` | her ikisi | Mod-bağımsız |
 
@@ -287,7 +289,7 @@ Aşama 2.1'in conservative kazancı (Kp=0.1163, Ki=4.0447) gerçek motorda **ban
 | Encoder moving-average filtre (WINDOW=5) | Çözmedi |
 | 5 kazanç seti (aggressive→saf I) | Hepsi bang-bang |
 | Setpoint slew rate (0/100/200/400) | Çözmedi → ani-step değil |
-| Motor_Tick bypass (doğrudan PWM) | Çözmedi → firmware akışı değil |
+| MotorCh_Tick bypass (doğrudan PWM) | Çözmedi → firmware akışı değil |
 
 **Setpoint taraması — kök neden:**
 
@@ -342,15 +344,17 @@ Bang-bang yok, setpoint takibi başarılı.
 
 #### 11.11.5. Firmware değişiklikleri
 
+> **Not:** Aşama 3 iki-eksen refactor'ünde `Motor_*` → `MotorCh_*` (kanal-bazlı, instance) yeniden adlandırıldı; aşağıdaki Aşama-2 dönemi adları tarihseldir.
+
 | Dosya | Değişiklik |
 |---|---|
 | `main.c` | Default kazanç Kp=0.002, Ki=0.1 (conservative'den ~58× düşük) |
 | `main.c` | dt→DWT mikrosaniye (`HAL_GetTick` ms jitter giderildi) |
-| `main.c` | SP_W modunda `Motor_Tick` bypass, `Motor_SetDutySigned` doğrudan PWM |
-| `encoder.c` | `Encoder_FilterSpeed` moving-average (WINDOW=5) |
+| `main.c` | SP_W modunda `MotorCh_Tick` bypass, `MotorCh_SetDutySigned` doğrudan PWM |
+| `encoder.c` | `SpeedFilter_Step` moving-average (WINDOW=5) |
 | `speed_pi.c` | `SpeedPI_SetGains` + setpoint slew rate |
 | `cmd_parser.c` | `KP:` / `KI:` / `SLEW:` runtime tuning komutları (flash'sız) |
-| `motor.c` | `Motor_SetDutySigned` (rampasız kapalı döngü PWM) |
+| `motor.c` | `MotorCh_SetDutySigned` (rampasız kapalı döngü PWM) |
 
 #### 11.11.6. Akademik değer
 
@@ -412,7 +416,7 @@ Sim-to-real gap'i **kararlılık marjı** düzeyinde de inceleyelim — hem çal
 
 > **⚠ Ayrık-zaman / gecikme kaveatı (dürüstlük notu).** Yukarıdaki PM = 60.2° **sürekli-zaman** PI+plant ($L_e = C_e G_d$) üzerinde hesaplanır; firmware'in gerçek döngüsünde olan iki etki bu marja **girmez** ve analizi gerçeğe göre **iyimser** gösterir:
 >
-> 1. **Ölçüm filtresi fazı (C2).** Hız PI girişinde `WINDOW=5` moving-average var (`src/encoder.c` `Encoder_FilterSpeed`). Lineer-faz FIR grup gecikmesi $(N-1)/2\cdot\Delta t \approx 14$ ms (döngü $\Delta t\approx7$ ms). Gain-crossover $\omega_c = 34.4$ rad/s'te faz kaybı $\approx \omega_c\,\tau_g = 34.4\times0.014 \approx 0.48$ rad, yani $\approx 28°$. Naif el-hesabı: $60.2° - 28° \approx 33°$. Ama bu, kazanç-geçiş frekansının kayışını ihmal eder — aşağıdaki **tam ayrık margin** kesin değeri $\approx 40°$ verir (C1 etkisi $\omega_c$'yi düşürüp marjı kısmen telafi eder).
+> 1. **Ölçüm filtresi fazı (C2).** Hız PI girişinde `WINDOW=5` moving-average var (`src/encoder.c` `SpeedFilter_Step`; Aşama 3.3'te instance-based `SpeedFilter_t` — `encoder.h:63`). Lineer-faz FIR grup gecikmesi $(N-1)/2\cdot\Delta t \approx 14$ ms (döngü $\Delta t\approx7$ ms). Gain-crossover $\omega_c = 34.4$ rad/s'te faz kaybı $\approx \omega_c\,\tau_g = 34.4\times0.014 \approx 0.48$ rad, yani $\approx 28°$. Naif el-hesabı: $60.2° - 28° \approx 33°$. Ama bu, kazanç-geçiş frekansının kayışını ihmal eder — aşağıdaki **tam ayrık margin** kesin değeri $\approx 40°$ verir (C1 etkisi $\omega_c$'yi düşürüp marjı kısmen telafi eder).
 > 2. **Sabit örnekleme adımı (C1).** PI Tustin integrali **sabit** $T_s = 5$ ms kullanır (`src/speed_pi.c`). O dönem ana döngü $\approx 7$ ms (~140 Hz) **VARSAYILMIŞTI** — ama **hiç ölçülmedi** (git-arkeolojisi, asama_3 §12.13.1: `HAL_Delay(5)` nominalinden türetilmiş varsayım; throttle 25 ms gerçek period'u maskeliyordu). **ŞİMDİ ÖLÇÜLEN ~32 ms** (profil: 26 ms'i IMU okuma, §12.13.2) → $T_s/\Delta t \approx 0.16$; **REGRESYON DEĞİL** (loop muhtemelen hep ~32 ms'ti). Aşağıdaki $\approx 0.71$ analizi varsayılan-7 ms'e aitti; $0.16$ de-rating HP stick-slip kök-nedeni sanıldı (§12.12.5). **NOT (§12.13):** 32 ms sonra KOPUK-IMU I2C-BUSY-timeout **ARTEFAKTI** çıktı → `GPIO_PULLUP` → loop 6 ms, $T_s/\Delta t \approx 0.83$; stick-slip re-test bekliyor. Çalışan $K_i = 0.1$ bu sabit-$T_s$ varsayımı altında türetildiğinden (§11.11.3) kapalı-çevrim tutarlıdır; fakat döngü hızı değişir veya $T_s$ gerçek $dt$'ye bağlanırsa integral etkisi **sessizce kayar** (latent kuplaj). Complementary filter ve hız ölçümü zaten gerçek DWT $dt$'sini kullanır — bu asimetri yalnızca integral terimdedir.
 >
 > İkisi **aynı temanın** iki yüzüdür: ayrık-zaman ve gecikme etkileri sürekli-zaman marjına girmez.
@@ -587,9 +591,9 @@ Bu aşama, **dürüst mühendislik sürecinin** örneğidir:
 #### 11.13.4. Nasıl — Firmware (cascade + watchdog güvenlik)
 
 - `src/position_p.c` / `include/position_p.h` — pozisyon P kontrolcü. Birim dönüşümü: `ω_ref_motor = Kp_pos · (θ_ref − θ_out) · 9.7` (çıkış mili açı hatası → motor şaftı hız referansı, redüktör ölçeği).
-- `MODE:POS` cascade modu (`src/main.c`): her döngü `PositionP_Step(enc_count)` → ω_ref → `SpeedPI_SetSetpoint` → mevcut hız PI → `Motor_SetDutySigned`. Mod geçişinde encoder 0° referans + slew=0 (dış P zaten yumuşak ref üretir).
+- `MODE:POS` cascade modu (`src/main.c`): her döngü `PositionP_Step(enc_count)` → ω_ref → `SpeedPI_SetSetpoint` → mevcut hız PI → `MotorCh_SetDutySigned`. Mod geçişinde encoder 0° referans + slew=0 (dış P zaten yumuşak ref üretir).
 - Komutlar: `POS_DEG:<açı>` (hedef çıkış mili açısı), `KPP:<kazanç>` (runtime).
-- **⚠ Watchdog güvenlik düzeltmesi:** Eski kodda watchdog `Motor_Stop()` yapsa da hemen ardından mod sürüşü motoru tekrar çalıştırıyordu → SP_W/POS gibi kapalı-döngü modlarında watchdog **etkisizdi** (komut akışı kesilse de motor dönerdi). Artık watchdog aktifken mod sürüşü atlanıp `SpeedPI_Reset` ile setpoint sıfırlanıyor. `STOP`/`RESET` POS modunda hedefi mevcut konuma çekiyor (motor kaçmaz).
+- **⚠ Watchdog güvenlik düzeltmesi:** Eski kodda watchdog `MotorCh_Stop()` yapsa da hemen ardından mod sürüşü motoru tekrar çalıştırıyordu → SP_W/POS gibi kapalı-döngü modlarında watchdog **etkisizdi** (komut akışı kesilse de motor dönerdi). Artık watchdog aktifken mod sürüşü atlanıp `SpeedPI_Reset` ile setpoint sıfırlanıyor. `STOP`/`RESET` POS modunda hedefi mevcut konuma çekiyor (motor kaçmaz).
 
 #### 11.13.5. Nerede — Dosya Referansları
 

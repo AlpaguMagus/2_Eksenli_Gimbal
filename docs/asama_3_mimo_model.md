@@ -1,6 +1,6 @@
 # Aşama 3 — İki Motor MIMO Modelleme
 
-> **Durum:** 🟡 AKTİF (2026-06-07 açıldı, `feature/asama-3-mimo-model`).
+> **Durum:** ✅ KAPALI (2026-06-07 açıldı, 2026-06-24 yüksüz kapandı — tag `asama-3-kapali`, main'e `--no-ff` merge). Sıradaki: Aşama 5 (yüklü gimbal). Önceki branch `feature/asama-3-mimo-model`.
 > Bu belge ders-kitabı disipliniyle (Ne/Neden/Nasıl/Nerede/Sonuç — global CLAUDE.md)
 > aşama ilerledikçe doldurulur. Ortak teori kavramları → [`00_genel_bakis.md`](00_genel_bakis.md).
 
@@ -96,6 +96,10 @@ yalnız ünite değişir + yön/kimlik testi — **kod değişikliği gerekmez**
 > ona takılacak (eksen mekanik birebir korunur). O gelene kadar **proje TEK SAĞLAM MOTOR
 > (motor-2 ekseni) üzerinden ilerletilip tamamlanır** — 3.3 instance-based mimari bunu sağlar.
 > Yeni motor gelince: yön/kimlik testi (`motor2_sign_test.py` benzeri) + entegrasyon; kod değişmez.
+>
+> **⚠ SÜPERSEDED (2026-06-14/15):** yeni motorlar GELDİ, asimetrik eşleme — HP=Motor1/HW-039/BTS7960/20:1
+> + LP=Motor2/TB6612/9.7:1; kusurlu eski motor-1 değiştirildi; HP §12.12'de (rijit re-char §12.13.5)
+> karakterize. tek-sağlam-motor stratejisi kapandı.
 
 ### 12.4. K0 Kapanışı — gerçek-donanım sonuçları & sim-to-real analizi
 
@@ -263,6 +267,10 @@ feedforward, donanımsız tasarlanabilir) ve RGA karar kapısı (K4) gelir. Merd
 
 ### 12.5. Sistem tanımlama planı (3.4–3.5)
 
+> **⚠ SÜPERSEDED 2026-06-14/15** (ROADMAP:435/438): yeni motorlar GELDİ, asimetrik eşleme
+> (HP=Motor1/HW-039/BTS7960/20:1 + LP=Motor2/TB6612/9.7:1); tek-sağlam-motor stratejisi kapandı,
+> HP §12.12–§12.14'te karakterize; asıl MIMO ID (3.4) + K4 RGA + HP-K7 = Aşama 5.
+
 *(SISO↔MIMO veri toplama: her motoru ayrı sür, diğer ekseni ölç; eleman-bazlı `tfest`. Yöntem:
 baseline-önce — 3.3'te Aşama-2 cascade'i iki eksene yeniden-kullanılır, sonra kuplaj ölçülüp
 kanıta-dayalı MIMO kontrolcü, ROADMAP §3.)*
@@ -272,7 +280,7 @@ kanıta-dayalı MIMO kontrolcü, ROADMAP §3.)*
 - ✅ Pin planı (3.1) — KARAR verildi, kablolama tamamlandı (2026-06-08); §12.2 şema
 - ✅ Encoder-2 firmware (3.2a): TIM1 16-bit + yazılım count-genişletme — bench PASS
 - ✅ Motor-2 sürücü (3.2b): firmware + bench PASS (polarite +duty→+count = motor-1 ile AYNI)
-- ⚠ **Motor-1 ünitesi CW'de kurtarılamaz mekanik kusurlu** (teşhis tamam: motor-içi, tork/dislodge çözmedi) — **redüktörsüz yedek sipariş edildi** (sağlam gearbox ona takılacak); o gelene kadar **tek sağlam motor (motor-2 ekseni) ile ilerleme** (kullanıcı kararı 2026-06-11)
+- ⚠ **Motor-1 ünitesi CW'de kurtarılamaz mekanik kusurlu** (teşhis tamam: motor-içi, tork/dislodge çözmedi) — **redüktörsüz yedek sipariş edildi** (sağlam gearbox ona takılacak); o gelene kadar **tek sağlam motor (motor-2 ekseni) ile ilerleme** (kullanıcı kararı 2026-06-11). **⚠ SÜPERSEDED 2026-06-14/15** (ROADMAP:435/438): yeni motorlar GELDİ, asimetrik eşleme (HP=Motor1/HW-039/BTS7960/20:1 + LP=Motor2/TB6612/9.7:1); tek-sağlam-motor stratejisi kapandı, HP §12.12-§12.14'te karakterize.
 - ✅ Eksen mimarisi (3.3): instance-based `g_axis[2]` firmware + **motor-2 cascade bench PASS** (2026-06-12): `MODE2:POS` 6/6 segment temiz (ss_err<1°, OS<1°, limit-cycle yok — Test 2.5 ile birebir), refactor davranış-koruma gerçek-donanımda kanıtlandı. `artifacts/3/cascade_m2/20260612_115042/`
 - ✅ **Tek-eksen MIRROR + STABILIZASYON bench PASS** (motor-2, 2026-06-12):
   - `MODE2:MIRROR` (taklit, +pitch): takip RMS **5.53°** (Aşama 2.7 4.02° ile mertebe-uyumlu), FP aralığı 159°. `artifacts/3/mirror_m2/20260612_120636/`
@@ -281,7 +289,7 @@ kanıta-dayalı MIMO kontrolcü, ROADMAP §3.)*
   - Donanım notu: jumper bağlantı breadboard'dan sağlıklı → IMU uyku sorunu (güç-glitch) çözüldü; firmware sertleştirmesi (`94a36e3`: uyku-tespiti auto-wake + non-blocking init) yedek koruma.
 - ✅ **Yüklü tek-eksen sürtünme/gravite ID + feedforward bench PASS** (motor-2, 2026-06-13, §12.8): serbest-mil cascade yük altında stick-slip limit-cycle veriyordu; Coulomb FF ($u_c{=}0.090$) $20^\circ$'de $\theta_{std}$ $1.41^\circ \to 0.00^\circ$ bastırdı (push'lanan firmware kanonik koşu; sim doğrulandı). Coulomb FF transfer-edilebilir; gravite ($a{=}0.097$) rig-spesifik (dengesiz sarkaç).
 - ⚠ **Stall kriteri yük-bilinçli yeniden tasarlanmalı** (Aşama 5): count-tabanlı stall yüklü stick-slip'te yanlış-pozitif (§12.8.5); `STALLEN:0` süpervizeli köprü. Gerçek stall = duty-cap'e yakın + uzun hareketsiz.
-- ⬜ Yeni motor (redüktörsüz, siparişte) gelince: gearbox transferi + yön/kimlik testi + eksen-0 entegrasyon → 3.4 MIMO ID
+- ✅ ~~Yeni motor (redüktörsüz, siparişte) gelince: gearbox transferi + yön/kimlik testi + eksen-0 entegrasyon → 3.4 MIMO ID~~ **SÜPERSEDED 2026-06-14/15** (ROADMAP:435/438): yeni motorlar GELDİ, asimetrik eşleme (HP=Motor1/HW-039/BTS7960/20:1 + LP=Motor2/TB6612/9.7:1); HP §12.12-§12.14'te karakterize; asıl MIMO ID (3.4)+K4 RGA+HP-K7 = Aşama 5
 - ⬜ ACS712 Faz-2 entegrasyonu (duty %100 gevşetme ön koşulu)
 - ✅ $K_{p,pos}$ **mod-bağımlı kazanç (§12.9.3) — ÇÖZÜLDÜ (2026-06-17):** firmware $K_{p,pos}$'u moda göre
   atıyor (POS step $2.0$ `main.c:162`; MIRROR/STAB takip $6$ `cmd_parser.c:66`). Mirror/STAB testleri $6$
@@ -1020,7 +1028,7 @@ IMU-suz 32 ms'li firmware'le koştu → Ki de-rating → stick-slip = **artefakt
 
 #### 12.13.3. FIX — tek satır `GPIO_PULLUP` + sonuç (ölçüldü)
 
-`I2C1_Init`: `gpio.Pull = GPIO_NOPULL → GPIO_PULLUP` (`main.c:476`). İç pull-up (~40 kΩ) bus'ı **idle-HIGH**
+`I2C1_Init`: `gpio.Pull = GPIO_NOPULL → GPIO_PULLUP` (`main.c`, `I2C1_Init` fonksiyonu içinde). İç pull-up (~40 kΩ) bus'ı **idle-HIGH**
 tutar → BUSY flag temizlenir → IMU yokken okuma **hızlı NACK** (AF/0x04), takılıyken ~1.5 ms başarılı okuma.
 
 | Metrik | Önce (NOPULL) | Sonra (PULLUP) | |
@@ -1120,7 +1128,7 @@ cascade redesign artık **güvenilir rijit-mount modeli** üzerinden yapılır (
 `scripts/hp_characterize.py`, `scripts/hp_deadband.py`; ham `artifacts/3/hp_charac|hp_deadband/`.
 
 > 📊 Üreten: `loop-slowdown-archaeology` + `imu-26ms-diagnosis` workflow'ları + geçici I2C teşhis enstrümantasyonu
-> (kaldırıldı). FIX: `main.c:476` `GPIO_PULLUP`. Kanıt: I2CPROF BUSY@giriş 1→0, RD 26000→94 µs, LOOP 32→6 ms.
+> (kaldırıldı). FIX: `main.c` `I2C1_Init` → `GPIO_PULLUP`. Kanıt: I2CPROF BUSY@giriş 1→0, RD 26000→94 µs, LOOP 32→6 ms.
 
 ---
 
