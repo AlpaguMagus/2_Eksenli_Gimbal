@@ -1,0 +1,43 @@
+{
+  "test_id": "5.loaded-pos-hold",
+  "timestamp": "20260624_053616",
+  "commit": "dc71b70",
+  "status": "PASS",
+  "results": [
+    {
+      "tgt": 0,
+      "theta_out": 0.0,
+      "fp": 13.4,
+      "duty": 0.0,
+      "err": 0.0
+    },
+    {
+      "tgt": 25,
+      "theta_out": 24.7,
+      "fp": -7.7,
+      "duty": 0.062,
+      "err": -0.3
+    },
+    {
+      "tgt": -25,
+      "theta_out": -24.7,
+      "fp": 34.8,
+      "duty": 0.116,
+      "err": 0.3
+    },
+    {
+      "tgt": 20,
+      "theta_out": 19.7,
+      "fp": -1.5,
+      "duty": 0.033,
+      "err": -0.3
+    },
+    {
+      "tgt": 0,
+      "theta_out": 0.2,
+      "fp": 14.3,
+      "duty": 0.037,
+      "err": 0.2
+    }
+  ]
+}
