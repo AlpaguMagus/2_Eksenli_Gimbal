@@ -4,6 +4,38 @@
 >
 > Bu dosya yalnız **bu projeye özgü** bağları içerir. ⚠ Genel kurallar repo dışında (kullanıcı-global) — başka makine/katkıcı için global dosyanın kurulu olması gerekir.
 
+## ⚠ Çalışma Disiplini — sistematik ilerleme, plan-bağlılığı & güvenlik onayı
+
+> **2026-06-24 kullanıcı geri-bildirimi (kalıcı kural):** "plan dışına çıkma meyilin var — sistematik
+> gideceğiz, disiplinleri gözden kaçırma; benden fiziksel bir şey isteyince NE yapacağımı çok açık
+> belirt ve **hazır mıyım diye SOR** (görmeyip dalıyorum / motor yanlış pozisyonda tehlike); önerdiğin
+> sırayla ilerle; sokratik ol." Bu bölüm her oturum okunur — atlanmaz.
+
+**1. Plan-bağlılığı (drift YASAK).** Her teknik adımdan ÖNCE mekanik sor: *"ROADMAP / Kontrol Merdiveni'nde
+NEREDEYİZ, sıradaki PLANLI adım ne?"* Ad-hoc deneme / basamak atlama yok. Bir iş plana oturmuyorsa
+önce **planı göster + sıralamayı doğrula**, sonra ilerle. Birden çok teşhis/tasarım turuna dalmadan
+önce planı tekrar kontrol et (bu projede tekrarlanan hata: analiz/teşhis derinliğine dalıp planı
+bayatlatmak).
+
+**2. Önerdiğin sırayla ilerle.** Bir adım listesi sunduysan o sırayı takip et; sırayı değiştireceksen
+**gerekçele + onay al**, sessizce atlama.
+
+**3. Sistematik disiplinler ATLANMAZ** (hız uğruna bile): Analitik-önce · Kaynaklı · Teşhis (spekülasyon
+yasak, ham-veri) · Test-artifact (summary/meta) · Datasheet-önce · İzlenebilirlik · Aşamalı-git. Genel
+disiplinler global CLAUDE.md'de — her adımda geçerli.
+
+**4. 🛑 GÜVENLİK — fiziksel/motorlu HER istekten önce AÇIK onay (en kritik kural).** Kullanıcıdan fiziksel
+bir eylem istediğinde (motoru/tabanı eğ-sars, stand'ı kaldır, flash, motorlu test başlat, kabloya dokun):
+   - **NE yapacağını madde madde, çok açık yaz:** hangi parça · ne yönde · ne kadar (derece/saniye) · kaç kez.
+   - **Motor pozisyonu & güvenliği belirt:** motor şu an nerede, hangi yöne gidecek, runaway / çarpma /
+     **±90° kablo limiti** riski var mı, başlamadan önce hangi konumda olmalı.
+   - **"Hazır mısın?" diye SOR ve BEKLE** — kullanıcı *"hazırım/evet"* demeden testi BAŞLATMA. Kullanıcı
+     bazen talimatı görmeyip dalıyor → motor yanlış pozisyonda **fiziksel tehlike**. Bu yüzden onay
+     zorunlu. Detay: `.../memory/bench-test-hazirim-bekle.md`.
+
+**5. Sokratik (global CLAUDE.md "Etkileşim ilkesi").** Trivial olmayan kararda alternatif + trade-off sun,
+kullanıcı bilinçli karar versin; sessiz uyumluluk değil.
+
 ## Dokümantasyon Ekosistemi (proje tablosu)
 
 Aşağıdaki belgeler **her zaman güncel tutulur** (genel ilke: global CLAUDE.md "Dokümantasyon genel ilkeleri"):
