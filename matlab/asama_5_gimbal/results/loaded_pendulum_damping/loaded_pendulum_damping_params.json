@@ -1,0 +1,15 @@
+{
+  "wn_radps": 4,
+  "zeta_ol": 0.1,
+  "cascade_wc_radps": 2,
+  "zeta_target": 0.7,
+  "k_d_rate": 4.8,
+  "kff_estimate": 45,
+  "coef_gyro_chain": 0.10721649484536083,
+  "note": "k_ff MAGNITUDE estimate; SIGN via clean ring-down test; tek-gyro yetmezse NOTCH/cascade-redesign",
+  "kaynak": [
+    "pendulum ID free-decay",
+    "Franklin2010 §6",
+    "Hilkert2008"
+  ]
+}
