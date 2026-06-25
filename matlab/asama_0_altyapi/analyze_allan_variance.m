@@ -11,7 +11,9 @@ function analyze_allan_variance(test_id)
 %   - Accel açı ölçümü: drift'siz, sabit gürültü σ_θ,accel
 %   - Complementary kesim, iki hatanın eşitlendiği yer:
 %       ARW·√τ_co = σ_θ,accel  ⇒  τ_co = (σ_θ,accel / ARW)²
-%       ω_co = 1/τ_co,   α = τ_co/(τ_co + Ts)   (Ts = firmware döngü = 0.05 s)
+%       ω_co = 1/τ_co,   α = τ_co/(τ_co + Ts)   (Ts ~8 ms, IMU okunurken kanonik loop)
+%   NOT: τ_co=171 s ≫ Ts olduğundan α_opt=0.9997 dt'e pratikte duyarsız
+%        (Ts=0.05→0.999708, Ts=0.008→0.999953; %.4f'te ikisi de 0.9997).
 %
 % Çalıştırma: matlab -batch "cd('matlab/asama_0_altyapi'); analyze_allan_variance('allan_900')"
 
@@ -29,7 +31,7 @@ function analyze_allan_variance(test_id)
 
     % örnekleme periyodu (DWT µs); medyan dt gürbüz
     dt = median(diff(t_us))/1e6;  fs = 1/dt;
-    Ts_fw = 0.05;   % firmware complementary döngü periyodu (dt)
+    Ts_fw = 0.008;  % kanonik döngü periyodu ~8 ms (IMU okunurken kanonik loop)
     fprintf('Örnek: %d, fs=%.1f Hz, dt=%.4f s\n', numel(gx), fs, dt);
 
     % --- Allan deviation (gyro pitch ekseni = gy, mirror ekseni) ---

@@ -35,7 +35,7 @@ Burada $K$ DC kazanç (girdiğimiz gerilime karşılık oturan hız), $\tau$ ise
 
 ### 10.2. Neden — Niçin Önce Modelleme?
 
-Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §6.4`) yapacaksak, motorun $K$ (DC kazanç) ve $\tau$ (zaman sabiti) değerlerini bilmemiz gerekir. Hız PI kazançları, kapalı-çevrim karakteristik denklemini istenen $(\zeta,\omega_n)$ ile eşitleyerek **analitik** türetilir (tam türetme → [`asama_2_kontrol.md`](../docs/asama_2_kontrol.md) §11.2):
+Aşama 2 (PI kontrolcü tasarımı) için **pole placement** (`[Franklin2010] §6.4`) yapacaksak, motorun $K$ (DC kazanç) ve $\tau$ (zaman sabiti) değerlerini bilmemiz gerekir. Hız PI kazançları, kapalı-çevrim karakteristik denklemini istenen $(\zeta,\omega_n)$ ile eşitleyerek **analitik** türetilir (tam türetme → [`asama_2_kontrol.md`](asama_2_kontrol.md) §11.2):
 
 $$K_p = \frac{2\zeta\omega_n\tau - 1}{K}, \qquad K_i = \frac{\omega_n^2\,\tau}{K}$$
 
@@ -49,6 +49,8 @@ $$K_p = \frac{2\zeta\omega_n\tau - 1}{K}, \qquad K_i = \frac{\omega_n^2\,\tau}{K
 - 9 duty seviyesi × 2 yön = 18 step (0.12, 0.14, 0.16, 0.18, 0.20, 0.25, 0.30, 0.40, 0.45 × CW/CCW)
 - Her step: 5 sn drive + 2 sn coast, 250 ms heartbeat, **DWT mikrosaniye timestamp** (`[ARM_DWT]`)
 - 4497 örnek, 36 segment, gzip'li CSV → `artifacts/1/step_response/<id>/raw/data.csv.gz`
+
+> **Heartbeat ≠ telemetri örneklemesi:** 250 ms heartbeat host'a periyodik **durum bildirimi** (bağlantı/canlılık) içindir; veri örnekleme hızı ayrıdır → telemetri ~36 Hz (~28 ms aralık, DWT mikrosaniye timestamp ile etiketli). Step fitlerinin transient çözünürlüğünü heartbeat değil bu ~36 Hz örnekleme belirler.
 
 **Adım 2 — Step bazlı fit** (`fit_first_order.m`):
 
@@ -235,7 +237,7 @@ Bu, datasheet V_sat=0.5V varsayımımızın **görsel olarak doğrulanmasıdır*
 
 #### Bulgu 3 — τ Duty Bağımlılığı: 1. Derece Varsayımının Sınırı
 
-τ değerleri 43 ms (düşük duty) ile 134 ms (yüksek duty) arasında değişiyor (Şekil 10.3). Bu **1. derece varsayımının sınırını** gösterir.
+τ değerleri ~10 ms (en düşük-duty aykırı, CCW |duty|=0.12) ile 134 ms (yüksek duty) arasında değişiyor; IQR-içi gövde ~40-134 ms (Şekil 10.3). Bu **1. derece varsayımının sınırını** gösterir.
 
 ![τ özeti — histogram + duty bağımlılığı](../matlab/asama_1_model/results/20260518_011926/07_tau_summary.png)
 
@@ -250,10 +252,10 @@ $$G(s) = \frac{K}{(\tau_e s + 1)(\tau_m s + 1)}$$
 - $\tau_e$ (elektriksel) $= L/R \approx 2\text{-}10$ ms
 - $\tau_m$ (mekanik) $= J/b \approx 50\text{-}200$ ms
 
-Bizim için τ_m / τ_e ≈ 12-25× → elektriksel kısım anında biter, mekanik baskın → **1. derece görünür**. 40 Hz USB örneklemesi τ_e'yi zaten göremez (25 ms aralık).
+Bizim için τ_m / τ_e ≈ 5-100× (tipik ara-değer τ_e≈4 ms, τ_m≈50-100 ms → ~12-25×) → elektriksel kısım anında biter, mekanik baskın → **1. derece görünür**. USB örnekleme (~36 Hz gerçek, 40 Hz nominal TX throttle, ~28 ms aralık) τ_e'yi zaten göremez.
 
-**τ duty bağımlılığının nedeni:**
-- Düşük duty → düşük akım → düşük tork → τ_e baskın görünür
+**τ duty bağımlılığının nedeni:** Efektif mekanik zaman sabiti rejime göre değişir; ayrıca ~28 ms örnekleme hızlı transient'i zayıf çözer (düşük-duty step'lerde τ ölçümü daha gürültülü).
+- Düşük duty → düşük akım → düşük tork → daha hızlı/gürültülü transient (örnekleme sınırı belirginleşir)
 - Yüksek duty → yüksek akım → yüksek tork → τ_m baskın
 
 Tek τ ile bunun **ortalamasını** yakalıyoruz. Kontrolcü tasarımı için yeterli (Test 1.T5 PASS), ancak `[Franklin2010] §3.5` model sadeleştirme trade-off'unu açıkça not eder.
@@ -277,7 +279,7 @@ Tek (K, τ) ile validation NRMSE |duty|≈0.18'de minimum (%5.7), uçlarda yüks
 
 ![CW step fitleri](../matlab/asama_1_model/results/20260518_011926/01_step_fits_cw.png)
 
-**Şekil 10.4 —** CW yönü step fitleri. Yüksek duty'de NRMSE %3-5 (mükemmel), düşük duty'de %9-12 (transient hızlı, 40 Hz örnekleme sınırı).
+**Şekil 10.4 —** CW yönü step fitleri. Yüksek duty'de NRMSE %3-5 (mükemmel), düşük duty'de %9-12 (transient hızlı, ~36 Hz örnekleme sınırı).
 
 > 📊 **Üreten betik:** `matlab/asama_1_model/plot_results.m` (fit `fit_first_order.m`)
 
@@ -301,7 +303,7 @@ Sistem tanımlamanın güvenilirliğini göstermek için step-response veri topl
 | Validation NRMSE (ort) | %11.1 | %10.4 | ikisi de PASS |
 | $\tau_{median}$ (ms) | 60.5 | 77.4 | %28 |
 
-Kazançlar %1'in altında, simetri ve validation NRMSE tutarlı, **ikisi de Test 1.T5 PASS** → model tekrarlanabilir. Tek belirgin fark $\tau_{median}$'da (%28); ama bu, $\tau$'nın duty'ye göre geniş yayılımının (IQR ~40–49 ms, Bulgu 3) doğal yansımasıdır — ortalama dinamik aynı (her iki koşumda NRMSE < %15 hedefi). Aşama 2 tasarımı kanonik `20260518_011926` setini kullanır; `dogrulama` **bağımsız teyit** olarak korunur (silinmedi).
+Kazançlar %1'in altında, simetri ve validation NRMSE tutarlı, **ikisi de Test 1.T5 PASS** → model tekrarlanabilir. Tek belirgin fark $\tau_{median}$'da (%28); ama bu, $\tau$'nın duty'ye göre geniş yayılımının (IQR ≈ 49 ms = Q3−Q1 saçılım genişliği, Bulgu 3) doğal yansımasıdır — ortalama dinamik aynı (her iki koşumda NRMSE < %15 hedefi). Aşama 2 tasarımı kanonik `20260518_011926` setini kullanır; `dogrulama` **bağımsız teyit** olarak korunur (silinmedi).
 
 ![Tekrarlanabilirlik — bağımsız 2. koşum validation NRMSE](../matlab/asama_1_model/results/20260518_dogrulama/10_validation_summary.png)
 

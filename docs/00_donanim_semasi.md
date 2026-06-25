@@ -78,7 +78,7 @@ Renk kodu `[Pololu_25D]` Page 2. **Pololu 25D tek gövde** (motor+encoder, 6 tel
 |---|---|---|---|
 | 🔴 Kırmızı | Motor + | HW-039 M+ | TB6612-2 AO1 |
 | ⚫ Siyah | Motor − | HW-039 M− | TB6612-2 AO2 |
-| 🔵 Mavi | Encoder Vcc | **5V** | **5V** (PA8/PA9 FT, 5V-tol.) |
+| 🔵 Mavi | Encoder Vcc | **5V** (PA15/PB3 FT, 5V-tol.) | **5V** (PA8/PA9 FT, 5V-tol.) |
 | 🟢 Yeşil | Encoder GND | GND | GND |
 | 🟡 Sarı | Encoder A | PA15 | PA8 |
 | ⚪ Beyaz | Encoder B | PB3 | PA9 |
@@ -97,7 +97,7 @@ ucu swap'la veya firmware'de yön çevir. **(3)** **Encoder Vcc = 5V**, **sürü
 
 | Ray | Kaynak | Tüketiciler | Limit |
 |---|---|---|---|
-| **3.3V** | BlackPill AP7343 reg | BlackPill 50–80 mA + MPU6050 3.9 mA + 2× TB6612 lojik 4.4 mA ≈ **90 mA** | 300 mA |
+| **3.3V** | BlackPill AP7343 reg | BlackPill 50–80 mA + MPU6050 3.9 mA + 2× TB6612 lojik 4.4 mA *(eski simetrik tasarım; güncel: HW-039 + 1× TB6612)* ≈ **58–88 mA (worst-case ~90)** | 300 mA |
 | **5V** | USB direkt | 2× encoder ≈ 30 mA + reg girişi | 500 mA |
 | **12V** | Sagemcom CS50001 (Salcomp OEM 12V/5A/60W) `[Sagemcom_PSU]` | 2 motor: normal ~0.6 A · ikisi stall @ duty %50 ~1.6 A · @ %100 ~2.2 A | **5.0 A** |
 
@@ -124,7 +124,7 @@ EMI (fırça gürültüsü) + dropout (adaptör OCP-hiccup) düzeltmesi — gere
 > **Varyant:** ACS712**ELCTR-05B** (±5 A), duyarlılık **185 mV/A** TYP (180/185/190 min/typ/max),
 > sıfır-akım çıkışı $V_{CC}/2 = 2.5$ V, gürültü 21 mV pp @2 kHz BW → 21/185 ≈ **113 mA** çözünürlük;
 > 80 kHz BW, 5 V tek besleme (`[ACS712_DS]` sf 5, x05B performans tablosu). ±5 A varyant ≤1.1 A
-> akımımızda 2.5±0.21 V verir → 3.3 V ADC'ye doğrudan uyumlu (daha düşük-aralık ±5 A seçimi
+> akımımızda 2.5±0.20 V verir → 3.3 V ADC'ye doğrudan uyumlu (daha düşük-aralık ±5 A seçimi
 > duyarlılığı maksimize eder; 113 mA gürültü stall-tespiti için yeterli, serbest-koşu ince
 > ölçümü için sınırda — amper bütçesi asama_0 §8.5).
 
@@ -141,12 +141,12 @@ istendiğinde. O ana kadar rezerv.
 
 **Eklenince nasıl bağlanır (Faz-2):** ACS712 modülü motor güç hattına **SERİ** girer (akım
 içinden geçer); besleme 5V; çıkış $V_{\text{out}} = 2.5\,\text{V} + 185\,\text{mV/A} \cdot I$ → PA1/PA2 ADC. Bizim ≤1.1 A
-aralığımızda çıkış 2.5±0.21 V → **3.3V ADC doğrudan uyumlu**. ⚠ ACS712 yazılım koruması
+aralığımızda çıkış 2.5±0.20 V (185 mV/A TYP × 1.1 A = 0.20 V) → **3.3V ADC doğrudan uyumlu**. ⚠ ACS712 yazılım koruması
 MCU'ya bağımlıdır → **pasif backstop (polyfuse) yerine geçmez**, onu tamamlar. Kaynak: `[ACS712_DS]` sf 1, 5.
 
 ## 6. Faz gerekçeleri (atıf — bu belge VERİ, gerekçeler fazda)
 
-- **Aşama 0** (enc-1 PA15/PB3, motor-1 PB0/PB12-14, IMU I2C, kullanılmayan pinler):
+- **Aşama 0** (enc-1 PA15/PB3, motor-1 PB0/PB12-14 — *Aşama-0 dönemi, eski TB6612 ataması; GÜNCEL motor-1 HW-039 PB8/PB9/PB14, bkz §2*, IMU I2C, kullanılmayan pinler):
   [`asama_0_altyapi.md`](asama_0_altyapi.md) §8.1–8.6
 - **Aşama 3** (motor-2 TIM1 PA8/PA9, PB1/PB4/PB5/PB10, ayrı-STBY kararı, TIM1 16-bit kaveatı):
   [`asama_3_mimo_model.md`](asama_3_mimo_model.md) §12.2
