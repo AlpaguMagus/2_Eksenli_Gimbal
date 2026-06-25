@@ -30,7 +30,7 @@ Parametreler: **K** (rad/s/V), **τ** (s), **V_dead** (V).
 | `fit_first_order.m` | Her step için `lsqcurvefit` vs `tfest` (en iyi NRMSE) | `data` | step bazlı (K_i, τ_i) |
 | `compute_dead_band.m` | ω_ss vs V_eff lineer regresyon → V_dead = x-intercept (CW/CCW) | step bazlı (K_i, τ_i) | V_dead |
 | `validate_model.m` | Simulink ile model çıktısı vs gerçek ölçüm | model params + raw data | RMSE, NRMSE |
-| `plot_results.m` | 7 panel görsel: step fit, dead-band intercept, validation | her şey | `results/*.png` |
+| `plot_results.m` | 12 PNG (plot_results 6 + block_diagram 2 + validation 4) görsel: step fit, dead-band intercept, validation | her şey | `results/*.png` |
 | `create_block_diagram.m` | Açık-çevrim motor blok diyagramı + tek-kutup haritası | model params | `results/.../block_diagram.png` |
 | `create_simulink_model.m` | Programatik `.slx` (1. derece TF + step + scope) | model params | `results/.../*.slx` |
 

@@ -66,7 +66,10 @@ end
 % ====================================================================
 function fig_bode(outdir)
 % Complementary filter frekans bölünmesi: accel LPF + gyro HPF, kesim ω_co
-    alpha = 0.98; Ts = 0.05;
+    % Ts = kanonik döngü periyodu ~8 ms (IMU okunurken; main.c:300 DWT'den
+    % her döngü hesaplanır). Terk edilen 50 ms = eski HAL_Delay(50)/20 Hz
+    % tasarımı (docs/asama_0_altyapi.md §5.4). dt=8 ms ile ω_co=2.55 rad/s.
+    alpha = 0.98; Ts = 0.008;
     wco = (1-alpha)/(alpha*Ts);          % kesim frekansı (rad/s)
 
     w = logspace(-2, 2, 800);

@@ -27,7 +27,7 @@ metodun bir parçasının zorunlu olarak değiştiğini** belgeler.
 | Fiziksel sistem | motor + boş mil | motor + **gravite sarkacı** (telefon-tilt yükü) |
 | Mertebe | **1.** | **2.** (sarkaç) + **sürtünme nonlineeritesi** |
 | Duty step → ne oturur | sabit **HIZA** ($K\cdot u$) | sabit **AÇIYA** (motor torku = gravite torku) |
-| Ölçülen çıktı | hız (encoder rate) | **açı** (FP/encoder) |
+| Ölçülen çıktı | hız (encoder rate) | **açı** (FP; o dönemde IMU yükteydi) |
 | Fit | $K,\tau$ (1. mertebe) | $\omega_n, \zeta$ + **stiction/ölü-bölge** |
 | Kısıt | yok (serbest döner) | **±90° kablo limiti** → duty sınırlı |
 
@@ -71,6 +71,11 @@ Bu farkı atlamak (hızı ölçmeye çalışmak) yüklüde anlamsızdır — sis
 
 - **Sarkaç doğal dinamiği (serbest-coast free-decay):** $\omega_n \approx 4$ rad/s (0.65 Hz),
   $\zeta \approx 0.1$ — `scripts/loaded_pendulum_id.py`. (Bu **sürülmemiş** sarkaç; sürülünce stiction baskın.)
+  > ℹ️ **İzlenebilirlik (`...050332/meta.json`):** $\omega_n\approx4$, damped-frekanstan türetilir
+  > ($\omega_d=4.38$ rad/s, $T_{osc}=1.44$ s) $\zeta\approx0.1$ ile ($\omega_n=\omega_d/\sqrt{1-\zeta^2}$).
+  > $\zeta$ Coulomb-biased ve çok-itiş artefaktlı (meta: otomatik $\zeta=-0.008$ GEÇERSİZ) olduğundan
+  > gerçek $\omega_n$ ~4.0–4.4 aralığında olabilir; '~4' (yaklaşık) bu yüzden seçildi (JSON
+  > `omega_n_status: PRIOR`). $\omega_n$ frekanstan geldiği için $\zeta$ belirsizliğinden bağımsız sağlam.
 - **Kinematik kazanç:** $k_{kin} = \Delta FP/\Delta\theta_{out} = -0.84$ (`loaded_pos_hold` veri-fit;
   arşivdeki Adım-1 değeri −1.04 idi, gerçek −0.84). Negatif → stabilizasyon polaritesi `stab_dir = +1`.
 - **Gravite FF kazancı:** $k_{ff,grav} = 0.23$ (yüklü; asılı-dışı açıyı tutmak için duty/sin θ; Y0 gerçek bench fit, SOLID R²=0.963, §12.5.7).
@@ -81,7 +86,20 @@ Bu farkı atlamak (hızı ölçmeye çalışmak) yüklüde anlamsızdır — sis
 
 ## 12.5.2 — Yüklü plant modeli (tam)
 
-$$G(s) = \frac{FP}{u} = \frac{K_m/J}{s^2 + 2\zeta\omega_n s + \omega_n^2}, \quad \omega_n=4,\ \zeta=0.1,\ \frac{K_m}{J}=\frac{\omega_n^2}{k_{ff,grav}}=\frac{16}{0.23}\approx 70$$
+**Semboller (nomenklatura — `loaded_plant_id_design.m:16-22`):** $K_m$ = motor tork sabiti; $J$ = atalet;
+$b$ = viskoz sönüm; $\tau_c$ = Coulomb (statik/kinetik kopma) torku; $m,g,L$ = kütle / yerçekimi / kol
+uzunluğu ($mgL$ = yerçekimi-tork katsayısı); $u$ = duty girişi. Kontrol-hazır (duty-normalize, $K_m$'ye
+bölünmüş) biçim: $a=mgL/K_m$ (gravite), $s_\pm=\tau_{s\pm}/K_m$ (statik sürtünme), $p=K_m/J$.
+
+**Lineerleştirme (nonlineer ODE → 2. mertebe G(s)):** §12.5.5'teki tam nonlineer model, asılı denge
+($\theta=0$) civarında küçük-açı ($\sin\theta\approx\theta$) ile lineerleştirilir. Coulomb terimini
+göz ardı edip $\omega_n^2=mgL/J=a\cdot p$ ve $2\zeta\omega_n=b/J$ özdeşliklerini kullanınca:
+
+$$G(s) = \frac{\theta_{out}}{u} = \frac{K_m/J}{s^2 + 2\zeta\omega_n s + \omega_n^2}, \quad \omega_n=4,\ \zeta=0.1,\ \frac{K_m}{J}=\frac{\omega_n^2}{k_{ff,grav}}=\frac{16}{0.23}\approx 70$$
+
+Çıkış $\theta_{out}$ (**encoder, çıkış mili**) — model bu büyüklüğe fit edildi (`loaded_motor_params.json`
+`angle_reference: theta_out`). Yasa-demosu konfigde IMU (FP) base/şasi tarafındadır → motor $\theta_{out}$'u
+döndürse de FP'yi GÖRMEZ; FP bu konfigde ayrı bir **STAB-bozucu sinyali** olup $u$'ya doğrudan yanıt vermez.
 
 **+ YÖN-ASİMETRİK Coulomb stiction (nonlineer):** kopma duty'si — gerçek Y0: + yön ~0.06, − yön ~0.03
 (FIRST-CUT magnitüd, yön/asimetri 2.16 solid; eski tek-açı 0.09/0.05 FAZLA tahminliydi — §12.5.7 fit_report).
@@ -140,12 +158,12 @@ Bu, ölü-bölgeyi besleme-ileri ile geçer → kontrolcü ince ayar yapabilir h
 ### Y0 — Yüklü plant RİGOROUS ID (model kapanışı) · **İLK KOŞUM TAMAMLANDI (rafine açık)**
 Aşama-1 disipliniyle; gravite/sürtünme/atalet **TEMİZ AYRILMIŞ** + validasyonlu:
 
-- [ ] **Gravite haritası $a\sin\theta$:** yarı-statik duty → denge-açısı (tüm güvenli aralık, +/− yön);
+- [ ] **Gravite haritası** $a\sin\theta$: yarı-statik duty → denge-açısı (tüm güvenli aralık, +/− yön);
       $\sin\theta$ şeklini doğrula (gerçekten sarkaç mı), $a=mgL/K_m$ çıkar.
 - [ ] **Sürtünme (yön-asimetrik), graviteden AYRIK:** **çok-açıda** +/− kopma duty'si → her açıda gravite
       ($a\sin\theta$) çıkarılır → kalan = stiction (yön-bağımlı). *Tek-açı ölçümü ikisini karıştırır
       (mevcut ID'nin açığı).*
-- [ ] **Dinamik $\omega_n,\zeta,\tau$:** sürülen-adım geçici-rejiminden (free-decay $\omega_n\approx4$ ile çapraz-doğrula).
+- [ ] **Dinamik** $\omega_n,\zeta,\tau$: sürülen-adım geçici-rejiminden (free-decay $\omega_n\approx4$ ile çapraz-doğrula).
 - [ ] **Validasyon:** nonlineer modeli ölçülen duty profiliyle simüle → NRMSE (held-out adım) + bağımsız 2.koşum.
 - [ ] **Çıktı:** `loaded_motor_params.json` + `loaded_fit_report.md` + docs §12.5.2 güncelle (Aşama-1 gibi rigor).
 
@@ -181,7 +199,7 @@ latent-yol düzeltmeleri uygulandı (motorsuz; firmware derlendi, RAM 4.0%/Flash
 - **`coul_db=0` NaN-guard.** `LFFDB:0` ("saf sign-FF") + `ω_ref=0` → `0/0=NaN` duty riski guard'landı.
 - **MIRROR↔STAB geçişinde edge zorlandı** (`mirror_prev=false`) → bayat `mirror_ref` lurch'ü önlendi.
 - **`STABDIR2:0` no-op** (kazara "kapat" niyeti +1 runaway-işaretine düşmesin).
-- **İzlenebilirlik:** bayat `k_kin=−1.04`→`−0.84`, `kff_grav=0.097`→`0.21` (sistematik ID) yorumlarda düzeltildi.
+- **İzlenebilirlik:** bayat `k_kin=−1.04`→`−0.84`, `kff_grav=0.097`→`0.21` (sistematik ID; sonra Y0 rigorous fit ile `0.23`'e rafine, §12.5.7) yorumlarda düzeltildi.
 - ⚠ Default `stab_dir=−1` (yüksüz) **DEĞİŞMEDİ** — yüklü LP `STABDIR2:1` operasyonel kuralı korunur
   (atlanırsa runaway; interlock tek-taraflı eklenmedi). Mutlak-encoder referansı (gravite-FF dip-referansını
   da düzeltir) = **bench-gated ileri tasarım**.
@@ -213,6 +231,12 @@ yok / metrik confound'lu. B1/B2 (§12.5.5) ile doğrulanacak.
 matematiği türetildi ve estimator **sentetik veride** (bilinen parametre → ölç-benzet → fit → geri-kurtar)
 doğrulandı. Bench verisine güvenmeden **ÖNCE** aracın çalıştığı kanıtlandı.
 
+> ⚠ **Konfigürasyon değişti (§12.5.1'e göre çıkış-değişkeni geçişi):** §12.5.1 sysid'inde IMU yükteydi
+> ve ölçüm FP-tabanlıydı. Y0'da IMU **base/şasi tarafına taşındı** (yasa-demosu config — `loaded_motor_params.json`
+> `imu_note`), dolayısıyla plant-ID artık $\theta_{out}$ (**encoder**) ile yapılır; FP bu konfigde plant
+> çıkışı değil, ayrı bir STAB-bozucu sinyalidir. Bu belgede §12.5.1 öncesi FP-çıkışlı, §12.5.7 (Y0) ve
+> sonrası $\theta_{out}$-çıkışlıdır.
+
 **Nerede:** `matlab/asama_5_gimbal/loaded_plant_id_design.m` (tasarım+doğrulama, MATLAB) ·
 `matlab/asama_5_gimbal/loaded_plant_id_fit.m` (gerçek bench-veri fit) ·
 `scripts/loaded_plant_id_capture.py` (B1 üçgen-rampa + B3 validasyon bench-yakalama) ·
@@ -224,7 +248,7 @@ doğrulandı. Bench verisine güvenmeden **ÖNCE** aracın çalıştığı kanı
   $\text{mid}(\theta)=a\sin\theta+\tfrac{s_+-s_-}{2}$, $\text{halfgap}=\tfrac{s_++s_-}{2}$. **Lineer fit**
   $\text{mid}$ vs $\sin\theta$ → eğim $=a$, kesişim $=\tfrac{s_+-s_-}{2}$ → $a, s_+, s_-$ **temiz ayrılır**.
   (Tek açıda ölçüm $a\sin\theta$ ile sürtünmeyi karıştırır.)
-- **B2 — dinamik $\omega_n,\zeta$ (pasif free-decay).** Yüklüde **sürülen-step OSİLE ETMEZ** (Coulomb
+- **B2 — dinamik** $\omega_n,\zeta$ (pasif free-decay). Yüklüde **sürülen-step OSİLE ETMEZ** (Coulomb
   overshoot'u söndürür — §12.5.1 "overshoot YOK" bulgusu) → $\omega_n,\zeta$ ring-down'dan; $\omega_n$
   frekanstan (sürtünme büyüklüğünden bağımsız).
 - **Validasyon:** tam nonlineer model held-out duty profilde simüle → **NRMSE** (Aşama-1 disiplini).

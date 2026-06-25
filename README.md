@@ -18,7 +18,7 @@
 | **2 — Tek Motor Kontrol** | ✅ KAPALI | Hız PI + sim-to-real gap + disturbance + pozisyon cascade + IMU mirror — **2.T1–T6 tüm testler PASS** (anti-windup sim+gerçek 637ms) |
 | **3 — MIMO Model** | ✅ YÜKSÜZ KAPALI | **Yüksüz kontrol merdiveni K0–K4 bench-valide.** K0 decentralized cascade (LP rijit pos 6/6, mirror 5.72°, stab 5.08°) · K1 iki-eksen decentralized (LP 6/6, HP 4/6, çapraz-girişim yok) · K2 gyro-FF (stab lag 272→32 ms, %88↓) · K3 gereksiz (τ ~sabit) · K4 serbest-mil coupling off-diag~0. **HP ekseni** rijit karakterize ($K_g\approx 974/897$ rad/s/duty, $\tau\approx 72$ ms) + analitik cascade; loop 8 ms (I2C BUSY artefaktı çözüldü, `GPIO_PULLUP`). Residual sürtünme-limit-cycle + **derin K4 RGA + yüklü stabilizasyon = Aşama 5** |
 | 4 — MIMO Kontrol | ⬜ | Decoupling + LQR/LQI (kanıta-dayalı, RGA kapısı) |
-| 5 — Gerçek Gimbal | ⬜ | 3D-baskı + LQG/Kalman + stabilizasyon |
+| **5 — Gerçek Gimbal** | 🟡 AÇIK | Yüklü plant-ID (a=0.23, sürtünme 0.06/0.03) + analitik kontrol (Y1) + bench-validasyon — branch `feature/asama-5-yuklu-gimbal` |
 
 **Şu an (2026-06-24):** ✅ **Aşama 3 (yüksüz MIMO) KAPANDI** — yüksüz kontrol merdiveni **K0–K4 bench-valide**: K0 decentralized cascade (LP rijit pos 6/6, mirror 5.72°, stab 5.08°), K1 iki-eksen decentralized (LP 6/6 + HP 4/6, çapraz-girişim yok), K2 gyro-FF (stab lag 272→32 ms, %88↓), K3 gereksiz (τ ~sabit 1.22×), K4 serbest-mil coupling off-diag~0 (decentralized sayıyla gerekçeli). **HP ekseni** rijit karakterize ($K_g\approx 974/897$ rad/s/duty yön-asimetrik, $\tau\approx 72$ ms) + analitik cascade (§12.12); loop gerçek 8 ms (sanılan "~32 ms" kopuk-IMU I2C BUSY-timeout artefaktıydı → tek-satır `GPIO_PULLUP`); residual sürtünme-limit-cycle yapısal → K7. **Sıradaki — Aşama 5 (yüklü gimbal):** IMU payload'a taşınınca plant yeniden-ID + derin K4 RGA + HP-K7 (Kalman) + yüklü stabilizasyon. Kronoloji → [`PROJE_DURUMU.md`](PROJE_DURUMU.md) / [`ROADMAP.md`](ROADMAP.md); detay → [`docs/asama_3_mimo_model.md`](docs/asama_3_mimo_model.md) §12.14.
 
@@ -38,7 +38,8 @@ Her belge tek bir soruyu, tek bir okuyucu kitlesine cevaplar:
 | [`docs/asama_0_altyapi.md`](docs/asama_0_altyapi.md) | Donanım, firmware, IMU füzyonu, USB, motor/encoder **nasıl** kuruldu? | Geliştirici |
 | [`docs/asama_1_model.md`](docs/asama_1_model.md) | Motor modeli (K, τ) **nasıl/neden** çıkarıldı, **sonuç** ne? | Jüri (akademik) |
 | [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md) | Kontrolcü **neden** öyle tasarlandı, **alternatifler**, **sonuç**? | Jüri (akademik) |
-| [`docs/asama_3_mimo_model.md`](docs/asama_3_mimo_model.md) | **MIMO model** (aktif aşama) — 2-eksen mimari, HP/LP asimetri, cascade, teşhis? | Jüri / geliştirici |
+| [`docs/asama_3_mimo_model.md`](docs/asama_3_mimo_model.md) | **MIMO model** (yüksüz KAPALI) — 2-eksen mimari, HP/LP asimetri, cascade, teşhis? | Jüri / geliştirici |
+| [`docs/asama_5_yuklu_gimbal.md`](docs/asama_5_yuklu_gimbal.md) | **Yüklü gimbal** (aktif aşama) — yüklü plant-ID (a=0.23), gravite/sürtünme ayrıştırma, stabilizasyon yeniden-tasarım? | Jüri / geliştirici |
 | [`ROADMAP.md`](ROADMAP.md) | **Ne planlanıyor**, açık sorular, test iskeleti? | Geliştirici / danışman |
 | [`PROJE_DURUMU.md`](PROJE_DURUMU.md) | **Şu an neredeyiz**, en son ne yapıldı? | Gelecek-ben / danışman |
 | [`KAYNAKCA.md`](KAYNAKCA.md) | Hangi **literatüre** dayanıyor? (etiketli bibliyografya) | Akademik denetim |
@@ -140,10 +141,12 @@ Komut seti detayı → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md).
 ├── README.md                 ← Bu dosya (vitrin)
 ├── docs/                     ← Aşama-bazlı teknik/akademik belgeler
 │   ├── 00_genel_bakis.md     ← Vizyon + ortak kontrol teorisi primer'i (denklem/diyagram)
+│   ├── 00_donanim_semasi.md  ← Tek donanım şeması (pin/kablolama/güç)
 │   ├── asama_0_altyapi.md    ← Donanım, firmware, IMU, filter, USB, motor/encoder
 │   ├── asama_1_model.md      ← Sistem tanımlama (K, τ, dead-band)
 │   ├── asama_2_kontrol.md    ← Hız PI, sim-to-real, disturbance, pozisyon cascade
-│   └── asama_3_mimo_model.md ← MIMO model (aktif): 2-eksen mimari, HP/LP asimetri, cascade, teşhis
+│   ├── asama_3_mimo_model.md ← MIMO model (yüksüz KAPALI): 2-eksen mimari, HP/LP asimetri, cascade, teşhis
+│   └── asama_5_yuklu_gimbal.md ← Yüklü gimbal: ID + stabilizasyon
 ├── src/                      ← Firmware kaynak
 │   ├── main.c                ← Ana döngü: init, sensör, filter, kontrol, USB
 │   ├── motor.c               ← Motor sürücü API (Motor1 HW-039/BTS7960 + Motor2 TB6612, asimetrik)
@@ -158,9 +161,14 @@ Komut seti detayı → [`docs/asama_2_kontrol.md`](docs/asama_2_kontrol.md).
 │   ├── speed_step_test.py    ← Hız PI step response
 │   ├── position_step_test.py ← Pozisyon cascade step
 │   └── disturbance_test.py   ← Disturbance rejection
-├── matlab/                   ← MATLAB tasarım/analiz (toolbox tabanlı)
+├── matlab/                   ← MATLAB tasarım/analiz (toolbox tabanlı; tam liste → matlab/README.md)
+│   ├── 00_genel_teori/       ← Ortak kontrol teorisi figürleri/türetmeleri
+│   ├── asama_0_altyapi/      ← Altyapı/filtre analizleri
 │   ├── asama_1_model/        ← Sistem tanımlama pipeline
-│   └── asama_2_kontrol/      ← Kontrolcü tasarım + gerçekçi sim
+│   ├── asama_2_kontrol/      ← Kontrolcü tasarım + gerçekçi sim
+│   ├── asama_3_mimo_model/   ← MIMO model (KAPALI, K0–K4 bench-valide)
+│   ├── asama_4_mimo_kontrol/ ← MIMO kontrol ön-tasarım (K6 LQR/LQI)
+│   └── asama_5_gimbal/       ← Yüklü gimbal: yüklü plant-ID (Y0) + analitik kontrol (Y1) + K7 Kalman
 ├── artifacts/                ← Test sonuçları (summary.md + meta.json + raw/ + grafik)
 ├── datasheets/               ← Donanım PDF/şematik belgeleri
 ├── plot_angles.py            ← Gerçek zamanlı matplotlib görselleştirme
@@ -179,6 +187,6 @@ Akademik kaynaklar ve teknik karar dayanakları **etiketli liste** olarak [`KAYN
 
 **Donanım belgeleri:**
 - WeAct BlackPill — [GitHub repo](https://github.com/WeActStudio/WeActStudio.MiniSTM32F4x1) · [STM32-Base](https://stm32-base.org/boards/STM32F411CEU6-WeAct-Black-Pill-V2.0.html)
-- Yerel datasheet'ler: [`datasheets/`](datasheets/) — STM32F411, MPU6050, TB6612FNG, HW-039/BTS7960, DFRobot DFR0601, Pololu 25D motor
+- Yerel datasheet'ler: [`datasheets/`](datasheets/) — STM32F411, MPU6050, TB6612FNG, HW-039/BTS7960, L298N, DFRobot DFR0601, DFRobot product-1619, ACS712 (akım sensörü, ROADMAP rezerv), LM2596 (regülatör), Pololu motor **HP** PL-4840 (12V 25D 48CPR) + **LP** 9.7:1 48CPR (HP/LP asimetri projenin merkezi teması) — tam liste: [`datasheets/`](datasheets/)
 
 **Donanım kuralı:** Pin atama, peripheral konfig, sürücü kurulumu gibi değişikliklerden **önce** ilgili datasheet/şematik görsel olarak incelenir (detay → [`docs/asama_0_altyapi.md`](docs/asama_0_altyapi.md)).

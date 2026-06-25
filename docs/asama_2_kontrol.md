@@ -244,7 +244,7 @@ Motor sürücü
 
 | Test | Beklenen | Ölçülen / Sonuç | Durum |
 |---|---|---|---|
-| 2.T1 (kararlılık marjı) | GM≥6 dB, PM≥45° | çalışan kazanç PM=60.2°, GM=∞ — firmware plant'ta analitik+`margin` (§11.11.8) | ✅ PASS |
+| 2.T1 (kararlılık marjı) | GM≥6 dB, PM≥45° | çalışan kazanç PM=60.2° (sürekli), GM=∞ — firmware plant'ta analitik+`margin`; tam ayrık+MA PM≈39.9° marjinal <45° spec, fonksiyonel risk yok (§11.11.8: 2.T2 8/8, sürtünme ek sönüm) | ✅ PASS |
 | 2.T2 (hız step response) | T_set<5τ_ol≈300 ms, OS<%10, ss_err<%2 | gerçek motorda 8/8 step temiz, ss_err çoğunlukla <%2, bang-bang yok (§11.11.3-4) | ✅ PASS |
 | 2.T3 (anti-windup recovery) | recovery iyileşmesi | sim: ON 235 vs OFF 715 ms; **gerçek motor 637 ms** (< sim OFF → anti-windup aktif) (§11.11.9) | ✅ PASS (sim + gerçek) |
 | 2.T4 (disturbance rejection) | yük sonrası setpoint'e dönüş | baseline 101 (=setpoint), el yükü ω'yı 56'ya itti (%44 dip), PI duty 0.186→0.50 telafi, setpoint'e döndü (§11.12) | ✅ PASS |
@@ -314,15 +314,17 @@ Setpoint arttıkça bang-bang azalıyor, 280'de (≈saturation duty) oturuyor.
 
 Aşama 2.1 Simulink modeli **ideal, gürültüsüz, gecikmesiz** hız ölçümü + ideal plant varsaydı → conservative Kp=0.1163 mükemmel görünüyordu. Tasarımda **iki analitik hata** vardı:
 
-**(H1) Yanlış plant.** 2.1 pole placement plant'ı $K=53.89$ (V_eff→ω) aldı; ama firmware PI çıkışı **duty**'dir. Gerçek plant duty→ω: $K_g = K\,V_s = 654.8$ — yani **12.2× daha yüksek kazanç.** Conservative bu yüzden gerçek plant'ta devasa loop kazancı → $\omega_c = 1259$ rad/s (Nyquist üstü, §11.11.8).
+**(H1) Yanlış plant.** 2.1 pole placement plant'ı $K=53.89$ (V_eff→ω) aldı; ama firmware PI çıkışı **duty**'dir. Gerçek plant duty→ω: $K_g = K\,V_s = 654.8$ — yani **12.15× (= V_supply) daha yüksek kazanç** (çarpan tam $V_s$: $K_g = K V_s$ kimliği). Conservative bu yüzden gerçek plant'ta devasa loop kazancı → $\omega_c = 1259$ rad/s (Nyquist üstü, §11.11.8).
 
-**(H2) Doyum kısıtı yok sayıldı.** P-terimi $K_p\,e$ duty doyumunu (±0.5) aşmamalı. Conservative $K_p=0.1163$ → $e = 0.5/0.1163 = 4.3$ rad/s'lik minik hatada bile P-terimi doyar → motor full power → bang-bang. Serbest mil (0.5 duty ≈ 280 rad/s) + encoder kuantizasyon (18.7 rad/s) bunu pekiştirdi.
+**(H2) Doyum kısıtı yok sayıldı.** P-terimi $K_p\,e$ duty doyumunu (±0.5) aşmamalı. Conservative $K_p=0.1163$ → $e = 0.5/0.1163 = 4.3$ rad/s'lik minik hatada bile P-terimi doyar → motor full power → bang-bang. Serbest mil (0.5 duty ≈ 280 rad/s) + encoder kuantizasyon (18.7 rad/s) bunu pekiştirdi.[^enc-q]
+
+[^enc-q]: **Encoder hız kuantizasyonu** = $2\pi/(\text{motor cpr}) / T_s \approx 18.7$ rad/s ($T_s\approx7$ ms döngüde): $2\pi/48/0.007 = 18.70$. Motor-mili kuadratür çözünürlüğü 48 sayım/tur; çıkış mili 466 sayım/tur ($= 48\times9.7$ redüktör). Bu değer $T_s\approx7$ ms varsayılan döngüye aittir; **gerçek loop $\approx8$ ms** (§12.13, IMU okunurken 125 Hz) → güncel kuantizasyon az farklı (B14 ile uyumlu).
 
 **Analitik düzeltme** (`design_speed_pi_corrected.m`) — iki hatayı da gideren ileri tasarım:
 - **Doyum kısıtı** ($K_p$): P-terimi serbest-mil $\omega_{max}\approx300$ rad/s aralığında doyumu aşmasın → $K_p \approx 0.5/\omega_{max} \approx 0.002$ (≈250 rad/s'e kadar lineer; conservative'in 58× altı).
 - **Bant genişliği** ($\omega_n$): kapalı-çevrim = 2× plant kutbu → $\omega_n = 2/\tau = 33$ rad/s (Nyquist 449'un 14× altı, ayrık-güvenli).
 - **Doğru-plant pole placement** ($K_i$): $K_i = \omega_n^2\,\tau / K_g = 0.10$.
-- **Sönüm doğar** ($\zeta$): $\zeta = (1+K_g K_p)/(2\sqrt{K_g K_i \tau}) = 0.58$; `margin` PM=60.0° verir (§11.11.8 ile birebir).
+- **Sönüm doğar** ($\zeta$): $\zeta = (1+K_g K_p)/(2\sqrt{K_g K_i \tau}) = 0.58$; `margin` PM=60.2° verir (§11.11.8 ile birebir).
 
 ![Hız PI analitik türetme — doyum kısıtı + kapalı-çevrim step](../matlab/asama_2_kontrol/results/2_1_speed_pi/06b_speed_pi_analytic_derivation.png)
 
@@ -416,7 +418,7 @@ Sim-to-real gap'i **kararlılık marjı** düzeyinde de inceleyelim — hem çal
 
 > **⚠ Ayrık-zaman / gecikme kaveatı (dürüstlük notu).** Yukarıdaki PM = 60.2° **sürekli-zaman** PI+plant ($L_e = C_e G_d$) üzerinde hesaplanır; firmware'in gerçek döngüsünde olan iki etki bu marja **girmez** ve analizi gerçeğe göre **iyimser** gösterir:
 >
-> 1. **Ölçüm filtresi fazı (C2).** Hız PI girişinde `WINDOW=5` moving-average var (`src/encoder.c` `SpeedFilter_Step`; Aşama 3.3'te instance-based `SpeedFilter_t` — `encoder.h:63`). Lineer-faz FIR grup gecikmesi $(N-1)/2\cdot\Delta t \approx 14$ ms (döngü $\Delta t\approx7$ ms). Gain-crossover $\omega_c = 34.4$ rad/s'te faz kaybı $\approx \omega_c\,\tau_g = 34.4\times0.014 \approx 0.48$ rad, yani $\approx 28°$. Naif el-hesabı: $60.2° - 28° \approx 33°$. Ama bu, kazanç-geçiş frekansının kayışını ihmal eder — aşağıdaki **tam ayrık margin** kesin değeri $\approx 40°$ verir (C1 etkisi $\omega_c$'yi düşürüp marjı kısmen telafi eder).
+> 1. **Ölçüm filtresi fazı (C2).** Hız PI girişinde `WINDOW=5` moving-average var (`src/encoder.c` `SpeedFilter_Step`; Aşama 3.3'te instance-based `SpeedFilter_t` — `encoder.h:63`). Lineer-faz FIR grup gecikmesi $(N-1)/2\cdot\Delta t \approx 14$ ms (döngü $\Delta t\approx7$ ms). Gain-crossover $\omega_c = 34.4$ rad/s'te faz kaybı $\approx \omega_c\,\tau_g = 34.4\times0.014 \approx 0.48$ rad, yani $\approx 28°$. Naif el-hesabı: $60.2° - 28° \approx 32°$ ($60.2-28=32.2$). Ama bu, kazanç-geçiş frekansının kayışını ihmal eder — aşağıdaki **tam ayrık margin** kesin değeri $\approx 40°$ verir (C1 etkisi $\omega_c$'yi düşürüp marjı kısmen telafi eder).
 > 2. **Sabit örnekleme adımı (C1).** PI Tustin integrali **sabit** $T_s = 5$ ms kullanır (`src/speed_pi.c`). O dönem ana döngü $\approx 7$ ms (~140 Hz) **VARSAYILMIŞTI** — ama **hiç ölçülmedi** (git-arkeolojisi, asama_3 §12.13.1: `HAL_Delay(5)` nominalinden türetilmiş varsayım; throttle 25 ms gerçek period'u maskeliyordu). **ŞİMDİ ÖLÇÜLEN ~32 ms** (profil: 26 ms'i IMU okuma, §12.13.2) → $T_s/\Delta t \approx 0.16$; **REGRESYON DEĞİL** (loop muhtemelen hep ~32 ms'ti). Aşağıdaki $\approx 0.71$ analizi varsayılan-7 ms'e aitti; $0.16$ de-rating HP stick-slip kök-nedeni sanıldı (§12.12.5). **NOT (§12.13):** 32 ms sonra KOPUK-IMU I2C-BUSY-timeout **ARTEFAKTI** çıktı → `GPIO_PULLUP` → loop 6 ms, $T_s/\Delta t \approx 0.83$; stick-slip re-test bekliyor. Çalışan $K_i = 0.1$ bu sabit-$T_s$ varsayımı altında türetildiğinden (§11.11.3) kapalı-çevrim tutarlıdır; fakat döngü hızı değişir veya $T_s$ gerçek $dt$'ye bağlanırsa integral etkisi **sessizce kayar** (latent kuplaj). Complementary filter ve hız ölçümü zaten gerçek DWT $dt$'sini kullanır — bu asimetri yalnızca integral terimdedir.
 >
 > İkisi **aynı temanın** iki yüzüdür: ayrık-zaman ve gecikme etkileri sürekli-zaman marjına girmez.
@@ -435,7 +437,7 @@ Bu açık konuyu **tam ayrık margin** hesabıyla kapattık (`verify_speed_margi
 
 > 📊 **Üreten betik:** `matlab/asama_2_kontrol/verify_speed_margin_discrete.m`
 
-**Yorum (C1 + C2 ayrışımı):** C1 (efektif $K_i$ düşük, $T_s/\Delta t\approx0.71$ — **7 ms-dönemi**; ÖLÇÜLEN ~32 ms'te $\approx0.16$, §12.12.5) loop kazancını düşürüp $\omega_c$'yi $34.4\to29.6$'ya indirir ve baz marjı $62.9°$'ye **yükseltir** (düşük bant genişliği = yüksek faz payı). C2 (MA grup gecikmesi) bu düşük $\omega_c$'de $\approx 23°$ götürür → **tam ayrık PM** $\approx 40°$. Yani naif el-hesabı (33°) fazla kötümserdi; gerçek faz payı $\approx 40°$ — $\geq 45°$ spec'in hâlâ **marjinal altında** ama el-tahminden sağlam. **Fonksiyonel risk değildir** (Test 2.T2 8/8 temiz, 2.T5 cascade PASS; gerçek motorda sürtünme ek sönüm sağlar). İlginç içgörü: C1 "latent kuplaj" tek yönlü kötü değil — efektif $K_i$'yi düşürerek bandı daraltıp marjı artırıyor, çalışan tasarım bunu zaten soğurmuş.
+**Yorum (C1 + C2 ayrışımı):** C1 (efektif $K_i$ düşük, $T_s/\Delta t\approx0.71$ — **7 ms-dönemi**; ÖLÇÜLEN ~32 ms'te $\approx0.16$, §12.12.5) loop kazancını düşürüp $\omega_c$'yi $34.4\to29.6$'ya indirir ve baz marjı $62.9°$'ye **yükseltir** (düşük bant genişliği = yüksek faz payı). C2 (MA grup gecikmesi) bu düşük $\omega_c$'de $\approx 23°$ götürür → **tam ayrık PM** $\approx 40°$. Yani naif el-hesabı (32°) fazla kötümserdi; gerçek faz payı $\approx 40°$ — $\geq 45°$ spec'in hâlâ **marjinal altında** ama el-tahminden sağlam. **Fonksiyonel risk değildir** (Test 2.T2 8/8 temiz, 2.T5 cascade PASS; gerçek motorda sürtünme ek sönüm sağlar). İlginç içgörü: C1 "latent kuplaj" tek yönlü kötü değil — efektif $K_i$'yi düşürerek bandı daraltıp marjı artırıyor, çalışan tasarım bunu zaten soğurmuş.
 
 #### 11.11.9. Anti-Windup Doğrulama — Test 2.T3 (sim)
 
@@ -574,7 +576,7 @@ Analitik tahmin ($-2.1$) tam modelle ($-2.06$) **%2 uyum** — el-hesabı doğru
 
 ![Pozisyon P tasarım doğrulama — kapalı-çevrim step + açık-çevrim Bode](../matlab/asama_2_kontrol/results/2_5_cascade/position_p_design.png)
 
-**Şekil 11.13c —** Pozisyon dış döngü P ($K_{p,pos}=2$) tasarım doğrulaması. **Sol:** kapalı-çevrim step yanıtı — $\theta$ referansa salınımsız oturur (settling $\approx 1.2$ s, overshoot %0.6, tip-1 sistem → $ss_{error}=0$). **Sağ:** açık-çevrim Bode — $\omega_c = 1.93$ rad/s, PM $= 69.7°$, GM $= 23.2$ dB (geniş kararlılık marjı). Root locus (Şekil 11.13b) ile birlikte cascade dış döngü tasarımının analitik + frekans-düzeyi kanıtı.
+**Şekil 11.13c —** Pozisyon dış döngü P ($K_{p,pos}=2$) tasarım doğrulaması. **Sol:** kapalı-çevrim step yanıtı — $\theta$ referansa salınımsız oturur (settling $\approx 1.15$ s — script çıktısı 1.154 s; figür başlığı `%.1f` ile 1.2'ye yuvarlar, overshoot %0.6, tip-1 sistem → $ss_{error}=0$). **Sağ:** açık-çevrim Bode — $\omega_c = 1.93$ rad/s, PM $= 69.7°$, GM $= 23.2$ dB (geniş kararlılık marjı). Root locus (Şekil 11.13b) ile birlikte cascade dış döngü tasarımının analitik + frekans-düzeyi kanıtı.
 
 > 📊 **Üreten betik:** `matlab/asama_2_kontrol/design_position_p.m`
 
@@ -756,7 +758,7 @@ Aşama 2, Aşama 1'in motor modeli (`G(s)=K/(τs+1)`, K=53.89 rad/s/V, τ=60.5 m
 
 | Alt-aşama | İş | Test | Sonuç |
 |---|---|---|---|
-| 2.1 | Hız PI tasarımı (pole placement + pidtune, 5 kontrolcü) | **2.T1** | ✅ PASS (çalışan PM=60.2°, GM=∞ analitik+margin, §11.11.8) |
+| 2.1 | Hız PI tasarımı (pole placement + pidtune, 5 kontrolcü) | **2.T1** | ✅ PASS (çalışan PM=60.2° sürekli, GM=∞ analitik+margin; tam ayrık+MA PM≈39.9° marjinal <45° spec — fonksiyonel risk yok, §11.11.8) |
 | 2.2 | Firmware hız PI (Tustin + anti-windup + MODE/SP_W) | **2.T3** | ✅ PASS (sim ON 235 vs OFF 715 ms; gerçek motor 637 ms, §11.11.9) |
 | 2.3 | Sim-to-real gap + analitik düzeltme (doyum + doğru plant) | **2.T2** | ✅ PASS (8/8 step) |
 | 2.4 | Disturbance rejection | **2.T4** | ✅ PASS (baseline 101=setpoint, %44 dip → recovery) |

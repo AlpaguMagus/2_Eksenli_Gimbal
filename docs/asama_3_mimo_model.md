@@ -253,8 +253,8 @@ el-frekansını yakalar; gerçek referans çok-frekanslı olduğundan zaman-dome
 > geriye-dönük yeniden üretilmişti. O teşhis mirror/STAB'ın `cmd_parser.c:66` ile $6$ koştuğunu kaçırdı
 > (yalnız `main.c` default $2.0$'a baktı). 2026-06-17 kapsamlı denetimi 4 bağımsız kanıtla düzeltti
 > (`cmd_parser.c:66`=6.0f, `git show 288bb82` ffA/ffB build, `loaded_stab_ff_test.py:82` `MODE2:STAB`,
-> 121ffd6 commit itirafı): gerçek kazanç $6$, uyum ~%8, **sim-to-real geçerli**. "Efektif kazanç gizemi"
-> (§12.6) de bununla **çözüldü** — gizem yoktu, firmware mirror/STAB'da zaten $6$ komutluyor.
+> 121ffd6 commit itirafı): gerçek kazanç $6$, uyum ~%8, **sim-to-real geçerli**. "Efektif pozisyon-kazanç açığı"
+> (§12.6) de bununla **çözüldü** — açık yoktu, firmware mirror/STAB'da zaten $6$ komutluyor.
 
 #### 12.4.5. K0 değerlendirmesi & sonraki basamak
 
@@ -566,7 +566,7 @@ Korelasyon imzası teyit eder: FF-kapalı pozitif lag'de **net tepe** ($0.996$ @
 lag-$0$'dan **monoton düşer** (tepe yok). Doygunluk artefaktı değil — ffB2_gated %94.8 doymamış veriyle
 bile $0$ ms.
 
-**→ Bu precision DEĞİL.** Çözünürlük (encoder kuantizasyonu $\approx 18.7$ rad/s/count) hiç değişmeden,
+**→ Bu precision DEĞİL.** Çözünürlük (encoder kuantizasyonu $\approx 16.4$ rad/s/count @8 ms kanonik loop; §12.13.4: $21.8$ @6 ms / $16.4$ @8 ms / $4$ @32 ms) hiç değişmeden,
 yalnız FF ile lag $165 \to 0$ ms indi. Sonsuz çözünürlüklü sensör bile $e_{ss}=\omega_{in}/K_v$ lag'ini
 sıfırlamaz; bunu yalnız FF veya yüksek $K_v$ kapatır. İki eksen fiziksel olarak ayrı: çözünürlük ↔
 **statik jitter**, bandwidth/$K_v$ ↔ **dinamik lag**.
@@ -609,7 +609,7 @@ Sonuçlar:
 1. **§12.4.4 sim-to-real doğrulaması GEÇERLİ** ($K_{p,pos}=6$: model $5{,}06$/$6{,}17^\circ$ vs ölçülen
    $5{,}52$/$6{,}66^\circ$, ~%8). 2026-06-14'ün "$2{,}2\times$ aşırı-öngörür / geri çekildi" sonucu **iptal**;
    grafikler $6$'da yeniden üretildi.
-2. **§12.6 efektif-kazanç "gizemi" ÇÖZÜLDÜ** — gizem yoktu; firmware mirror/STAB'da zaten $6$
+2. **§12.6 "efektif pozisyon-kazanç açığı" ÇÖZÜLDÜ** — açık yoktu; firmware mirror/STAB'da zaten $6$
    komutluyor (`cmd_parser.c:66`). "Firmware ölçek audit" gereksiz.
 3. **Lag bulgusu (§12.9.1) model-bağımsızdı** (FF aç/kapa $165\to0$ ms ölçümü) → bu düzeltmeden etkilenmez;
    $e_{ss}=\omega_{in}/K_v$ ramp-sınırı $K_v=6$ ile $\approx 8^\circ$ (ölçülen $7^\circ$ ile tutarlı).
@@ -833,7 +833,7 @@ sert cap (akım — ACS712 yok), EC-freeze canary, kısa burst + soğuma.
 |---|---|---|---|
 | Kg (cnt/s/duty, regresyon eğimi) | 7965 | ~7900 | **%2 simetrik** |
 | Kg (rad/s motor/duty) | 1043 | — | LP'nin (655) **1.6×**'i (hızlı motor) |
-| τ63 | 63 ms | 64 ms | **simetrik** (clean 76ms; rijit re-char §12.13.5 → 71.9/71.5 ms DOĞRULADI) |
+| τ63 | 63 ms | 64 ms | **simetrik** (pre-rijit Faz-1; kanonik rijit ~72 ms, §12.13.5) |
 | Statik kopma (breakaway) | 0.21 | 0.22 | rijit §12.13.5: **0.22/0.25 yön-asimetrik** |
 | Kinetik dropout (sustain min) | 0.14 | ~0.18 | rijit §12.13.5: **0.14/0.20** (stiction/kinetik ≈1.6×) |
 | K_motor | ≈87 rad/s/V | — | önceki 83.35 ile tutarlı |
@@ -910,7 +910,7 @@ kendisi** (ölçülen kinetik sürtünme), keyfi değil:
 $$u_{ff} = u_c\cdot\mathrm{sign}(\omega_{ref}),\qquad K_{ff,coul} = u_c = 0.14\ \text{(Faz1 kinetik dropout)}$$
 
 - $K_{ff,grav} = 0$ — serbest-mil HP **dengeli** (Faz1 K-eğrisi fwd/rev simetrik → gravite asimetrisi yok; aksi halde $|u_{fwd}| \ne |u_{rev}|$ olurdu).
-- FF sonrası PI'nın kıracağı **artık stiction** $= u_s - u_c = 0.07$ → integral windup **3.0× azalır** ($u_s/(u_s-u_c)$).
+- FF sonrası PI'nın kıracağı **artık stiction** $= u_s - u_c = 0.07$ → integral windup **3.0× azalır** ($u_s/(u_s-u_c)$). (Hesaplardaki $u_s=0.21$ pre-rijit Faz-1; rijit kanonik 0.22/0.25 §12.13.5.)
 - Ölü-bant (`coul_db`): $u_{\text{db}} = K_{p,pos}\cdot\text{gear}\cdot e_{off} = 2\cdot 20\cdot(0.5^\circ) = 0.35$ rad/s (setpoint-civarı sign-chatter'ı keser; FF $\pm 0.5^\circ$ bandında kapanır).
 - Beklenen breakaway: FF yok $\approx 12$ s $\to$ FF var $\approx 3.9$ s (yine de $K_{i,\text{eff}}$ zayıf → tam settle için Ki düzeltmesi $K_i\,dt/T_s \approx 0.35$ **ayrı adım**, izole değişken disiplini).
 
@@ -931,7 +931,7 @@ bazen daha kötü. **Hüküm: Coulomb FF tek başına yetersiz** — asıl darbo
 
 > ⚠ **GÜNCELLEME (2026-06-23, §12.13):** Aşağıdaki tüm analiz **32 ms loop** varsayımına dayanır. Sonradan
 > kanıtlandı: **32 ms kopuk-IMU I2C-bus-wedge artefaktıydı** (IMU bağlı değildi → BUSY-flag 25 ms HAL-timeout).
-> Tek-satır `GPIO_PULLUP` fix → **loop 32→6 ms**, $T_s/dt$ 0.16→**0.83**. Dolayısıyla aşağıdaki "kazanç-uzayı
+> Tek-satır `GPIO_PULLUP` fix → **loop 32→6 ms**, $T_s/dt$ 0.16→**0.83** (Ts/dt NACK-anı 0.83 → IMU-okunurken gerçek 0.625; kanonik uzlaşı §12.14.1). Dolayısıyla aşağıdaki "kazanç-uzayı
 > tüketildi / mimari (timer-ISR) fix gerekli" hükmü **32 ms'e özgüydü**, büyük olasılıkla **artık geçerli değil**
 > — HP stick-slip **re-test YAPILDI (§12.13.4 rijit; gross çözüldü, residual yapısal→K7)**. Aşağıdaki veri (Ki süpürme, sürekli-takip) gerçektir ama
 > **IMU-suz 32 ms firmware'le** alınmıştır.
@@ -1036,7 +1036,7 @@ tutar → BUSY flag temizlenir → IMU yokken okuma **hızlı NACK** (AF/0x04), 
 | BUSY@giriş | 1 (stuck) | **0 (temiz)** | ✓ |
 | IMU read (RD) | 26000 µs | **94 µs** | **277×** |
 | **LOOP** | **32 ms** | **6.00 ms** (T_US Δ) | **5.3×** |
-| Efektif $T_s/dt$ | 5/32 = 0.16 | **5/6 = 0.83** | de-rating ~giderildi |
+| Efektif $T_s/dt$ | 5/32 = 0.16 | **5/6 = 0.83** (NACK durumu; IMU-okunurken 0.625, §12.14.1) | de-rating ~giderildi |
 
 → "(1) loop-rate fix" sanılan **timer-ISR mimari rebuild GEREKMEDİ** — kök-neden inherent loop değil, kopuk-IMU
 bus-float'tı. Tek satır pull-up loop'u 32→6 ms yaptı; $T_s/dt$ 0.16→0.83 → HP stick-slip'in Ki-derating
