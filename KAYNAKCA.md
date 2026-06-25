@@ -208,18 +208,52 @@
 
 ## Standartlar / Pratik Notlar
 
-- *(Aşama 1+ ilerledikçe eklenecek)*
+> Bu bölüm, projede **fiilen kullanılan/dayanak olan** standartları toplar (genel-teorem şişirmesi yok — her giriş somut kod/donanım/karar çapasıyla). Sensör-füzyonu ve klasik-kontrol bölümlerindeki standartlar burada **tekrar edilmez**, yalnız çapraz-referans verilir.
+
+### İletişim / Arayüz Standartları
+
+- **[I2C_UM10204]** NXP Semiconductors, *"UM10204 — I²C-bus specification and user manual"*, Rev. 7.0, 1 October 2021. URL: <https://www.nxp.com/docs/en/user-guide/UM10204.pdf> (NXP doğrudan link bot-bloklu olabilir; resmi PDF Pololu mirror <https://www.pololu.com/file/0J435/UM10204.pdf> üzerinden de erişilebilir)
+  - I²C = projenin **tek sensörü** MPU6050 IMU için fiili taşıma katmanı; STM32F411 I2C1 üzerinden okunuyor
+  - **Projede kullanım:** `src/main.c:21` `MPU6050_ADDR (0x68<<1)` (7-bit slave adresleme, AD0=GND; spec §3.1.10); `src/main.c:523` `ClockSpeed=100000` (Standard-mode 100 kHz; spec §3.1.1); `:526` `AddressingMode=I2C_ADDRESSINGMODE_7BIT`; `:530` `NoStretchMode=I2C_NOSTRETCH_DISABLE` (clock stretching, spec §3.1.5 / Tablo 3); `:512-519` PB6/PB7 `GPIO_MODE_AF_OD` + `GPIO_PULLUP` — open-drain bus + pull-up zorunluluğu (spec §3.1.1) §12.13 BUSY-stuck fix'inin fiziksel dayanağı (pull-up'sız float → bus BUSY-stuck); `:601-616` 0x68/0x69 AD0-kayma + `WHO_AM_I=0x75` bus-tarama
+
+- **[USB_CDC120]** USB Implementers Forum (USB-IF), *"Universal Serial Bus Class Definitions for Communication Devices"*, Revision 1.2, 3 November 2010. URL: <https://www.usb.org/document-library/class-definitions-communication-devices-12>. İlişkili taşıma spec'i: USB-IF, *"Universal Serial Bus Specification"*, Revision 2.0, 27 April 2000 (<https://www.usb.org/document-library/usb-20-specification>).
+  - PC ↔ gimbal telemetri/komut kanalı **USB CDC-ACM** (sanal COM port) ile
+  - **Projede kullanım:** `src/usbd_desc.c:41` `bDeviceClass=0x02` (Communications base class) + `:40` `bcdUSB 2.0`; VID `0x0483` / PID `0x5740` (`:6-7`, ST Virtual ComPort default); `src/usbd_cdc_if.c:17` `USBD_Interface_fops_FS` arayüz struct'ı (`CDC_Init/DeInit/Control/Receive_FS` üyeleri) + public `CDC_Transmit_FS` helper'ı (`:54`); `src/cmd_parser.c:3` `#include "usbd_cdc_if.h"`, `:289-290` host komutu (`CDC_Receive_FS`→parser) PING→PONG yanıtı `CDC_Transmit_FS` ile; `platformio.ini:14` `monitor_speed=115200`
+
+- **[ARM_ADIv5]** Arm Ltd., *"Arm Debug Interface Architecture Specification ADIv5.0 to ADIv5.2"*, ARM IHI 0031 (güncel issue: 0031H, <https://developer.arm.com/documentation/ihi0031/h/>; önceki issue 0031G © 2006–2022). Serial Wire Debug (SWD) fiziksel protokolü ve SW-DP / SWJ-DP programlama modeli bu spec'te tanımlanır. URL: <https://developer.arm.com/documentation/ihi0031/latest/>
+  - Firmware flash + debug yolunun upstream protokol spec'i (ST-Link V2 → SWD); MCU tarafını `[RM0383] §23.3` belgeler — bu giriş protokol-tarafı tamamlayıcı
+  - **Projede kullanım:** `platformio.ini:5-6` `upload_protocol=stlink` / `debug_tool=stlink`; `:7-13` SWD adapter clock düşürmesi `adapter speed 200` (200 kHz — 2-motor rewire sonrası jumper güç-bütünlüğü gerekçesi, OpenOCD ile doğrulandı); `docs/00_donanim_semasi.md:65` `SWD IO/CLK | PA13/PA14 | SWJ-DP | ST-Link`; `docs/asama_0_altyapi.md:800` (OpenOCD + ST-Link SWD flash); `src/main.c:99` `CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk` (DWT/debug-core enable). STM32 SWJ-DP = ADIv5'in SW-DP/SWJ-DP implementasyonu
+
+### Ayrık-Zaman / Örnekleme Standartları (klasik birincil kaynaklar)
+
+- **[Shannon1949]** C. E. Shannon, *"Communication in the Presence of Noise"*, Proceedings of the IRE, vol. 37, no. 1, pp. 10-21, Jan. 1949. DOI: <https://doi.org/10.1109/JRPROC.1949.232969>
+  - Örnekleme teoremi (sampling theorem) birinci formal ispatı → ayrık-zaman kontrol kararının margin-düzeyi dayanağı
+  - **Projede kullanım:** `docs/asama_2_kontrol.md:325` (`ω_n=33 rad/s`, "Nyquist'in 14× altı, ayrık-güvenli"); `:411` (conservative kazancın `ω_c=1259` ile Nyquist'i aşması → bang-bang kök-nedeni; `f_Nyq=f_s/2` tanımı); `:415` (Şekil 11.11a); `ROADMAP.md:308` (2.T1 PASS gerekçesi: conservative `ω_c=1259 > Nyquist`). Kavram önce yalnız `[Franklin2010] §8`'e gevşek atıflıydı — Shannon klasik birincil kaynak
+
+- **[Nyquist1928]** H. Nyquist, *"Certain Topics in Telegraph Transmission Theory"*, Transactions of the AIEE, vol. 47, no. 2, pp. 617-644, Apr. 1928. DOI: <https://doi.org/10.1109/T-AIEE.1928.5055024>
+  - "Nyquist frekansı" ($f_{Nyq}=f_s/2$) teriminin eponim isim-kaynağı
+  - **Projede kullanım:** `docs/asama_2_kontrol.md §11.11.8` (satır 411) literal tanım kutusu ("bir ayrık sistemin temsil edebileceği en yüksek frekans; üstündeki dinamik aliasing'e uğrar") + $\omega_c \ll \omega_{Nyq}$ tasarım kuralı margin analizinde uygulanıyor. Firmware örnekleme: `src/main.c:155` `Ts=0.008f` (8 ms / 125 Hz gerçek loop). Not: §11.11.8'in türettiği $\omega_{Nyq}$ sayıları tarihsel 140 Hz / 32 ms / 200 Hz vakalarına aittir; çekirdek iddia (terim adlandırması + $\omega_c \ll \omega_{Nyq}$ uygulaması) gerçek loop'ta da geçerli
+
+> **Gyro gürültü standardı (overlapping Allan deviation):** Sensör gürültü karakterizasyonu IEEE Std 952-1997 Annex C'ye dayanır → bkz. **[IEEE952]** ("Sensör Füzyonu" bölümü). Standartlar bölümüne taşınmadı (duplikasyon önleme). Somut kullanım orada: Aşama 0 MPU6050 statik logundan ARW=1.09°/√hr, bias instab.≈3°/hr → complementary filter α=0.98 gerekçesi.
+
+### Sayısal Temsil
+
+- **[IEEE754]** IEEE Std 754-2019 (Revision of IEEE Std 754-2008), *"IEEE Standard for Floating-Point Arithmetic"*, Institute of Electrical and Electronics Engineers, 22 July 2019. DOI: <https://doi.org/10.1109/IEEESTD.2019.8766229>. ISBN 978-1-5044-5924-2.
+  - binary32 (single-precision) formatı, yuvarlama modları, aritmetik işlem semantiği
+  - **Projede kullanım — firmware kontrol hesapları tek-precision (binary32) `float` ile koşar:** complementary filter `alpha=0.98f` füzyonu (`src/main.c:235`, `:343-344` `atan2f`/`sqrtf`), `dt=cyc_diff/96000000.0f` (`:300`), gravite/Coulomb FF `sinf` (`LoadFF_Apply`, `:66`), gyro-FF LPF (`:428-430`); PI/P kontrolcü durum değişkenleri `float` (`include/speed_pi.h:52-57`; `include/position_p.h:35-44`). STM32F411 Cortex-M4F donanım FPU'su (FPv4-SP) IEEE 754 binary32 uyumlu → `float` aritmetik donanımda. Tasarım gerekçesi: `docs/asama_0_altyapi.md:438` (M4F double-precision HW içermez; `double` soft-float olur → binary32 bilinçli mühendislik tercihi). ⚠ Not: ARM Cortex-M4 FPU resmen IEEE Std 754-**2008**'e uyumlu belgelenir (ARM TRM); 754-2019, 2008'in geriye-uyumlu minör revizyonu olduğundan binary32 formatı/yuvarlama/temel aritmetik değişmez — en güncel sürüme atıf geçerlidir. ⚠ `platformio.ini:17` `-Wl,-u,_printf_float` flag'i newlib float-printf rutini link'ine dayanır (binary32 formatına değil) → ikincil/marjinal kanıt; birincil dayanak FPU + float aritmetiktir
 
 ---
 
 ## Etiket Kullanım Şablonu
 
+> Aşağıdaki örnekler **çalışan firmware ile tutarlı tutulur** (bayat değer örnek-olarak bırakılmaz; güncelleme tetiği: firmware kazanç/loop/Ts değişikliği). Gerçek değerler: iç hız PI `Kp=0.002, Ki=0.10`, çalışan `ω_n=2/τ=33 rad/s`, doğan `ζ=0.58`; gerçek loop `Ts=8 ms / 125 Hz` (eski "200 Hz / 5 ms" yalnız nominal-varsayımdı — loop hiç koşmadı, docs §12.14.1); anti-windup `Tt=Kp/Ki=0.02 s`.
+
 Kod yorumlarında:
 ```c
 /* PWM frekansı 20 kHz seçildi:
- *   - TB6612 max 100 kHz [TB6612_DS §1.3]
+ *   - TB6612 max ~100 kHz [TB6612_DS §1.3]
  *   - Audible threshold üstü → motor sesi minimum
- *   - Kontrol bant genişliği için yeterli [Franklin2010 §11.3]
+ *   - Kontrol bant genişliği için yeterli (loop Ts=8 ms ≫ üstünde) [Franklin2010]
  */
 ```
 
@@ -227,12 +261,15 @@ Commit mesajında:
 ```
 feat(control): cascade hız iç döngü PI implementasyonu
 
-İç hız döngüsü 200 Hz fixed sample. Kp/Ki analitik:
-  doyum-kısıtı Kp≈duty_max/ω_max + doğru-plant pole placement
-  ω_n = 2/τ  [Franklin2010 §6 — pole placement; §6.4 cascade hızlık oranı]
+İç hız döngüsü ayrık PI (Tustin), gerçek loop Ts=8 ms (125 Hz;
+eski "200 Hz/5 ms" yalnız nominal-varsayımdı, §12.14.1). Kp/Ki analitik:
+  doyum-kısıtı  Kp ≈ duty_max/ω_max = 0.002
+  doğru-plant pole placement: ω_n = 2/τ = 33 rad/s (Kg=K·Vs=654.8)
+    → Ki = ω_n²·τ/Kg = 0.10  (doğan ζ=0.58, margin PM≈60°)
+  [Franklin2010 §6 — pole placement; §6.4 cascade hızlık oranı]
 
 Kazançlar matlab/asama_2_kontrol/design_speed_pi_corrected.m'de hesaplandı.
-Anti-windup back-calculation [AstromMurray2008 §10.4].
+Anti-windup back-calculation, Tt=Kp/Ki=0.02 s [AstromMurray2008 §10.4].
 ```
 
 ROADMAP/dökümanlarda:

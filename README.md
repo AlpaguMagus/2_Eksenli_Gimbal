@@ -190,3 +190,13 @@ Akademik kaynaklar ve teknik karar dayanakları **etiketli liste** olarak [`KAYN
 - Yerel datasheet'ler: [`datasheets/`](datasheets/) — STM32F411, MPU6050, TB6612FNG, HW-039/BTS7960, L298N, DFRobot DFR0601, DFRobot product-1619, ACS712 (akım sensörü, ROADMAP rezerv), LM2596 (regülatör), Pololu motor **HP** PL-4840 (12V 25D 48CPR) + **LP** 9.7:1 48CPR (HP/LP asimetri projenin merkezi teması) — tam liste: [`datasheets/`](datasheets/)
 
 **Donanım kuralı:** Pin atama, peripheral konfig, sürücü kurulumu gibi değişikliklerden **önce** ilgili datasheet/şematik görsel olarak incelenir (detay → [`docs/asama_0_altyapi.md`](docs/asama_0_altyapi.md)).
+
+---
+
+## 📄 Lisans ve Katkı
+
+Bu proje **MIT lisansı** altındadır — bkz. [`LICENSE`](LICENSE). Akademik atıf için [`CITATION.cff`](CITATION.cff) (GitHub "Cite this repository" desteği).
+
+**Proje bağlamı / katkı:** Bu depo, 3 kişilik bir bitirme tezi ekibinin parçası olarak geliştirdiğim firmware, sistem-tanımlama / kontrol tasarımı ve dokümantasyonu içerir.
+
+**Danışman:** Dr. Öğr. Üyesi Kerem ALTUN
