@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+title: "2 Eksenli Gimbal — Kontrol Mühendisliği Projesi"
+message: "Bu yazılımı veya dokümantasyonu kullanırsanız lütfen aşağıdaki gibi atıf verin."
+type: software
+authors:
+  - family-names: "Delen"
+    given-names: "Ahmet"
+date-released: "2026-06-25"
+license: MIT
+repository-code: "https://github.com/AlpaguMagus/2_Eksenli_Gimbal"
+url: "https://github.com/AlpaguMagus/2_Eksenli_Gimbal"
+abstract: >-
+  İki eksenli kamera gimbalı için 5 aşamalı kontrol mühendisliği projesi:
+  tek motorun deneysel modellenmesinden (sistem tanımlama) başlayıp klasik
+  kontrol (PI/PID/cascade), MIMO modelleme ve optimal kontrole (LQR/LQG +
+  Kalman) uzanan, gerçek 3D-baskı gimbal stabilizasyonunu hedefleyen çalışma.
+  STM32F411 (bare-metal HAL) firmware ile MATLAB (System Identification,
+  Control System, Simulink) tasarım birleştirilir; her teknik karar literatür
+  kaynaklıdır, kontrolcü parametreleri firmware'e manuel transfer edilir.
+keywords:
+  - gimbal
+  - control-systems
+  - system-identification
+  - cascade-control
+  - MIMO
+  - LQR
+  - Kalman-filter
+  - STM32
+  - embedded-systems
+  - MATLAB
+  - stabilization
