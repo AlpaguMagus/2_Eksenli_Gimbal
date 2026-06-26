@@ -26,6 +26,30 @@
 
 ---
 
+## ⚠ Bilinen Durum — Sistem Neden Henüz Tam Stabilize Etmiyor
+
+> Bu `main` dalı bir **ara-teslim / referans anlık görüntüsüdür**; aktif geliştirme `feature/asama-5-yuklu-gimbal` dalında sürüyor. Yüksüz kontrol merdiveni (K0–K4) gerçek donanımda doğrulandı; ancak sistem **yük altında henüz tam stabilize etmez**. Üç temel sebep:
+
+### 1. Yüklü plant dinamiği yüksüzden temelden farklı — kontrol yeniden tasarlanıyor (Aşama 5 açık)
+
+IMU kamera/yük tarafına taşınınca sistemin **mertebesi değişti**: yüksüz eksen 1. mertebe (duty → sabit **hıza** oturur, `ω = K·u`), yüklü eksen ise 2. mertebe **sarkaç + sürtünme nonlineeritesi** (duty → sabit **açıya** oturur; denge: motor torku = gravite torku). Yüklü plant yeniden tanımlandı (Y0: gravite katsayısı `a=0.23`, yön-asimetrik Coulomb sürtünme `0.06/0.03`, sarkaç doğal frekansı `ωn≈4 rad/s`). Ancak yük-altı kontrol — gravite/sürtünme ileri-beslemesi + cascade yeniden-tuning + gyro-FF/Kalman — henüz bench'te doğrulanmadı: örneğin analitik gyro-FF kazancı stabiliteyi fazla iyimser tahmin etti (modeldeki değer ıraksadı; güvenli aralık çok daha küçük çıktı). Bu yüzden yüklü stabilizasyon döngüsü henüz kapanmadı.
+
+### 2. Cascade'de sensör-yerleşimi mimari çelişkisi (encoder ↔ IMU)
+
+Cascade kontrolün **iç döngüsü encoder** (motor mili açısı/hızı, `θ_out`), dış döngünün **stabilizasyon hedefi ise IMU** (kamera açısı, `fused_pitch` / gyro). Yüksüzken bu tutarlıydı — tek referans çerçevesi (motor mili). Yüklü gimbalda ise IMU ile encoder **farklı çerçeveleri** ölçüyor: aralarındaki kinematik kuplaj birebir değil (`k_kin≈−0.84` — ters işaretli, 1:1 değil) ve IMU'nun konumu (yük üstünde mi, taban/şasi tarafında mı) ölçülen değişkeni değiştiriyor (`fused_pitch` ↔ `θ_out`). Stabilizasyon modunda IMU-hedefi ile encoder-pozisyon-geri-beslemesinin karışması "kontrolcü hangi açıyı sabitliyor?" sorusunu belirsiz bırakıyor. Bu mimari netleştirme (hangi sensör hangi döngüde) tamamlanmadan yüklü stabilizasyon güvenilir biçimde kapanmıyor.
+
+### Neden bu noktada — gecikmenin asıl kaynağı donanım engelleriydi
+
+Projenin yüklü-kontrole geç ulaşmasının başlıca nedeni bir dizi **güç/sürücü donanım sorunuydu:**
+
+- **TB6612 sürücü yanması.** İki motoru aynı tip sürücüyle (TB6612) sürme denemesinde kanal dengesizliği + HP motorun yüksek akımı (stall ~5.6 A, TB6612 pikini ~3.2 A'yı aşıyor) sürücüyü yaktı → **asimetrik mimariye** geçildi: Motor-1/HP = **HW-039/BTS7960** (yüksek akım), Motor-2/LP = **TB6612**.
+- **HW-039/BTS7960 entegrasyonu.** Sign-magnitude arayüz (RPWM/LPWM) firmware sürüş katmanını değiştirdi; ayrıca "sürücü yavaş (~450 ms)" sanılan davranış uzun bir teşhis sonunda firmware-ramp artefaktı çıktı (sürücü aslında hızlı).
+- **Güç dropout → bulk kapasitör.** 12V adaptörün aşırı-akım koruması (~6 A) HP inrush'ında (~5.6 A) devreye girip aralıklı dropout yarattı; çözüm ~940 µF bulk kapasitör (B+/B−) — bench'te doğrulandı.
+
+Kısacası: **yüksüz kontrol çalışır ve doğrulanmıştır; yüklü/gerçek-gimbal stabilizasyonu açık iştir.** Detay → [`docs/asama_5_yuklu_gimbal.md`](docs/asama_5_yuklu_gimbal.md) · plan → [`ROADMAP.md`](ROADMAP.md) · güncel durum → [`PROJE_DURUMU.md`](PROJE_DURUMU.md).
+
+---
+
 ## 🗺 Dokümantasyon Haritası
 
 Her belge tek bir soruyu, tek bir okuyucu kitlesine cevaplar:
